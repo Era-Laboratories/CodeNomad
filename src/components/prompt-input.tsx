@@ -45,11 +45,7 @@ export default function PromptInput(props: PromptInputProps) {
   })
 
   function handleKeyDown(e: KeyboardEvent) {
-    if (showFilePicker()) {
-      return
-    }
-
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !showFilePicker()) {
       e.preventDefault()
       handleSend()
       return
@@ -61,7 +57,7 @@ export default function PromptInput(props: PromptInputProps) {
     const atStart = textarea.selectionStart === 0 && textarea.selectionEnd === 0
     const currentHistory = history()
 
-    if (e.key === "ArrowUp" && atStart && currentHistory.length > 0) {
+    if (e.key === "ArrowUp" && !showFilePicker() && atStart && currentHistory.length > 0) {
       e.preventDefault()
       const newIndex = historyIndex() === -1 ? 0 : Math.min(historyIndex() + 1, currentHistory.length - 1)
       setHistoryIndex(newIndex)
@@ -73,7 +69,7 @@ export default function PromptInput(props: PromptInputProps) {
       return
     }
 
-    if (e.key === "ArrowDown" && historyIndex() >= 0) {
+    if (e.key === "ArrowDown" && !showFilePicker() && historyIndex() >= 0) {
       e.preventDefault()
       const newIndex = historyIndex() - 1
       if (newIndex >= 0) {
@@ -130,46 +126,63 @@ export default function PromptInput(props: PromptInputProps) {
     target.style.height = Math.min(target.scrollHeight, 200) + "px"
 
     const cursorPos = target.selectionStart
-    const lastAtIndex = value.lastIndexOf("@", cursorPos)
+    const textBeforeCursor = value.substring(0, cursorPos)
+    const lastAtIndex = textBeforeCursor.lastIndexOf("@")
 
-    if (lastAtIndex !== -1 && lastAtIndex < cursorPos) {
+    if (lastAtIndex !== -1) {
       const textAfterAt = value.substring(lastAtIndex + 1, cursorPos)
       const hasSpace = textAfterAt.includes(" ") || textAfterAt.includes("\n")
 
-      if (!hasSpace) {
+      if (!hasSpace && cursorPos === lastAtIndex + textAfterAt.length + 1) {
         setAtPosition(lastAtIndex)
         setFileSearchQuery(textAfterAt)
         setShowFilePicker(true)
-      } else {
-        setShowFilePicker(false)
+        return
       }
-    } else {
-      setShowFilePicker(false)
     }
+
+    setShowFilePicker(false)
+    setAtPosition(null)
   }
 
   function handleFileSelect(path: string) {
-    const instance = getActiveInstance()
-    if (!instance) return
-
     const filename = path.split("/").pop() || path
     const attachment = createFileAttachment(path, filename)
     addAttachment(props.instanceId, props.sessionId, attachment)
 
     const currentPrompt = prompt()
     const pos = atPosition()
+    const cursorPos = textareaRef?.selectionStart || 0
+
     if (pos !== null) {
       const before = currentPrompt.substring(0, pos)
-      const after = currentPrompt.substring(textareaRef?.selectionStart || pos)
-      setPrompt(before + after)
+      const after = currentPrompt.substring(cursorPos)
+      const newPrompt = before + " " + after
+      setPrompt(newPrompt)
+
+      setTimeout(() => {
+        if (textareaRef) {
+          const newCursorPos = pos + 1
+          textareaRef.setSelectionRange(newCursorPos, newCursorPos)
+        }
+      }, 0)
     }
 
     setShowFilePicker(false)
     setAtPosition(null)
     setFileSearchQuery("")
 
-    setTimeout(() => textareaRef?.focus(), 50)
+    textareaRef?.focus()
   }
+
+  function handleFilePickerClose() {
+    setShowFilePicker(false)
+    setAtPosition(null)
+    setFileSearchQuery("")
+    textareaRef?.focus()
+  }
+
+  function handleFilePickerNavigate(_direction: "up" | "down") {}
 
   function handleRemoveAttachment(attachmentId: string) {
     removeAttachment(props.instanceId, props.sessionId, attachmentId)
@@ -223,11 +236,23 @@ export default function PromptInput(props: PromptInputProps) {
       </Show>
       <div
         ref={containerRef}
-        class={`prompt-input-wrapper ${isDragging() ? "border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/10" : ""}`}
+        class={`prompt-input-wrapper relative ${isDragging() ? "border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/10" : ""}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        <Show when={showFilePicker() && instance()}>
+          <FilePicker
+            open={showFilePicker()}
+            onClose={handleFilePickerClose}
+            onSelect={handleFileSelect}
+            onNavigate={handleFilePickerNavigate}
+            instanceClient={instance()!.client}
+            searchQuery={fileSearchQuery()}
+            textareaRef={textareaRef}
+          />
+        </Show>
+
         <textarea
           ref={textareaRef}
           class="prompt-input"
@@ -266,21 +291,6 @@ export default function PromptInput(props: PromptInputProps) {
           />
         </div>
       </div>
-
-      <Show when={showFilePicker() && instance()}>
-        <FilePicker
-          open={showFilePicker()}
-          onClose={() => {
-            setShowFilePicker(false)
-            setAtPosition(null)
-            setFileSearchQuery("")
-          }}
-          onSelect={handleFileSelect}
-          instanceId={props.instanceId}
-          instanceClient={instance()!.client}
-          searchQuery={fileSearchQuery()}
-        />
-      </Show>
     </div>
   )
 }
