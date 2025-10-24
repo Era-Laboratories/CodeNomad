@@ -79,20 +79,39 @@ const FilePicker: Component<FilePickerProps> = (props) => {
       const gitFiles = cachedGitFiles()
       console.log(`[FilePicker] Using ${gitFiles.length} cached git files`)
 
-      console.log(`[FilePicker] Searching files with query: "${searchQuery || "(empty)"}"`)
-      const searchResponse = await props.instanceClient.find.files({
-        query: { query: searchQuery || " " },
-      })
-      const elapsed = Date.now() - startTime
+      let searchFiles: FileItem[] = []
 
-      console.log(`[FilePicker] Search response received in ${elapsed}ms:`, searchResponse)
+      if (searchQuery.trim()) {
+        console.log(`[FilePicker] Searching files with query: "${searchQuery}"`)
+        const searchResponse = await props.instanceClient.find.files({
+          query: { query: searchQuery },
+        })
+        const elapsed = Date.now() - startTime
 
-      const searchFiles: FileItem[] = (searchResponse?.data || [])
-        .filter((path: string) => !gitFiles.some((gf) => gf.path === path))
-        .map((path: string) => ({
-          path,
-          isGitFile: false,
-        }))
+        console.log(`[FilePicker] Search response received in ${elapsed}ms:`, searchResponse)
+
+        searchFiles = (searchResponse?.data || [])
+          .filter((path: string) => !gitFiles.some((gf) => gf.path === path))
+          .map((path: string) => ({
+            path,
+            isGitFile: false,
+          }))
+      } else {
+        console.log(`[FilePicker] Empty query, fetching all files`)
+        const searchResponse = await props.instanceClient.find.files({
+          query: { query: "" },
+        })
+        const elapsed = Date.now() - startTime
+
+        console.log(`[FilePicker] All files response received in ${elapsed}ms:`, searchResponse)
+
+        searchFiles = (searchResponse?.data || [])
+          .filter((path: string) => !gitFiles.some((gf) => gf.path === path))
+          .map((path: string) => ({
+            path,
+            isGitFile: false,
+          }))
+      }
 
       const filteredGitFiles = searchQuery.trim()
         ? gitFiles.filter((f) => f.path.toLowerCase().includes(searchQuery.toLowerCase()))
