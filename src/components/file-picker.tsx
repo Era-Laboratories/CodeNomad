@@ -66,11 +66,6 @@ const FilePicker: Component<FilePickerProps> = (props) => {
   }
 
   async function fetchFiles(searchQuery: string) {
-    if (!props.instanceClient) {
-      console.log("[FilePicker] No instance client for file search")
-      return
-    }
-
     console.log(`[FilePicker] Fetching files for query: "${searchQuery}"`)
     setLoading(true)
     const startTime = Date.now()
@@ -79,49 +74,12 @@ const FilePicker: Component<FilePickerProps> = (props) => {
       const gitFiles = cachedGitFiles()
       console.log(`[FilePicker] Using ${gitFiles.length} cached git files`)
 
-      let searchFiles: FileItem[] = []
-
-      if (searchQuery.trim()) {
-        console.log(`[FilePicker] Searching files with query: "${searchQuery}"`)
-        const searchResponse = await props.instanceClient.find.files({
-          query: { query: searchQuery },
-        })
-        const elapsed = Date.now() - startTime
-
-        console.log(`[FilePicker] Search response received in ${elapsed}ms:`, searchResponse)
-
-        searchFiles = (searchResponse?.data || [])
-          .filter((path: string) => !gitFiles.some((gf) => gf.path === path))
-          .map((path: string) => ({
-            path,
-            isGitFile: false,
-          }))
-      } else {
-        console.log(`[FilePicker] Empty query, fetching all files`)
-        const searchResponse = await props.instanceClient.find.files({
-          query: { query: "" },
-        })
-        const elapsed = Date.now() - startTime
-
-        console.log(`[FilePicker] All files response received in ${elapsed}ms:`, searchResponse)
-
-        searchFiles = (searchResponse?.data || [])
-          .filter((path: string) => !gitFiles.some((gf) => gf.path === path))
-          .map((path: string) => ({
-            path,
-            isGitFile: false,
-          }))
-      }
-
       const filteredGitFiles = searchQuery.trim()
         ? gitFiles.filter((f) => f.path.toLowerCase().includes(searchQuery.toLowerCase()))
         : gitFiles
-      const allFiles = [...filteredGitFiles, ...searchFiles]
 
-      console.log(
-        `[FilePicker] Showing ${allFiles.length} files (${filteredGitFiles.length} git + ${searchFiles.length} search)`,
-      )
-      setFiles(allFiles)
+      console.log(`[FilePicker] Showing ${filteredGitFiles.length} git files`)
+      setFiles(filteredGitFiles)
       setSelectedIndex(0)
     } catch (error) {
       const elapsed = Date.now() - startTime

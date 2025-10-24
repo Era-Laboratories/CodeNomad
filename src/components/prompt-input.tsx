@@ -328,14 +328,13 @@ export default function PromptInput(props: PromptInputProps) {
       if (pos !== null) {
         const before = currentPrompt.substring(0, pos + 1)
         const after = currentPrompt.substring(cursorPos)
-        const folderPath = path.slice(0, -1)
-        const newPrompt = before + folderPath + after
+        const newPrompt = before + path + after
         setPrompt(newPrompt)
-        setFileSearchQuery(folderPath)
+        setFileSearchQuery(path)
 
         setTimeout(() => {
           if (textareaRef) {
-            const newCursorPos = pos + 1 + folderPath.length
+            const newCursorPos = pos + 1 + path.length
             textareaRef.setSelectionRange(newCursorPos, newCursorPos)
             textareaRef.style.height = "auto"
             textareaRef.style.height = Math.min(textareaRef.scrollHeight, 200) + "px"
