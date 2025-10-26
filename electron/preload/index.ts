@@ -2,7 +2,11 @@ import { contextBridge, ipcRenderer } from "electron"
 
 export interface ElectronAPI {
   selectFolder: () => Promise<string | null>
-  createInstance: (id: string, folder: string) => Promise<{ id: string; port: number; pid: number; binaryPath: string }>
+  createInstance: (
+    id: string,
+    folder: string,
+    binaryPath?: string,
+  ) => Promise<{ id: string; port: number; pid: number; binaryPath: string }>
   stopInstance: (pid: number) => Promise<void>
   onInstanceStarted: (callback: (data: { id: string; port: number; pid: number; binaryPath: string }) => void) => void
   onInstanceError: (callback: (data: { id: string; error: string }) => void) => void
@@ -15,19 +19,24 @@ export interface ElectronAPI {
   ) => void
   onNewInstance: (callback: () => void) => void
   scanDirectory: (workspaceFolder: string) => Promise<string[]>
+  // OpenCode binary operations
+  selectOpenCodeBinary: () => Promise<string | null>
+  validateOpenCodeBinary: (path: string) => Promise<{ valid: boolean; version?: string; error?: string }>
   // Storage operations
-  getConfigPath: () => string
-  getInstancesDir: () => string
+  getConfigPath: () => Promise<string>
+  getInstancesDir: () => Promise<string>
   readConfigFile: () => Promise<string>
   writeConfigFile: (content: string) => Promise<void>
   readInstanceFile: (instanceId: string) => Promise<string>
   writeInstanceFile: (instanceId: string, content: string) => Promise<void>
   deleteInstanceFile: (instanceId: string) => Promise<void>
+  onConfigChanged: (callback: () => void) => () => void
 }
 
 const electronAPI: ElectronAPI = {
   selectFolder: () => ipcRenderer.invoke("dialog:selectFolder"),
-  createInstance: (id: string, folder: string) => ipcRenderer.invoke("instance:create", id, folder),
+  createInstance: (id: string, folder: string, binaryPath?: string) =>
+    ipcRenderer.invoke("instance:create", id, folder, binaryPath),
   stopInstance: (pid: number) => ipcRenderer.invoke("instance:stop", pid),
   onInstanceStarted: (callback) => {
     ipcRenderer.on("instance:started", (_, data) => callback(data))
@@ -45,6 +54,9 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on("menu:newInstance", () => callback())
   },
   scanDirectory: (workspaceFolder: string) => ipcRenderer.invoke("fs:scanDirectory", workspaceFolder),
+  // OpenCode binary operations
+  selectOpenCodeBinary: () => ipcRenderer.invoke("dialog:selectOpenCodeBinary"),
+  validateOpenCodeBinary: (path: string) => ipcRenderer.invoke("opencode:validateBinary", path),
   // Storage operations
   getConfigPath: () => ipcRenderer.invoke("storage:getConfigPath"),
   getInstancesDir: () => ipcRenderer.invoke("storage:getInstancesDir"),
@@ -56,6 +68,7 @@ const electronAPI: ElectronAPI = {
   deleteInstanceFile: (filename: string) => ipcRenderer.invoke("storage:deleteInstanceFile", filename),
   onConfigChanged: (callback: () => void) => {
     ipcRenderer.on("storage:configChanged", () => callback())
+    return () => ipcRenderer.removeAllListeners("storage:configChanged")
   },
 }
 

@@ -1,8 +1,9 @@
-import type { Preferences, RecentFolder } from "../stores/preferences"
+import type { Preferences, RecentFolder, OpenCodeBinary } from "../stores/preferences"
 
 export interface ConfigData {
   preferences: Preferences
   recentFolders: RecentFolder[]
+  opencodeBinaries: OpenCodeBinary[]
 }
 
 export interface InstanceData {
@@ -10,22 +11,38 @@ export interface InstanceData {
 }
 
 export class FileStorage {
-  private configPath: string
-  private instancesDir: string
+  private configPath: string | undefined
+  private instancesDir: string | undefined
   private configChangeListeners: Set<() => void> = new Set()
+  private initialized = false
 
   constructor() {
-    this.configPath = window.electronAPI.getConfigPath()
-    this.instancesDir = window.electronAPI.getInstancesDir()
+    this.initialize()
+  }
+
+  private async initialize() {
+    if (this.initialized) return
+
+    this.configPath = await window.electronAPI.getConfigPath()
+    this.instancesDir = await window.electronAPI.getInstancesDir()
 
     // Listen for config changes from other instances
     window.electronAPI.onConfigChanged(() => {
       this.configChangeListeners.forEach((listener) => listener())
     })
+
+    this.initialized = true
+  }
+
+  private async ensureInitialized() {
+    if (!this.initialized) {
+      await this.initialize()
+    }
   }
 
   // Config operations
   async loadConfig(): Promise<ConfigData> {
+    await this.ensureInitialized()
     try {
       const content = await window.electronAPI.readConfigFile()
       return JSON.parse(content)
@@ -36,11 +53,13 @@ export class FileStorage {
           showThinkingBlocks: false,
         },
         recentFolders: [],
+        opencodeBinaries: [],
       }
     }
   }
 
   async saveConfig(config: ConfigData): Promise<void> {
+    await this.ensureInitialized()
     try {
       await window.electronAPI.writeConfigFile(JSON.stringify(config, null, 2))
     } catch (error) {
@@ -51,6 +70,7 @@ export class FileStorage {
 
   // Instance operations
   async loadInstanceData(instanceId: string): Promise<InstanceData> {
+    await this.ensureInitialized()
     try {
       const filename = this.instanceIdToFilename(instanceId)
       const content = await window.electronAPI.readInstanceFile(filename)
@@ -64,6 +84,7 @@ export class FileStorage {
   }
 
   async saveInstanceData(instanceId: string, data: InstanceData): Promise<void> {
+    await this.ensureInitialized()
     try {
       const filename = this.instanceIdToFilename(instanceId)
       await window.electronAPI.writeInstanceFile(filename, JSON.stringify(data, null, 2))
@@ -74,6 +95,7 @@ export class FileStorage {
   }
 
   async deleteInstanceData(instanceId: string): Promise<void> {
+    await this.ensureInitialized()
     try {
       const filename = this.instanceIdToFilename(instanceId)
       await window.electronAPI.deleteInstanceFile(filename)

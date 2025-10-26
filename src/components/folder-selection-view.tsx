@@ -1,15 +1,18 @@
 import { Component, createSignal, Show, For, onMount, onCleanup } from "solid-js"
-import { Folder, Clock, Trash2, FolderPlus } from "lucide-solid"
-import { recentFolders, removeRecentFolder } from "../stores/preferences"
+import { Folder, Clock, Trash2, FolderPlus, Settings, ChevronDown, ChevronUp } from "lucide-solid"
+import { recentFolders, removeRecentFolder, preferences } from "../stores/preferences"
+import OpenCodeBinarySelector from "./opencode-binary-selector"
 
 interface FolderSelectionViewProps {
-  onSelectFolder: (folder?: string) => void
+  onSelectFolder: (folder?: string, binaryPath?: string) => void
   isLoading?: boolean
 }
 
 const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
   const [selectedIndex, setSelectedIndex] = createSignal(0)
   const [focusMode, setFocusMode] = createSignal<"recent" | "new" | null>("recent")
+  const [showAdvanced, setShowAdvanced] = createSignal(false)
+  const [selectedBinary, setSelectedBinary] = createSignal(preferences().lastUsedBinary || "opencode")
 
   const folders = () => recentFolders()
 
@@ -111,11 +114,11 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
   }
 
   function handleFolderSelect(path: string) {
-    props.onSelectFolder(path)
+    props.onSelectFolder(path, selectedBinary())
   }
 
   function handleBrowse() {
-    props.onSelectFolder()
+    props.onSelectFolder(undefined, selectedBinary())
   }
 
   function handleRemove(path: string, e?: Event) {
@@ -146,7 +149,7 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
           <p class="text-base text-gray-600 dark:text-gray-400">Select a folder to start coding with AI</p>
         </div>
 
-        <div class="space-y-4">
+        <div class="space-y-4 overflow-visible">
           <Show
             when={folders().length > 0}
             fallback={
@@ -159,7 +162,7 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
               </div>
             }
           >
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
               <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Recent Folders</h2>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -221,11 +224,12 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
             </div>
           </Show>
 
-          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
               <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Browse for Folder</h2>
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Select any folder on your computer</p>
             </div>
+
             <div class="p-4">
               <button
                 onClick={handleBrowse}
@@ -241,6 +245,35 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
                   Cmd+Enter
                 </kbd>
               </button>
+            </div>
+
+            {/* Advanced settings section */}
+            <div class="border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced())}
+                class="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div class="flex items-center gap-2">
+                  <Settings class="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Advanced Settings</span>
+                </div>
+                {showAdvanced() ? (
+                  <ChevronUp class="w-4 h-4 text-gray-400" />
+                ) : (
+                  <ChevronDown class="w-4 h-4 text-gray-400" />
+                )}
+              </button>
+
+              <Show when={showAdvanced()}>
+                <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 overflow-visible">
+                  <div class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">OpenCode Binary</div>
+                  <OpenCodeBinarySelector
+                    selectedBinary={selectedBinary()}
+                    onBinaryChange={setSelectedBinary}
+                    disabled={props.isLoading}
+                  />
+                </div>
+              </Show>
             </div>
           </div>
         </div>

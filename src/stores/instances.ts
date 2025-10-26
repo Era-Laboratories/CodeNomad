@@ -40,7 +40,7 @@ function removeInstance(id: string) {
   }
 }
 
-async function createInstance(folder: string): Promise<string> {
+async function createInstance(folder: string, binaryPath?: string): Promise<string> {
   const id = `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
   const instance: Instance = {
@@ -56,7 +56,12 @@ async function createInstance(folder: string): Promise<string> {
   addInstance(instance)
 
   try {
-    const { id: returnedId, port, pid, binaryPath } = await window.electronAPI.createInstance(id, folder)
+    const {
+      id: returnedId,
+      port,
+      pid,
+      binaryPath: actualBinaryPath,
+    } = await window.electronAPI.createInstance(id, folder, binaryPath)
 
     const client = sdkManager.createClient(port)
 
@@ -65,7 +70,7 @@ async function createInstance(folder: string): Promise<string> {
       pid,
       client,
       status: "ready",
-      binaryPath,
+      binaryPath: actualBinaryPath,
     })
 
     setActiveInstanceId(id)

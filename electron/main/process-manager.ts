@@ -50,14 +50,14 @@ class ProcessManager {
     }
   }
 
-  async spawn(folder: string, instanceId: string): Promise<ProcessInfo> {
+  async spawn(folder: string, instanceId: string, binaryPath?: string): Promise<ProcessInfo> {
     this.validateFolder(folder)
-    const binaryPath = this.validateOpenCodeBinary()
+    const actualBinaryPath = binaryPath ? this.validateCustomBinary(binaryPath) : this.validateOpenCodeBinary()
 
-    this.sendLog(instanceId, "info", `Starting OpenCode server for ${folder}...`)
+    this.sendLog(instanceId, "info", `Starting OpenCode server for ${folder} using ${actualBinaryPath}...`)
 
     return new Promise((resolve, reject) => {
-      const child = spawn("opencode", ["serve", "--port", "0", "--print-logs", "--log-level", "DEBUG"], {
+      const child = spawn(actualBinaryPath, ["serve", "--port", "0", "--print-logs", "--log-level", "DEBUG"], {
         cwd: folder,
         stdio: ["ignore", "pipe", "pipe"],
         env: process.env,
@@ -103,7 +103,7 @@ class ProcessManager {
             }
 
             this.processes.set(child.pid!, meta)
-            resolve({ pid: child.pid!, port, binaryPath })
+            resolve({ pid: child.pid!, port, binaryPath: actualBinaryPath })
           }
 
           const meta = this.processes.get(child.pid!)
@@ -220,6 +220,28 @@ class ProcessManager {
         "opencode binary not found in PATH. Please install OpenCode CLI first: npm install -g @opencode/cli",
       )
     }
+  }
+
+  private validateCustomBinary(binaryPath: string): string {
+    if (!existsSync(binaryPath)) {
+      throw new Error(`OpenCode binary not found: ${binaryPath}`)
+    }
+
+    const stats = statSync(binaryPath)
+    if (!stats.isFile()) {
+      throw new Error(`Path is not a file: ${binaryPath}`)
+    }
+
+    // Check if executable (on Unix systems)
+    if (process.platform !== "win32") {
+      try {
+        execSync(`test -x "${binaryPath}"`, { stdio: "pipe" })
+      } catch {
+        throw new Error(`Binary is not executable: ${binaryPath}`)
+      }
+    }
+
+    return binaryPath
   }
 }
 

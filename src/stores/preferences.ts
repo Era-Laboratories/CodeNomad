@@ -3,6 +3,13 @@ import { storage, type ConfigData } from "../lib/storage"
 
 export interface Preferences {
   showThinkingBlocks: boolean
+  lastUsedBinary?: string
+}
+
+export interface OpenCodeBinary {
+  path: string
+  version?: string
+  lastUsed: number
 }
 
 export interface RecentFolder {
@@ -18,12 +25,14 @@ const defaultPreferences: Preferences = {
 
 const [preferences, setPreferences] = createSignal<Preferences>(defaultPreferences)
 const [recentFolders, setRecentFolders] = createSignal<RecentFolder[]>([])
+const [opencodeBinaries, setOpenCodeBinaries] = createSignal<OpenCodeBinary[]>([])
 
 async function loadConfig(): Promise<void> {
   try {
     const config = await storage.loadConfig()
     setPreferences({ ...defaultPreferences, ...config.preferences })
     setRecentFolders(config.recentFolders)
+    setOpenCodeBinaries(config.opencodeBinaries || [])
   } catch (error) {
     console.error("Failed to load config:", error)
   }
@@ -34,6 +43,7 @@ async function saveConfig(): Promise<void> {
     const config: ConfigData = {
       preferences: preferences(),
       recentFolders: recentFolders(),
+      opencodeBinaries: opencodeBinaries(),
     }
     await storage.saveConfig(config)
   } catch (error) {
@@ -66,6 +76,35 @@ function removeRecentFolder(path: string): void {
   saveConfig().catch(console.error)
 }
 
+function addOpenCodeBinary(path: string, version?: string): void {
+  const binaries = opencodeBinaries().filter((b) => b.path !== path)
+  binaries.unshift({ path, version, lastUsed: Date.now() })
+
+  const trimmed = binaries.slice(0, 10) // Keep max 10 binaries
+  setOpenCodeBinaries(trimmed)
+  saveConfig().catch(console.error)
+}
+
+function removeOpenCodeBinary(path: string): void {
+  const binaries = opencodeBinaries().filter((b) => b.path !== path)
+  setOpenCodeBinaries(binaries)
+  saveConfig().catch(console.error)
+}
+
+function updateLastUsedBinary(path: string): void {
+  updatePreferences({ lastUsedBinary: path })
+
+  const binaries = opencodeBinaries()
+  const binary = binaries.find((b) => b.path === path)
+  if (binary) {
+    binary.lastUsed = Date.now()
+    // Move to front
+    const sorted = [binary, ...binaries.filter((b) => b.path !== path)]
+    setOpenCodeBinaries(sorted)
+    saveConfig().catch(console.error)
+  }
+}
+
 // Load config on mount and listen for changes from other instances
 onMount(() => {
   loadConfig()
@@ -79,4 +118,15 @@ onMount(() => {
   return unsubscribe
 })
 
-export { preferences, updatePreferences, toggleShowThinkingBlocks, recentFolders, addRecentFolder, removeRecentFolder }
+export {
+  preferences,
+  updatePreferences,
+  toggleShowThinkingBlocks,
+  recentFolders,
+  addRecentFolder,
+  removeRecentFolder,
+  opencodeBinaries,
+  addOpenCodeBinary,
+  removeOpenCodeBinary,
+  updateLastUsedBinary,
+}

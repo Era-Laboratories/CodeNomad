@@ -1,8 +1,9 @@
-import { ipcMain, BrowserWindow } from "electron"
+import { ipcMain, BrowserWindow, dialog } from "electron"
 import { processManager } from "./process-manager"
 import { randomBytes } from "crypto"
 import * as fs from "fs"
 import * as path from "path"
+import { execSync } from "child_process"
 import ignore from "ignore"
 
 interface Instance {
@@ -23,7 +24,20 @@ function generateId(): string {
 export function setupInstanceIPC(mainWindow: BrowserWindow) {
   processManager.setMainWindow(mainWindow)
 
-  ipcMain.handle("instance:create", async (event, id: string, folder: string) => {
+  ipcMain.handle("dialog:selectFolder", async () => {
+    const result = await dialog.showOpenDialog(mainWindow!, {
+      title: "Select Project Folder",
+      properties: ["openDirectory"],
+    })
+
+    if (result.canceled || !result.filePaths.length) {
+      return null
+    }
+
+    return result.filePaths[0]
+  })
+
+  ipcMain.handle("instance:create", async (event, id: string, folder: string, binaryPath?: string) => {
     const instance: Instance = {
       id,
       folder,
@@ -35,13 +49,13 @@ export function setupInstanceIPC(mainWindow: BrowserWindow) {
     instances.set(id, instance)
 
     try {
-      const { pid, port, binaryPath } = await processManager.spawn(folder, id)
+      const { pid, port, binaryPath: actualBinaryPath } = await processManager.spawn(folder, id, binaryPath)
 
       instance.port = port
       instance.pid = pid
       instance.status = "ready"
 
-      mainWindow.webContents.send("instance:started", { id, port, pid, binaryPath })
+      mainWindow.webContents.send("instance:started", { id, port, pid, binaryPath: actualBinaryPath })
 
       const meta = processManager.getAllProcesses().get(pid)
       if (meta) {
@@ -51,7 +65,7 @@ export function setupInstanceIPC(mainWindow: BrowserWindow) {
         })
       }
 
-      return { id, port, pid, binaryPath }
+      return { id, port, pid, binaryPath: actualBinaryPath }
     } catch (error) {
       instance.status = "error"
       instance.error = error instanceof Error ? error.message : String(error)
@@ -127,5 +141,89 @@ export function setupInstanceIPC(mainWindow: BrowserWindow) {
     }
 
     return scanDir(workspaceFolder, workspaceFolder)
+  })
+
+  // OpenCode binary operations
+  ipcMain.handle("dialog:selectOpenCodeBinary", async () => {
+    const result = await dialog.showOpenDialog(mainWindow!, {
+      title: "Select OpenCode Binary",
+      filters: [
+        { name: "Executable Files", extensions: ["exe", "cmd", "bat", "sh", "command", "app", ""] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+      properties: ["openFile"],
+    })
+
+    if (result.canceled || !result.filePaths.length) {
+      return null
+    }
+
+    return result.filePaths[0]
+  })
+
+  ipcMain.handle("opencode:validateBinary", async (event, binaryPath: string) => {
+    try {
+      // Special handling for system PATH binary
+      const isSystemPath = binaryPath === "opencode"
+
+      if (!isSystemPath) {
+        // Check if file exists and is executable for custom paths
+        if (!fs.existsSync(binaryPath)) {
+          return { valid: false, error: "File does not exist" }
+        }
+
+        const stats = fs.statSync(binaryPath)
+        if (!stats.isFile()) {
+          return { valid: false, error: "Path is not a file" }
+        }
+      }
+
+      // Try to get version
+      let version: string | undefined
+      try {
+        // Try -v flag first (opencode uses this)
+        let versionOutput = execSync(`${binaryPath} -v`, {
+          stdio: "pipe",
+          encoding: "utf-8",
+          timeout: 5000,
+        })
+
+        version = versionOutput.trim()
+      } catch (error) {
+        // Version check failed, but binary might still be valid
+
+        try {
+          let versionOutput = execSync(`${binaryPath} --version`, {
+            stdio: "pipe",
+            encoding: "utf-8",
+            timeout: 5000,
+          })
+
+          version = versionOutput.trim()
+        } catch (fallbackError) {}
+      }
+
+      // Try to run help command to verify it's actually opencode
+      try {
+        const helpOutput = execSync(`${binaryPath} --help`, {
+          stdio: "pipe",
+          encoding: "utf-8",
+          timeout: 5000,
+        })
+
+        if (!helpOutput.toLowerCase().includes("opencode")) {
+          return { valid: false, error: "Not an OpenCode binary" }
+        }
+      } catch (error) {
+        return { valid: false, error: "Binary failed to execute" }
+      }
+
+      return { valid: true, version }
+    } catch (error) {
+      return {
+        valid: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
   })
 }

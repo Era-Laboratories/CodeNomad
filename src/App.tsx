@@ -183,7 +183,7 @@ const App: Component = () => {
     return activeSessionId().get(instance.id) || null
   })
 
-  async function handleSelectFolder(folderPath?: string) {
+  async function handleSelectFolder(folderPath?: string, binaryPath?: string) {
     setIsSelectingFolder(true)
     try {
       let folder: string | null | undefined = folderPath
@@ -196,7 +196,7 @@ const App: Component = () => {
       }
 
       addRecentFolder(folder)
-      const instanceId = await createInstance(folder)
+      const instanceId = await createInstance(folder, binaryPath)
       setHasInstances(true)
       setShowFolderSelection(false)
 

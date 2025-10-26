@@ -51,8 +51,8 @@ function invalidateConfigCache() {
 export function setupStorageIPC() {
   ensureDirectories()
 
-  ipcMain.handle("storage:getConfigPath", () => CONFIG_FILE)
-  ipcMain.handle("storage:getInstancesDir", () => INSTANCES_DIR)
+  ipcMain.handle("storage:getConfigPath", async () => CONFIG_FILE)
+  ipcMain.handle("storage:getInstancesDir", async () => INSTANCES_DIR)
 
   ipcMain.handle("storage:readConfigFile", async () => {
     try {

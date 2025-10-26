@@ -4,6 +4,9 @@ import { createApplicationMenu } from "./menu"
 import { setupInstanceIPC } from "./ipc"
 import { setupStorageIPC } from "./storage"
 
+// Setup IPC handlers before creating windows
+setupStorageIPC()
+
 let mainWindow: BrowserWindow | null = null
 
 function createWindow() {
@@ -28,33 +31,13 @@ function createWindow() {
 
   createApplicationMenu(mainWindow)
   setupInstanceIPC(mainWindow)
-  setupStorageIPC()
 
   mainWindow.on("closed", () => {
     mainWindow = null
   })
 }
 
-function setupIPC() {
-  ipcMain.handle("dialog:selectFolder", async () => {
-    if (!mainWindow) return null
-
-    const result = await dialog.showOpenDialog(mainWindow, {
-      title: "Select Project Folder",
-      buttonLabel: "Select",
-      properties: ["openDirectory"],
-    })
-
-    if (result.canceled) {
-      return null
-    }
-
-    return result.filePaths[0] || null
-  })
-}
-
 app.whenReady().then(() => {
-  setupIPC()
   createWindow()
 
   app.on("activate", () => {
