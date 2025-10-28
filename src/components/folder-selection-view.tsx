@@ -158,10 +158,10 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
       <div class="w-full max-w-3xl px-8 py-12">
         <div class="mb-8 text-center">
           <div class="mb-4 flex justify-center">
-            <Folder class="h-16 w-16" style="color: var(--text-muted)" />
+            <Folder class="h-16 w-16 icon-muted" />
           </div>
-          <h1 class="mb-2 text-2xl font-semibold" style="color: var(--text-primary)">Welcome to OpenCode</h1>
-          <p class="text-base" style="color: var(--text-secondary)">Select a folder to start coding with AI</p>
+          <h1 class="mb-2 text-2xl font-semibold text-primary">Welcome to OpenCode</h1>
+          <p class="text-base text-secondary">Select a folder to start coding with AI</p>
         </div>
 
         <div class="space-y-4 overflow-visible">
@@ -188,14 +188,14 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
                 <For each={folders()}>
                   {(folder, index) => (
                     <div 
-                      class="panel-list-item w-full"
+                      class="panel-list-item"
                       classList={{
                         "panel-list-item-highlight": focusMode() === "recent" && selectedIndex() === index(),
                       }}
                     >
                       <div class="flex items-center w-full">
                         <button
-                          class="panel-list-item-content flex-1 w-full"
+                          class="panel-list-item-content w-full"
                           onClick={() => handleFolderSelect(folder.path)}
                           onMouseEnter={() => {
                             setFocusMode("recent")
@@ -204,15 +204,15 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
                         >
                           <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 mb-1">
-                              <Folder class="w-4 h-4 flex-shrink-0" style="color: var(--text-muted)" />
-                              <span class="text-sm font-medium truncate" style="color: var(--text-primary)">
+                              <Folder class="w-4 h-4 flex-shrink-0 icon-muted" />
+                              <span class="text-sm font-medium truncate text-primary">
                                 {folder.path.split("/").pop()}
                               </span>
                             </div>
-                            <div class="text-xs font-mono truncate pl-6" style="color: var(--text-muted)">
+                            <div class="text-xs font-mono truncate pl-6 text-muted">
                               {getDisplayPath(folder.path)}
                             </div>
-                            <div class="text-xs mt-1 pl-6" style="color: var(--text-muted)">
+                            <div class="text-xs mt-1 pl-6 text-muted">
                               {formatRelativeTime(folder.lastAccessed)}
                             </div>
                           </div>
@@ -227,8 +227,7 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
                           class="opacity-0 group-hover:opacity-100 p-2.5 transition-all mr-2 hover:bg-red-100 dark:hover:bg-red-900/30"
                           title="Remove from recent"
                         >
-                          <Trash2 class="w-3.5 h-3.5 transition-colors" style="color: var(--text-muted)" 
-                            classList={{ "hover:text-red-600": true, "dark:hover:text-red-400": true }} />
+                          <Trash2 class="w-3.5 h-3.5 transition-colors icon-muted hover:text-red-600 dark:hover:text-red-400" />
                         </button>
                       </div>
                     </div>

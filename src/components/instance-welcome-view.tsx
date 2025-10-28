@@ -180,7 +180,7 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
                 <For each={parentSessions()}>
                   {(session, index) => (
                     <div 
-                      class="panel-list-item w-full"
+                      class="panel-list-item"
                       classList={{
                         "panel-list-item-highlight": focusMode() === "sessions" && selectedIndex() === index(),
                       }}
