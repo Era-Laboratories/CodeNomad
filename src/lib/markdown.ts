@@ -81,14 +81,15 @@ function resolveLanguage(token: string): { canonical: string | null; raw: string
 
 async function ensureLanguages(content: string) {
   // Parse code fences to extract language tokens
-  const codeBlockRegex = /```(\w*[#.\-+\w]*)/g
+  // Updated regex to capture optional language tokens and handle trailing annotations
+  const codeBlockRegex = /```[ \t]*([A-Za-z0-9_.+#-]+)?[^`]*?```/g
   const foundLanguages = new Set<string>()
   let match
 
   while ((match = codeBlockRegex.exec(content)) !== null) {
     const langToken = match[1]
-    if (langToken) {
-      foundLanguages.add(langToken)
+    if (langToken && langToken.trim()) {
+      foundLanguages.add(langToken.trim())
     }
   }
 
@@ -96,6 +97,11 @@ async function ensureLanguages(content: string) {
   for (const token of foundLanguages) {
     const { canonical, raw } = resolveLanguage(token)
     const langKey = canonical || raw
+
+    // Skip "text" and aliases since Shiki handles plain text already
+    if (langKey === "text" || raw === "text") {
+      continue
+    }
 
     // Skip if already loaded or queued
     if (loadedLanguages.has(langKey) || queuedLanguages.has(langKey)) {
@@ -156,11 +162,14 @@ function setupRenderer(isDark: boolean) {
 
   renderer.code = (code: string, lang: string | undefined) => {
     const encodedCode = encodeURIComponent(code)
-    const escapedLang = lang ? escapeHtml(lang) : ""
+
+    // Use "text" as default when no language is specified
+    const resolvedLang = lang && lang.trim() ? lang.trim() : "text"
+    const escapedLang = escapeHtml(resolvedLang)
 
     const header = `
       <div class="code-block-header">
-        <span class="code-block-language">${escapedLang || ""}</span>
+        <span class="code-block-language">${escapedLang}</span>
         <button class="code-block-copy" data-code="${encodedCode}">
           <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -171,13 +180,19 @@ function setupRenderer(isDark: boolean) {
       </div>
     `
 
-    if (!lang || !highlighter) {
+    // Skip highlighting for "text" language or when highlighter is not available
+    if (resolvedLang === "text" || !highlighter) {
       return `<div class="markdown-code-block" data-language="${escapedLang}" data-code="${encodedCode}">${header}<pre><code>${escapeHtml(code)}</code></pre></div>`
     }
 
     // Resolve language and check if it's loaded
-    const { canonical, raw } = resolveLanguage(lang)
+    const { canonical, raw } = resolveLanguage(resolvedLang)
     const langKey = canonical || raw
+
+    // Skip highlighting for "text" aliases
+    if (langKey === "text" || raw === "text") {
+      return `<div class="markdown-code-block" data-language="${escapedLang}" data-code="${encodedCode}">${header}<pre><code>${escapeHtml(code)}</code></pre></div>`
+    }
 
     // Use highlighting if language is loaded, otherwise fall back to plain code
     if (loadedLanguages.has(langKey)) {
