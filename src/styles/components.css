@@ -153,3 +153,126 @@
 [data-theme="dark"] .attachment-remove:hover {
   background-color: rgba(0, 128, 255, 0.2);
 }
+
+/* Tab component utilities */
+.tab-bar {
+  @apply border-b;
+  border-color: var(--border-base);
+}
+
+.tab-bar-instance {
+  background-color: var(--surface-secondary);
+}
+
+.tab-bar-session {
+  background-color: var(--surface-base);
+}
+
+[data-theme="dark"] .tab-bar-session {
+  background-color: var(--surface-secondary);
+}
+
+.tab-container {
+  @apply flex items-center justify-between gap-1 px-2 py-1 overflow-x-auto;
+}
+
+.tab-base {
+  @apply inline-flex items-center gap-2 px-3 py-2 rounded-t-md max-w-[200px] transition-colors text-sm font-medium;
+  font-family: var(--font-family-sans);
+  outline: none;
+}
+
+.tab-base:focus-visible {
+  @apply ring-2 ring-offset-1;
+  ring-color: var(--accent-primary);
+  ring-offset-color: var(--surface-base);
+}
+
+.tab-active {
+  background-color: var(--accent-primary);
+  color: var(--text-inverted);
+}
+
+.tab-inactive {
+  background-color: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+.tab-inactive:hover {
+  background-color: var(--surface-hover);
+}
+
+[data-theme="dark"] .tab-inactive {
+  background-color: var(--surface-muted);
+}
+
+[data-theme="dark"] .tab-inactive:hover {
+  background-color: var(--surface-hover);
+}
+
+.tab-label {
+  @apply truncate;
+}
+
+.tab-close {
+  @apply opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white rounded p-0.5 transition-all cursor-pointer;
+}
+
+.tab-close:focus-visible {
+  @apply ring-2 ring-offset-1;
+  ring-color: var(--accent-primary);
+  ring-offset-color: inherit;
+}
+
+.new-tab-button {
+  @apply inline-flex items-center justify-center w-8 h-8 rounded-md transition-colors;
+  background-color: var(--surface-secondary);
+  color: var(--text-muted);
+}
+
+.new-tab-button:hover {
+  background-color: var(--surface-hover);
+}
+
+.new-tab-button:focus-visible {
+  @apply ring-2 ring-offset-1;
+  ring-color: var(--accent-primary);
+  ring-offset-color: var(--surface-base);
+}
+
+/* Session tab specific styles */
+.session-tab-base {
+  @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-t-md max-w-[150px] transition-colors text-sm;
+  font-family: var(--font-family-sans);
+  outline: none;
+  border-bottom: 2px solid transparent;
+}
+
+.session-tab-base:focus-visible {
+  @apply ring-2 ring-offset-1;
+  ring-color: var(--accent-primary);
+  ring-offset-color: var(--surface-base);
+}
+
+.session-tab-active {
+  background-color: var(--surface-base);
+  border-bottom-color: var(--accent-primary);
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+[data-theme="dark"] .session-tab-active {
+  background-color: var(--surface-muted);
+}
+
+.session-tab-inactive {
+  color: var(--text-muted);
+}
+
+.session-tab-inactive:hover {
+  background-color: var(--surface-hover);
+}
+
+.session-tab-special {
+  color: var(--text-muted);
+}

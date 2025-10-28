@@ -15,8 +15,8 @@ interface InstanceTabsProps {
 
 const InstanceTabs: Component<InstanceTabsProps> = (props) => {
   return (
-    <div class="instance-tabs bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-      <div class="tabs-container flex items-center justify-between gap-1 px-2 py-1 overflow-x-auto" role="tablist">
+    <div class="tab-bar tab-bar-instance">
+      <div class="tab-container" role="tablist">
         <div class="flex items-center gap-1 overflow-x-auto">
           <For each={Array.from(props.instances.entries())}>
             {([id, instance]) => (
@@ -29,7 +29,7 @@ const InstanceTabs: Component<InstanceTabsProps> = (props) => {
             )}
           </For>
           <button
-            class="new-tab-button inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+            class="new-tab-button"
             onClick={props.onNew}
             title="New instance (Cmd/Ctrl+N)"
             aria-label="New instance"
