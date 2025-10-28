@@ -323,11 +323,11 @@ export default function MessageStream(props: MessageStreamProps) {
   return (
     <div class="message-stream-container">
       <div class="connection-status">
-        <div class="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <div class="connection-status-text flex items-center gap-2 text-sm font-medium">
           <span>{formattedSessionInfo()}</span>
         </div>
         <div class="flex-1" />
-        <div class="flex items-center gap-2 text-sm font-medium text-gray-700">
+        <div class="connection-status-text flex items-center gap-2 text-sm font-medium">
           <span>Command Palette</span>
           <Kbd shortcut="cmd+shift+p" />
         </div>

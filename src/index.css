@@ -43,11 +43,18 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background);
+  color: #1f2933;
+}
+
+[data-theme="dark"] body {
+  color: #f3f4f6;
 }
 
 #root {
   width: 100vw;
   height: 100vh;
+  background-color: var(--background);
 }
 
 .message-stream-container {
@@ -66,6 +73,10 @@ body {
   background-color: var(--secondary-bg);
   border-bottom: 1px solid var(--border-color);
   gap: 16px;
+}
+
+.connection-status-text {
+  color: var(--text-muted);
 }
 
 .status-indicator {
@@ -102,6 +113,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  background-color: var(--background);
+  color: inherit;
 }
 
 .message-item {
@@ -111,6 +124,7 @@ body {
   padding: 12px 16px;
   border-radius: 8px;
   width: 100%;
+  color: inherit;
 }
 
 .message-item.user {
@@ -132,6 +146,7 @@ body {
   width: 100%;
   background-color: #f8f9fa;
   border-left: 4px solid #6c757d;
+  color: inherit;
 }
 
 [data-theme="dark"] .tool-call-message {
@@ -145,12 +160,8 @@ body {
   gap: 8px;
   font-weight: 600;
   font-size: 14px;
-  color: #495057;
+  color: var(--text-muted);
   margin-bottom: 4px;
-}
-
-[data-theme="dark"] .tool-call-header-label {
-  color: #adb5bd;
 }
 
 .tool-call-header-label .tool-call-icon {
@@ -159,16 +170,12 @@ body {
 
 .tool-call-header-label .tool-name {
   font-family: monospace;
-  color: #212529;
-  background-color: #e9ecef;
+  color: inherit;
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
   padding: 2px 6px;
   border-radius: 3px;
   font-size: 13px;
-}
-
-[data-theme="dark"] .tool-call-header-label .tool-name {
-  color: #f8f9fa;
-  background-color: #343a40;
 }
 
 .message-header {
@@ -181,6 +188,7 @@ body {
 .message-sender {
   font-weight: 600;
   font-size: 14px;
+  color: var(--text-muted);
 }
 
 .message-timestamp {
@@ -220,6 +228,7 @@ body {
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+  color: inherit;
 }
 
 .message-queued-badge {
@@ -239,6 +248,7 @@ body {
   line-height: 1.5;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  color: inherit;
 }
 
 .message-text pre {
@@ -262,6 +272,10 @@ body {
   border-radius: 4px;
 }
 
+[data-theme="dark"] .message-error-part {
+  background-color: rgba(244, 67, 54, 0.15);
+}
+
 .message-error-block {
   color: var(--error-color);
   font-size: 14px;
@@ -270,6 +284,10 @@ body {
   border-radius: 4px;
   border-left: 3px solid var(--error-color);
   margin: 8px 0;
+}
+
+[data-theme="dark"] .message-error-block {
+  background-color: rgba(244, 67, 54, 0.15);
 }
 
 .message-generating {
@@ -299,6 +317,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 4px;
   background-color: var(--secondary-bg);
+  color: inherit;
 }
 
 .reasoning-container {
@@ -332,6 +351,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   overflow: hidden;
+  color: inherit;
 }
 
 .tool-call-message .tool-call {
@@ -538,10 +558,15 @@ body {
 }
 
 .tool-call-todo-item code {
-  background-color: rgba(0, 100, 255, 0.1);
+  background-color: rgba(0, 102, 255, 0.12);
   padding: 2px 4px;
   border-radius: 2px;
   font-family: monospace;
+  color: inherit;
+}
+
+[data-theme="dark"] .tool-call-todo-item code {
+  background-color: rgba(0, 128, 255, 0.22);
 }
 
 .tool-call-task-summary {
@@ -571,6 +596,10 @@ body {
   border-radius: 4px;
   color: var(--error-color);
   font-size: 12px;
+}
+
+[data-theme="dark"] .tool-call-error-content {
+  background-color: rgba(244, 67, 54, 0.2);
 }
 
 .tool-call-error-content strong {
@@ -785,6 +814,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background-color: var(--background);
+  color: inherit;
 }
 
 .message-sending {

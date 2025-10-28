@@ -19,7 +19,7 @@ const SessionTabs: Component<SessionTabsProps> = (props) => {
   const totalTabs = () => sessionsList().length + 1
 
   return (
-    <div class="session-tabs bg-white border-b border-gray-200">
+    <div class="session-tabs bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
       <div class="tabs-container flex items-center justify-between gap-1 px-2 py-1 overflow-x-auto" role="tablist">
         <div class="flex items-center gap-1 overflow-x-auto">
           <For each={sessionsList()}>
@@ -39,7 +39,7 @@ const SessionTabs: Component<SessionTabsProps> = (props) => {
             onSelect={() => props.onSelect("info")}
           />
           <button
-            class="new-tab-button inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-600 hover:bg-gray-100 transition-colors"
+            class="new-tab-button inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             onClick={props.onNew}
             title="New parent session (Cmd/Ctrl+T)"
             aria-label="New parent session"

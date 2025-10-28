@@ -66,28 +66,34 @@ const SessionPicker: Component<SessionPickerProps> = (props) => {
       <Dialog.Portal>
         <Dialog.Overlay class="fixed inset-0 bg-black/50 z-50" />
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <Dialog.Content class="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6">
-            <Dialog.Title class="text-xl font-semibold text-gray-900 mb-4">
+          <Dialog.Content class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl w-full max-w-lg p-6">
+            <Dialog.Title class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
               OpenCode • {instance()?.folder.split("/").pop()}
             </Dialog.Title>
 
             <div class="space-y-6">
               <Show
                 when={parentSessions().length > 0}
-                fallback={<div class="text-center py-4 text-gray-500 text-sm">No previous sessions</div>}
+                fallback={
+                  <div class="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">No previous sessions</div>
+                }
               >
                 <div>
-                  <h3 class="text-sm font-medium text-gray-700 mb-2">Resume a session ({parentSessions().length}):</h3>
+                  <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Resume a session ({parentSessions().length}):
+                  </h3>
                   <div class="space-y-1 max-h-[400px] overflow-y-auto">
                     <For each={parentSessions()}>
                       {(session) => (
                         <button
-                          class="w-full text-left px-3 py-2 rounded hover:bg-gray-100 transition-colors group"
+                          class="w-full text-left px-3 py-2 rounded transition-colors group hover:bg-gray-100 dark:hover:bg-gray-800"
                           onClick={() => handleSessionSelect(session.id)}
                         >
                           <div class="flex justify-between items-start">
-                            <span class="text-sm text-gray-900 truncate flex-1">{session.title || "Untitled"}</span>
-                            <span class="text-xs text-gray-500 ml-2 flex-shrink-0">
+                            <span class="text-sm text-gray-900 dark:text-gray-100 truncate flex-1">
+                              {session.title || "Untitled"}
+                            </span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0">
                               {formatRelativeTime(session.time.updated)}
                             </span>
                           </div>
@@ -100,22 +106,22 @@ const SessionPicker: Component<SessionPickerProps> = (props) => {
 
               <div class="relative">
                 <div class="absolute inset-0 flex items-center">
-                  <div class="w-full border-t border-gray-300" />
+                  <div class="w-full border-t border-gray-300 dark:border-gray-700" />
                 </div>
                 <div class="relative flex justify-center text-sm">
-                  <span class="px-2 bg-white text-gray-500">or</span>
+                  <span class="px-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">or</span>
                 </div>
               </div>
 
               <div>
-                <h3 class="text-sm font-medium text-gray-700 mb-2">Start new session:</h3>
+                <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start new session:</h3>
                 <div class="space-y-3">
                   <Show
                     when={agentList().length > 0}
-                    fallback={<div class="text-sm text-gray-500">Loading agents...</div>}
+                    fallback={<div class="text-sm text-gray-500 dark:text-gray-400">Loading agents...</div>}
                   >
                     <select
-                      class="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white hover:border-gray-400 transition-colors"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-800 dark:text-gray-100 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
                       value={selectedAgent()}
                       onChange={(e) => setSelectedAgent(e.currentTarget.value)}
                     >
@@ -124,7 +130,7 @@ const SessionPicker: Component<SessionPickerProps> = (props) => {
                   </Show>
 
                   <button
-                    class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-500 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     onClick={handleNewSession}
                     disabled={isCreating() || agentList().length === 0}
                   >
@@ -135,7 +141,10 @@ const SessionPicker: Component<SessionPickerProps> = (props) => {
             </div>
 
             <div class="mt-6 flex justify-end">
-              <button class="px-4 py-2 text-sm text-gray-700 hover:text-gray-900" onClick={handleCancel}>
+              <button
+                class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                onClick={handleCancel}
+              >
                 Cancel
               </button>
             </div>

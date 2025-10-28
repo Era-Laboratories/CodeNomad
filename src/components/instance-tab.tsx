@@ -30,7 +30,9 @@ const InstanceTab: Component<InstanceTabProps> = (props) => {
     <div class="instance-tab-container group">
       <button
         class={`instance-tab inline-flex items-center gap-2 px-3 py-2 rounded-t-md max-w-[200px] transition-colors ${
-          props.active ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          props.active
+            ? "bg-blue-500 text-white"
+            : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
         }`}
         onClick={props.onSelect}
         title={props.instance.folder}
@@ -42,7 +44,7 @@ const InstanceTab: Component<InstanceTabProps> = (props) => {
           {props.instance.folder.split("/").pop() || props.instance.folder}
         </span>
         <span
-          class="tab-close opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white rounded p-0.5 transition-opacity ml-auto cursor-pointer"
+          class="tab-close opacity-0 group-hover:opacity-100 hover:bg-red-500 dark:hover:bg-red-600 hover:text-white rounded p-0.5 transition-opacity ml-auto cursor-pointer"
           onClick={(e) => {
             e.stopPropagation()
             props.onClose()

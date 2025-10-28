@@ -10,6 +10,7 @@ import MessageStream from "./components/message-stream"
 import PromptInput from "./components/prompt-input"
 import InfoView from "./components/info-view"
 import { initMarkdown } from "./lib/markdown"
+import { useTheme } from "./lib/theme"
 import { createCommandRegistry } from "./lib/commands"
 import type { Command } from "./lib/commands"
 import {
@@ -160,8 +161,13 @@ const SessionView: Component<{
 }
 
 const App: Component = () => {
+  const { isDark } = useTheme()
   const commandRegistry = createCommandRegistry()
   const [escapeInDebounce, setEscapeInDebounce] = createSignal(false)
+
+  createEffect(() => {
+    void initMarkdown(isDark()).catch(console.error)
+  })
 
   const activeInstance = createMemo(() => getActiveInstance())
 
@@ -634,8 +640,6 @@ const App: Component = () => {
   }
 
   onMount(() => {
-    initMarkdown(false).catch(console.error)
-
     setEscapeStateChangeHandler(setEscapeInDebounce)
 
     setupCommands()

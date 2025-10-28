@@ -146,14 +146,14 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
   }
 
   return (
-    <div class="flex-1 flex flex-col overflow-hidden bg-gray-50">
+    <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
       <div class="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-auto">
         <div class="flex-1 flex flex-col gap-4 min-h-0">
           <Show
             when={parentSessions().length > 0}
             fallback={
-              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center flex-shrink-0">
-                <div class="text-gray-400 mb-2">
+              <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center flex-shrink-0">
+                <div class="text-gray-400 dark:text-gray-500 mb-2">
                   <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       stroke-linecap="round"
@@ -163,15 +163,15 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
                     />
                   </svg>
                 </div>
-                <p class="text-gray-600 font-medium text-sm">No Previous Sessions</p>
-                <p class="text-xs text-gray-500">Create a new session below to get started</p>
+                <p class="text-gray-600 dark:text-gray-200 font-medium text-sm">No Previous Sessions</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Create a new session below to get started</p>
               </div>
             }
           >
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex-shrink-0">
-              <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h2 class="text-base font-semibold text-gray-900">Resume Session</h2>
-                <p class="text-xs text-gray-500 mt-0.5">
+            <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex-shrink-0">
+              <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Resume Session</h2>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   {parentSessions().length} {parentSessions().length === 1 ? "session" : "sessions"} available
                 </p>
               </div>
@@ -180,11 +180,10 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
                   {(session, index) => (
                     <button
                       data-session-index={index()}
-                      class="w-full text-left px-4 py-2.5 border-b border-gray-100 hover:bg-blue-50 transition-all group focus:outline-none"
+                      class="w-full text-left px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 transition-all group focus:outline-none hover:bg-blue-50 dark:hover:bg-blue-900/30"
                       classList={{
-                        "bg-blue-100 ring-2 ring-blue-500 ring-inset":
+                        "bg-blue-100 dark:bg-blue-900/50 ring-2 ring-blue-500 dark:ring-blue-400 ring-inset":
                           focusMode() === "sessions" && selectedIndex() === index(),
-                        "hover:bg-blue-50": focusMode() !== "sessions" || selectedIndex() !== index(),
                       }}
                       onClick={() => handleSessionSelect(session.id)}
                       onMouseEnter={() => {
@@ -196,22 +195,23 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
                         <div class="flex-1 min-w-0">
                           <div class="flex items-center gap-2">
                             <span
-                              class="text-sm font-medium text-gray-900 group-hover:text-blue-700 truncate"
+                              class="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-700 dark:group-hover:text-blue-300 truncate"
                               classList={{
-                                "text-blue-700": focusMode() === "sessions" && selectedIndex() === index(),
+                                "text-blue-700 dark:text-blue-300":
+                                  focusMode() === "sessions" && selectedIndex() === index(),
                               }}
                             >
                               {session.title || "Untitled Session"}
                             </span>
                           </div>
-                          <div class="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                          <div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                             <span>{session.agent}</span>
                             <span>•</span>
                             <span>{formatRelativeTime(session.time.updated)}</span>
                           </div>
                         </div>
                         <Show when={focusMode() === "sessions" && selectedIndex() === index()}>
-                          <kbd class="px-1.5 py-0.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded flex-shrink-0">
+                          <kbd class="px-1.5 py-0.5 text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded flex-shrink-0">
                             ↵
                           </kbd>
                         </Show>
@@ -223,18 +223,23 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
             </div>
           </Show>
 
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex-shrink-0">
-            <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
-              <h2 class="text-base font-semibold text-gray-900">Start New Session</h2>
-              <p class="text-xs text-gray-500 mt-0.5">Create a fresh conversation with your chosen agent</p>
+          <div class="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex-shrink-0">
+            <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+              <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Start New Session</h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Create a fresh conversation with your chosen agent
+              </p>
             </div>
             <div class="p-4">
-              <Show when={agentList().length > 0} fallback={<div class="text-sm text-gray-500">Loading agents...</div>}>
+              <Show
+                when={agentList().length > 0}
+                fallback={<div class="text-sm text-gray-500 dark:text-gray-400">Loading agents...</div>}
+              >
                 <div class="space-y-3">
                   <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1.5">Agent</label>
+                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Agent</label>
                     <select
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 dark:text-gray-100 hover:border-gray-400 dark:hover:border-gray-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                       value={selectedAgent()}
                       onChange={(e) => setSelectedAgent(e.currentTarget.value)}
                     >
@@ -250,7 +255,7 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
                   </div>
 
                   <button
-                    class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-between text-sm relative group"
+                    class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-500 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-between text-sm relative group focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     onClick={handleNewSession}
                     disabled={isCreating() || agentList().length === 0}
                   >
@@ -276,7 +281,7 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
                         </svg>
                         <span>Create Session</span>
                       </div>
-                      <kbd class="px-1.5 py-0.5 text-xs font-semibold bg-blue-700 border border-blue-500 rounded flex-shrink-0">
+                      <kbd class="px-1.5 py-0.5 text-xs font-semibold bg-blue-700 border border-blue-500 rounded flex-shrink-0 dark:bg-blue-600 dark:border-blue-400">
                         Cmd+Enter
                       </kbd>
                     </Show>
@@ -294,29 +299,45 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
         </div>
       </div>
 
-      <div class="px-4 py-2 bg-white border-t border-gray-200 flex-shrink-0">
-        <div class="flex items-center justify-center flex-wrap gap-3 text-xs text-gray-500">
+      <div class="px-4 py-2 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div class="flex items-center justify-center flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
           <div class="flex items-center gap-1.5">
-            <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-xs">↑</kbd>
-            <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-xs">↓</kbd>
+            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded font-mono text-xs">
+              ↑
+            </kbd>
+            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded font-mono text-xs">
+              ↓
+            </kbd>
             <span>Navigate</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-xs">PgUp</kbd>
-            <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-xs">PgDn</kbd>
+            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded font-mono text-xs">
+              PgUp
+            </kbd>
+            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded font-mono text-xs">
+              PgDn
+            </kbd>
             <span>Jump</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-xs">Home</kbd>
-            <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-xs">End</kbd>
+            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded font-mono text-xs">
+              Home
+            </kbd>
+            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded font-mono text-xs">
+              End
+            </kbd>
             <span>First/Last</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-xs">Enter</kbd>
+            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded font-mono text-xs">
+              Enter
+            </kbd>
             <span>Resume</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">Cmd+Enter</kbd>
+            <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-xs">
+              Cmd+Enter
+            </kbd>
             <span>New Session</span>
           </div>
         </div>
