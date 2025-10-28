@@ -1,6 +1,27 @@
 import { marked } from "marked"
 import { createHighlighter, type Highlighter, bundledLanguages } from "shiki/bundle/full"
 
+const CORE_LANGUAGES = [
+  "bash",
+  "shell",
+  "sh",
+  "javascript",
+  "typescript",
+  "tsx",
+  "jsx",
+  "json",
+  "yaml",
+  "yml",
+  "markdown",
+  "md",
+  "html",
+  "css",
+  "scss",
+  "python",
+  "go",
+  "rust",
+]
+
 let highlighter: Highlighter | null = null
 let highlighterPromise: Promise<Highlighter> | null = null
 let currentTheme: "light" | "dark" = "light"
@@ -15,9 +36,11 @@ async function getOrCreateHighlighter() {
     return highlighterPromise
   }
 
+  const filteredLangs = CORE_LANGUAGES.filter((lang) => lang in bundledLanguages)
+
   highlighterPromise = createHighlighter({
     themes: ["github-light", "github-dark"],
-    langs: Object.keys(bundledLanguages),
+    langs: filteredLangs,
   })
 
   highlighter = await highlighterPromise
@@ -41,8 +64,21 @@ function setupRenderer(isDark: boolean) {
     const encodedCode = encodeURIComponent(code)
     const escapedLang = lang ? escapeHtml(lang) : ""
 
+    const header = `
+      <div class="code-block-header">
+        <span class="code-block-language">${escapedLang || ""}</span>
+        <button class="code-block-copy" data-code="${encodedCode}">
+          <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          <span class="copy-text">Copy</span>
+        </button>
+      </div>
+    `
+
     if (!lang || !highlighter) {
-      return `<div class="markdown-code-block" data-language="" data-code="${encodedCode}"><pre><code>${escapeHtml(code)}</code></pre></div>`
+      return `<div class="markdown-code-block" data-language="${escapedLang}" data-code="${encodedCode}">${header}<pre><code>${escapeHtml(code)}</code></pre></div>`
     }
 
     try {
@@ -50,9 +86,9 @@ function setupRenderer(isDark: boolean) {
         lang,
         theme: isDark ? "github-dark" : "github-light",
       })
-      return `<div class="markdown-code-block" data-language="${escapedLang}" data-code="${encodedCode}">${html}</div>`
+      return `<div class="markdown-code-block" data-language="${escapedLang}" data-code="${encodedCode}">${header}${html}</div>`
     } catch {
-      return `<div class="markdown-code-block" data-language="${escapedLang}" data-code="${encodedCode}"><pre><code class="language-${escapedLang}">${escapeHtml(code)}</code></pre></div>`
+      return `<div class="markdown-code-block" data-language="${escapedLang}" data-code="${encodedCode}">${header}<pre><code class="language-${escapedLang}">${escapeHtml(code)}</code></pre></div>`
     }
   }
 

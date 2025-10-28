@@ -1,3 +1,8 @@
+export interface RenderCache {
+  text: string
+  html: string
+}
+
 export interface MessageDisplayParts {
   text: any[]
   tool: any[]
@@ -16,4 +21,12 @@ export interface Message {
   status: "sending" | "sent" | "streaming" | "complete" | "error"
   version: number
   displayParts?: MessageDisplayParts
+}
+
+export interface TextPart {
+  id?: string
+  type: "text"
+  text: string
+  synthetic?: boolean
+  renderCache?: RenderCache
 }

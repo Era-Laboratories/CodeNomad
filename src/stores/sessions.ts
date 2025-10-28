@@ -706,11 +706,19 @@ async function loadMessages(instanceId: string, sessionId: string, force = false
 
       messagesInfo.set(messageId, info)
 
+      // Clear render cache for all parts when loading messages
+      const parts = (apiMessage.parts || []).map((part: any) => {
+        if (part.type === "text") {
+          return { ...part, renderCache: undefined }
+        }
+        return part
+      })
+
       const message: Message = {
         id: messageId,
         sessionId,
         type: role === "user" ? "user" : "assistant",
-        parts: apiMessage.parts || [],
+        parts,
         timestamp: info.time?.created || Date.now(),
         status: "complete" as const,
         version: 0,
@@ -855,12 +863,24 @@ function handleMessageUpdate(instanceId: string, event: any): void {
       if (message.parts.some((partItem: any) => partItem.synthetic === true)) {
         message.parts = message.parts.filter((partItem: any) => partItem.synthetic !== true)
         filteredSynthetics = true
+        // Clear render cache from remaining parts when synthetic parts are removed
+        message.parts.forEach((partItem: any) => {
+          if (partItem.type === "text") {
+            partItem.renderCache = undefined
+          }
+        })
       }
 
       let baseParts: any[]
       if (replacedTemp) {
         baseParts = message.parts.filter((partItem: any) => partItem.type !== "text")
         message.parts = baseParts
+        // Clear render cache when replacing temp content
+        baseParts.forEach((partItem: any) => {
+          if (partItem.type === "text") {
+            partItem.renderCache = undefined
+          }
+        })
       } else {
         baseParts = message.parts
       }
@@ -881,6 +901,10 @@ function handleMessageUpdate(instanceId: string, event: any): void {
           partMap.set(part.id, baseParts.length - 1)
         }
         shouldIncrementVersion = true
+        // Clear render cache for new text parts
+        if (part.type === "text") {
+          part.renderCache = undefined
+        }
       } else {
         const previousPart = baseParts[partIndex]
         const textUnchanged =
@@ -897,6 +921,10 @@ function handleMessageUpdate(instanceId: string, event: any): void {
         baseParts[partIndex] = part
         if (part.type !== "text" || !previousPart || previousPart.text !== part.text) {
           shouldIncrementVersion = true
+          // Clear render cache when text changes
+          if (part.type === "text") {
+            part.renderCache = undefined
+          }
         }
       }
 
@@ -1147,6 +1175,7 @@ async function sendMessage(
       type: "text" as const,
       text: prompt,
       synthetic: true,
+      renderCache: undefined,
     },
   ]
 
@@ -1208,6 +1237,7 @@ async function sendMessage(
           type: "text" as const,
           text: source.value,
           synthetic: true,
+          renderCache: undefined,
         })
       }
     }

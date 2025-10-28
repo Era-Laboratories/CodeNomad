@@ -357,7 +357,7 @@ export default function ToolCall(props: ToolCallProps) {
         return (
           <div class="tool-call-bash">
             <div class="message-text">
-              <Markdown content={fullOutput} isDark={isDark()} />
+              <Markdown part={{ type: "text", text: fullOutput }} isDark={isDark()} />
             </div>
           </div>
         )
@@ -384,7 +384,7 @@ export default function ToolCall(props: ToolCallProps) {
       if (hasMarkdownCodeBlocks(truncated)) {
         return (
           <div class="message-text">
-            <Markdown content={truncated} isDark={isDark()} />
+            <Markdown part={{ type: "text", text: truncated }} isDark={isDark()} />
           </div>
         )
       }
@@ -479,7 +479,7 @@ export default function ToolCall(props: ToolCallProps) {
       if (hasMarkdownCodeBlocks(truncated)) {
         return (
           <div class="message-text">
-            <Markdown content={truncated} isDark={isDark()} />
+            <Markdown part={{ type: "text", text: truncated }} isDark={isDark()} />
           </div>
         )
       }

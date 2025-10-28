@@ -25,7 +25,7 @@ export default function MessagePart(props: MessagePartProps) {
       <Match when={partType() === "text"}>
         <Show when={!props.part.synthetic && props.part.text}>
           <div class="message-text">
-            <Markdown content={props.part.text} isDark={isDark()} />
+            <Markdown part={props.part} isDark={isDark()} />
           </div>
         </Show>
       </Match>
@@ -48,7 +48,7 @@ export default function MessagePart(props: MessagePartProps) {
               </div>
               <Show when={isReasoningExpanded()}>
                 <div class="message-text mt-2">
-                  <Markdown content={props.part.text || ""} isDark={isDark()} />
+                  <Markdown part={props.part} isDark={isDark()} />
                 </div>
               </Show>
             </div>
