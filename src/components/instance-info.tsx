@@ -75,14 +75,14 @@ const InstanceInfo: Component<InstanceInfoProps> = (props) => {
   })
 
   return (
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-      <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-        <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Instance Information</h2>
+    <div class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Instance Information</h2>
       </div>
-      <div class="p-4 space-y-3">
+      <div class="panel-body space-y-3">
         <div>
           <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Folder</div>
-          <div class="text-xs text-gray-900 dark:text-gray-100 font-mono break-all bg-gray-50 dark:bg-gray-900 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-700">
+          <div class="text-xs text-gray-900 dark:text-gray-100 font-mono break-all px-2 py-1.5 rounded border" style="background-color: var(--surface-secondary); border-color: var(--border-base); color: var(--text-primary);">
             {props.instance.folder}
           </div>
         </div>
@@ -94,7 +94,7 @@ const InstanceInfo: Component<InstanceInfoProps> = (props) => {
                 <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
                   Project
                 </div>
-                <div class="text-xs text-gray-900 dark:text-gray-100 font-mono bg-gray-50 dark:bg-gray-900 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-700 truncate">
+                <div class="text-xs font-mono px-2 py-1.5 rounded border truncate" style="background-color: var(--surface-secondary); border-color: var(--border-base); color: var(--text-primary);">
                   {project().id}
                 </div>
               </div>
@@ -125,7 +125,7 @@ const InstanceInfo: Component<InstanceInfoProps> = (props) => {
             <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
               OpenCode Version
             </div>
-            <div class="text-xs text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-700">
+            <div class="text-xs px-2 py-1.5 rounded border" style="background-color: var(--surface-secondary); border-color: var(--border-base); color: var(--text-primary);">
               v{metadata()?.version}
             </div>
           </div>
@@ -136,7 +136,7 @@ const InstanceInfo: Component<InstanceInfoProps> = (props) => {
             <div class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
               Binary Path
             </div>
-            <div class="text-xs text-gray-900 dark:text-gray-100 font-mono break-all bg-gray-50 dark:bg-gray-900 px-2 py-1.5 rounded border border-gray-200 dark:border-gray-700">
+            <div class="text-xs font-mono break-all px-2 py-1.5 rounded border" style="background-color: var(--surface-secondary); border-color: var(--border-base); color: var(--text-primary);">
               {props.instance.binaryPath}
             </div>
           </div>
@@ -150,11 +150,11 @@ const InstanceInfo: Component<InstanceInfoProps> = (props) => {
             <div class="space-y-1">
               <For each={Object.entries(props.instance.environmentVariables!)}>
                 {([key, value]) => (
-                  <div class="flex items-center gap-2 px-2 py-1.5 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                    <span class="text-xs text-gray-900 dark:text-gray-100 font-mono font-medium flex-1" title={key}>
+                  <div class="flex items-center gap-2 px-2 py-1.5 rounded border" style="background-color: var(--surface-secondary); border-color: var(--border-base);">
+                    <span class="text-xs font-mono font-medium flex-1" title={key} style="color: var(--text-primary);">
                       {key}
                     </span>
-                    <span class="text-xs text-gray-600 dark:text-gray-400 font-mono flex-1" title={value}>
+                    <span class="text-xs font-mono flex-1" title={value} style="color: var(--text-secondary);">
                       {value}
                     </span>
                   </div>
@@ -172,7 +172,7 @@ const InstanceInfo: Component<InstanceInfoProps> = (props) => {
             <div class="space-y-1.5">
               <For each={mcpServers()}>
                 {(server) => (
-                  <div class="flex items-center justify-between px-2 py-1.5 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  <div class="flex items-center justify-between px-2 py-1.5 rounded border" style="background-color: var(--surface-secondary); border-color: var(--border-base);">
                     <span class="text-xs text-gray-900 dark:text-gray-100 font-medium truncate">{server.name}</span>
                     <div class="flex items-center gap-1.5 flex-shrink-0">
                       <Show
@@ -226,24 +226,10 @@ const InstanceInfo: Component<InstanceInfoProps> = (props) => {
             <div class="flex justify-between items-center">
               <span class="text-gray-600 dark:text-gray-400">Status:</span>
               <span
-                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium"
-                classList={{
-                  "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400":
-                    props.instance.status === "ready",
-                  "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400":
-                    props.instance.status === "starting",
-                  "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400": props.instance.status === "error",
-                  "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300": props.instance.status === "stopped",
-                }}
+                class={`status-badge ${props.instance.status}`}
               >
                 <div
-                  class="w-1 h-1 rounded-full"
-                  classList={{
-                    "bg-green-600 animate-pulse": props.instance.status === "ready",
-                    "bg-yellow-600 animate-pulse": props.instance.status === "starting",
-                    "bg-red-600": props.instance.status === "error",
-                    "bg-gray-600": props.instance.status === "stopped",
-                  }}
+                  class={`status-dot ${props.instance.status} ${props.instance.status === "ready" || props.instance.status === "starting" ? "animate-pulse" : ""}`}
                 />
                 {props.instance.status}
               </span>

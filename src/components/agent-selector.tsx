@@ -70,7 +70,7 @@ export default function AgentSelector(props: AgentSelectorProps) {
               <Select.ItemLabel class="font-medium text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <span>{itemProps.item.rawValue.name}</span>
                 <Show when={itemProps.item.rawValue.mode === "subagent"}>
-                  <span class="text-xs font-normal text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/40 px-1.5 py-0.5 rounded">
+                  <span class="neutral-badge">
                     subagent
                   </span>
                 </Show>
@@ -88,7 +88,7 @@ export default function AgentSelector(props: AgentSelectorProps) {
       >
         <Select.Trigger
           data-agent-selector
-          class="inline-flex items-center justify-between gap-2 px-2 py-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 outline-none focus:ring-2 focus:ring-blue-500 text-xs min-w-[100px] transition-colors"
+          class="selector-trigger"
         >
           <Select.Value<Agent>>
             {(state) => (
@@ -101,8 +101,8 @@ export default function AgentSelector(props: AgentSelectorProps) {
         </Select.Trigger>
 
         <Select.Portal>
-          <Select.Content class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-80 overflow-auto p-1 z-50">
-            <Select.Listbox class="bg-white dark:bg-gray-800" />
+          <Select.Content class="selector-popover max-h-80 overflow-auto p-1 z-50">
+            <Select.Listbox class="selector-listbox" />
           </Select.Content>
         </Select.Portal>
       </Select>

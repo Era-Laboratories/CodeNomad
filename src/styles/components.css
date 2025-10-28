@@ -154,6 +154,85 @@
   background-color: rgba(0, 128, 255, 0.2);
 }
 
+/* Neutral badge utilities */
+.neutral-badge {
+  @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-normal;
+  --badge-bg: rgba(0, 102, 255, 0.05);
+  --badge-text: #0066ff;
+  background-color: var(--badge-bg);
+  color: var(--badge-text);
+}
+
+[data-theme="dark"] .neutral-badge {
+  --badge-bg: rgba(0, 128, 255, 0.15);
+  --badge-text: #0080ff;
+}
+
+/* Status badge utilities */
+.status-badge {
+  @apply inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium;
+}
+
+.status-badge.ready {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+[data-theme="dark"] .status-badge.ready {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.status-badge.starting {
+  background-color: rgba(250, 204, 21, 0.1);
+  color: #ca8a04;
+}
+
+[data-theme="dark"] .status-badge.starting {
+  background-color: rgba(250, 204, 21, 0.2);
+  color: #facc15;
+}
+
+.status-badge.error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+[data-theme="dark"] .status-badge.error {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.status-badge.stopped {
+  background-color: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+}
+
+[data-theme="dark"] .status-badge.stopped {
+  background-color: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+
+.status-dot {
+  @apply w-1 h-1 rounded-full;
+}
+
+.status-dot.ready {
+  background-color: #16a34a;
+}
+
+.status-dot.starting {
+  background-color: #ca8a04;
+}
+
+.status-dot.error {
+  background-color: #dc2626;
+}
+
+.status-dot.stopped {
+  background-color: #6b7280;
+}
+
 /* Tab component utilities */
 .tab-bar {
   @apply border-b;

@@ -618,7 +618,8 @@ export default function PromptInput(props: PromptInputProps) {
     <div class="prompt-input-container">
       <div
         ref={containerRef}
-        class={`prompt-input-wrapper relative ${isDragging() ? "border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/10" : ""}`}
+        class={`prompt-input-wrapper relative ${isDragging() ? "border-2" : ""}`}
+        style={isDragging() ? "border-color: var(--accent-primary); background-color: rgba(0, 102, 255, 0.05);" : ""}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

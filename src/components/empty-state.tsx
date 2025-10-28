@@ -8,7 +8,7 @@ interface EmptyStateProps {
 
 const EmptyState: Component<EmptyStateProps> = (props) => {
   return (
-    <div class="flex h-full w-full items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div class="flex h-full w-full items-center justify-center" style="background-color: var(--surface-secondary);">
       <div class="max-w-[500px] px-8 py-12 text-center">
         <div class="mb-8 flex justify-center">
           <Folder class="h-16 w-16 text-gray-400 dark:text-gray-600" />
@@ -21,7 +21,8 @@ const EmptyState: Component<EmptyStateProps> = (props) => {
         <button
           onClick={props.onSelectFolder}
           disabled={props.isLoading}
-          class="mb-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          class="mb-4 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-base font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-90"
+          style="background-color: var(--accent-primary); color: var(--text-inverted); ring-color: var(--accent-primary); ring-offset-color: var(--surface-base);"
         >
           {props.isLoading ? (
             <>

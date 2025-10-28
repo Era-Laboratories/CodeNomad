@@ -248,11 +248,7 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
               <button
                 onClick={handleBrowse}
                 disabled={props.isLoading}
-                class="w-full px-4 py-2.5 rounded-lg transition-all font-medium flex items-center justify-between text-sm disabled:cursor-not-allowed"
-                classList={{
-                  "bg-blue-600 text-white hover:bg-blue-700": !props.isLoading,
-                  "bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed": props.isLoading
-                }}
+                class={`w-full px-4 py-2.5 rounded-lg transition-all font-medium flex items-center justify-between text-sm disabled:cursor-not-allowed ${props.isLoading ? "selector-button-secondary disabled" : "selector-button-primary"}`}
                 onMouseEnter={() => setFocusMode("new")}
               >
                 <div class="flex items-center gap-2 flex-1 justify-center">
