@@ -219,7 +219,7 @@ const SessionList: Component<SessionListProps> = (props) => {
       <div class="session-list flex-1 overflow-y-auto">
         <div class="session-section">
           <div class="session-section-header px-3 py-2 text-xs font-semibold text-primary/70 uppercase tracking-wide">
-            Parent & Info
+            User Session & Info
           </div>
           <For each={sessionSections().parentItems}>
             {(item) => (
@@ -262,7 +262,7 @@ const SessionList: Component<SessionListProps> = (props) => {
         <Show when={sessionSections().childItems.length > 0}>
           <div class="session-section">
             <div class="session-section-header px-3 py-2 text-xs font-semibold text-primary/70 uppercase tracking-wide">
-              Child Sessions
+              Agent Sessions
             </div>
             <For each={sessionSections().childItems}>
               {(item) => (
