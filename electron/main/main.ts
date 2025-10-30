@@ -4,6 +4,8 @@ import { createApplicationMenu } from "./menu"
 import { setupInstanceIPC } from "./ipc"
 import { setupStorageIPC } from "./storage"
 
+app.commandLine.appendSwitch("disable-spell-checking")
+
 // Setup IPC handlers before creating windows
 setupStorageIPC()
 
@@ -26,6 +28,9 @@ function createWindow() {
       spellcheck: false,
     },
   })
+
+  // Disable macOS spell server to avoid input lag
+  mainWindow.webContents.session.setSpellCheckerEnabled(false)
 
   if (process.env.NODE_ENV === "development") {
     mainWindow.loadURL("http://localhost:3000")
