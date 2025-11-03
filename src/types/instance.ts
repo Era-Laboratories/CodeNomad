@@ -35,7 +35,6 @@ export interface Instance {
   status: "starting" | "ready" | "error" | "stopped"
   error?: string
   client: OpencodeClient | null
-  logs: LogEntry[]
   metadata?: InstanceMetadata
   binaryPath?: string
   environmentVariables?: Record<string, string>

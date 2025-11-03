@@ -153,6 +153,7 @@ interface MessageCacheEntry {
 interface ToolCacheEntry {
   toolPart: any
   messageInfo?: any
+  signature: string
   item: ToolDisplayItem
 }
 
@@ -170,6 +171,13 @@ export default function MessageStream(props: MessageStreamProps) {
   const scrollStateKey = () => makeScrollKey(props.instanceId, props.sessionId)
   const connectionStatus = () => sseManager.getStatus(props.instanceId)
 
+  function createToolSignature(message: Message, toolPart: any, toolIndex: number, messageInfo?: any): string {
+    const messageId = message.id
+    const partId = typeof toolPart?.id === "string" ? toolPart.id : `${messageId}-tool-${toolIndex}`
+    const status = toolPart?.state?.status ?? messageInfo?.state?.status ?? ""
+    const version = message.version ?? 0
+    return `${messageId}:${partId}:${status}:${version}`
+  }
 
   const sessionInfo = createMemo(() => {
     return (
@@ -344,12 +352,14 @@ export default function MessageStream(props: MessageStreamProps) {
         const toolPart = displayParts.tool[toolIndex]
         const toolKey = typeof toolPart?.id === "string" ? toolPart.id : `${message.id}-tool-${toolIndex}`
 
+        const toolSignature = createToolSignature(message, toolPart, toolIndex, messageInfo)
         const toolEntry = toolItemCache.get(toolKey)
-        if (toolEntry && toolEntry.toolPart === toolPart && toolEntry.messageInfo === messageInfo) {
-          toolEntry.item.toolPart = toolPart
-          toolEntry.item.messageInfo = messageInfo
+        if (toolEntry && toolEntry.signature === toolSignature) {
           toolEntry.toolPart = toolPart
           toolEntry.messageInfo = messageInfo
+          toolEntry.signature = toolSignature
+          toolEntry.item.toolPart = toolPart
+          toolEntry.item.messageInfo = messageInfo
           newToolCache.set(toolKey, toolEntry)
           items.push(toolEntry.item)
         } else {
@@ -359,7 +369,7 @@ export default function MessageStream(props: MessageStreamProps) {
             toolPart,
             messageInfo,
           }
-          newToolCache.set(toolKey, { toolPart, messageInfo, item: toolItem })
+          newToolCache.set(toolKey, { toolPart, messageInfo, signature: toolSignature, item: toolItem })
           items.push(toolItem)
         }
       }

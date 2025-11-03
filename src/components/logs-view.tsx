@@ -1,7 +1,6 @@
-import { Component, For, createSignal, createEffect, Show, onMount, onCleanup } from "solid-js"
-import { instances } from "../stores/instances"
-import { Trash2, ChevronDown } from "lucide-solid"
-import type { LogEntry } from "../types/instance"
+import { Component, For, createSignal, createEffect, Show, onMount, onCleanup, createMemo } from "solid-js"
+import { instances, getInstanceLogs } from "../stores/instances"
+import { ChevronDown } from "lucide-solid"
 
 interface LogsViewProps {
   instanceId: string
@@ -15,7 +14,7 @@ const LogsView: Component<LogsViewProps> = (props) => {
   const [autoScroll, setAutoScroll] = createSignal(savedState?.autoScroll ?? false)
 
   const instance = () => instances().get(props.instanceId)
-  const logs = () => instance()?.logs ?? []
+  const logs = createMemo(() => getInstanceLogs(props.instanceId))
 
   onMount(() => {
     if (scrollRef && savedState) {

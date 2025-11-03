@@ -7,8 +7,35 @@ import { preferences, updateLastUsedBinary } from "./preferences"
 
 const [instances, setInstances] = createSignal<Map<string, Instance>>(new Map())
 const [activeInstanceId, setActiveInstanceId] = createSignal<string | null>(null)
+const [instanceLogs, setInstanceLogs] = createSignal<Map<string, LogEntry[]>>(new Map())
 
 const MAX_LOG_ENTRIES = 1000
+
+function ensureLogContainer(id: string) {
+  setInstanceLogs((prev) => {
+    if (prev.has(id)) {
+      return prev
+    }
+    const next = new Map(prev)
+    next.set(id, [])
+    return next
+  })
+}
+
+function removeLogContainer(id: string) {
+  setInstanceLogs((prev) => {
+    if (!prev.has(id)) {
+      return prev
+    }
+    const next = new Map(prev)
+    next.delete(id)
+    return next
+  })
+}
+
+function getInstanceLogs(instanceId: string): LogEntry[] {
+  return instanceLogs().get(instanceId) ?? []
+}
 
 function addInstance(instance: Instance) {
   setInstances((prev) => {
@@ -16,6 +43,7 @@ function addInstance(instance: Instance) {
     next.set(instance.id, instance)
     return next
   })
+  ensureLogContainer(instance.id)
 }
 
 function updateInstance(id: string, updates: Partial<Instance>) {
@@ -35,6 +63,7 @@ function removeInstance(id: string) {
     next.delete(id)
     return next
   })
+  removeLogContainer(id)
 
   if (activeInstanceId() === id) {
     setActiveInstanceId(null)
@@ -54,7 +83,6 @@ async function createInstance(folder: string, binaryPath?: string): Promise<stri
     pid: 0,
     status: "starting",
     client: null,
-    logs: [],
     environmentVariables: preferences().environmentVariables,
   }
 
@@ -127,27 +155,22 @@ function getActiveInstance(): Instance | null {
 }
 
 function addLog(id: string, entry: LogEntry) {
-  setInstances((prev) => {
+  setInstanceLogs((prev) => {
     const next = new Map(prev)
-    const instance = next.get(id)
-    if (instance) {
-      const logs = [...instance.logs, entry]
-      if (logs.length > MAX_LOG_ENTRIES) {
-        logs.shift()
-      }
-      next.set(id, { ...instance, logs })
-    }
+    const existing = next.get(id) ?? []
+    const updated = existing.length >= MAX_LOG_ENTRIES ? [...existing.slice(1), entry] : [...existing, entry]
+    next.set(id, updated)
     return next
   })
 }
 
 function clearLogs(id: string) {
-  setInstances((prev) => {
-    const next = new Map(prev)
-    const instance = next.get(id)
-    if (instance) {
-      next.set(id, { ...instance, logs: [] })
+  setInstanceLogs((prev) => {
+    if (!prev.has(id)) {
+      return prev
     }
+    const next = new Map(prev)
+    next.set(id, [])
     return next
   })
 }
@@ -164,4 +187,6 @@ export {
   getActiveInstance,
   addLog,
   clearLogs,
+  instanceLogs,
+  getInstanceLogs,
 }
