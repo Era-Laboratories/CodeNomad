@@ -18,6 +18,27 @@ export default function MessagePart(props: MessagePartProps) {
   const isAssistantMessage = () => props.messageType === "assistant"
   const textContainerClass = () => (isAssistantMessage() ? "message-text message-text-assistant" : "message-text")
 
+  const plainTextContent = () => {
+    const part = props.part
+
+    if (typeof part?.text === "string") {
+      return part.text
+    }
+
+    const segments: string[] = []
+    const contentArray = Array.isArray(part?.content) ? part.content : []
+
+    for (const item of contentArray) {
+      if (typeof item === "string") {
+        segments.push(item)
+      } else if (item && typeof item === "object" && typeof (item as { text?: unknown }).text === "string") {
+        segments.push((item as { text: string }).text)
+      }
+    }
+
+    return segments.join("\n")
+  }
+
   function handleReasoningClick(e: Event) {
     e.preventDefault()
     toggleItemExpanded(reasoningId())
@@ -28,7 +49,12 @@ export default function MessagePart(props: MessagePartProps) {
       <Match when={partType() === "text"}>
         <Show when={!props.part.synthetic && partHasRenderableText(props.part)}>
           <div class={textContainerClass()}>
-            <Markdown part={props.part} isDark={isDark()} size={isAssistantMessage() ? "tight" : "base"} />
+            <Show
+              when={isAssistantMessage()}
+              fallback={<span>{plainTextContent()}</span>}
+            >
+              <Markdown part={props.part} isDark={isDark()} size={isAssistantMessage() ? "tight" : "base"} />
+            </Show>
           </div>
         </Show>
       </Match>
