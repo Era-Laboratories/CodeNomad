@@ -63,13 +63,51 @@ export default function MessageItem(props: MessageItemProps) {
     isUser()
       ? "message-item-base bg-[var(--message-user-bg)] border-l-4 border-[var(--message-user-border)]"
       : "message-item-base assistant-message bg-[var(--message-assistant-bg)] border-l-4 border-[var(--message-assistant-border)]"
-
+ 
+  const agentIdentifier = () => {
+    if (isUser()) return ""
+    return (
+      props.messageInfo?.agent ||
+      props.messageInfo?.mode ||
+      props.messageInfo?.agentID ||
+      props.messageInfo?.agentId ||
+      props.messageInfo?.metadata?.agentID ||
+      ""
+    )
+  }
+ 
+  const modelIdentifier = () => {
+    if (isUser()) return ""
+    const modelID =
+      props.messageInfo?.modelID ||
+      props.messageInfo?.modelId ||
+      props.messageInfo?.model?.modelID ||
+      props.messageInfo?.model?.id ||
+      ""
+    const providerID =
+      props.messageInfo?.providerID ||
+      props.messageInfo?.providerId ||
+      props.messageInfo?.model?.providerID ||
+      ""
+    if (modelID && providerID) return `${providerID}/${modelID}`
+    return modelID
+  }
+ 
   return (
+
     <div class={containerClass()}>
       <div class="flex justify-between items-center gap-2.5 pb-0.5">
-        <span class="font-semibold text-xs text-[var(--text-muted)]">
-          {isUser() ? "You" : "Assistant"}
-        </span>
+        <div class="flex flex-col">
+          <Show when={isUser()}>
+            <span class="font-semibold text-xs text-[var(--text-muted)]">You</span>
+          </Show>
+          <Show when={!isUser()}>
+            <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[var(--text-muted)]">
+              <Show when={agentIdentifier()}>{(value) => <span>Agent: {value()}</span>}</Show>
+              <Show when={modelIdentifier()}>{(value) => <span>Model: {value()}</span>}</Show>
+            </div>
+          </Show>
+        </div>
         <div class="flex items-center gap-2">
           <span class="text-[11px] text-[var(--text-muted)]">{timestamp()}</span>
           <Show when={isUser() && props.onRevert}>
@@ -94,8 +132,9 @@ export default function MessageItem(props: MessageItemProps) {
           </Show>
         </div>
       </div>
-
+ 
       <div class="pt-1 whitespace-pre-wrap break-words leading-[1.1]">
+
         <Show when={props.isQueued && isUser()}>
           <div class="message-queued-badge">QUEUED</div>
         </Show>

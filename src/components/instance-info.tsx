@@ -6,32 +6,39 @@ interface InstanceInfoProps {
   compact?: boolean
 }
 
-function parseMcpStatus(status: unknown): Array<{ name: string; status: "running" | "stopped" | "error" }> {
+type ParsedMcpStatus = {
+  name: string
+  status: "running" | "stopped" | "error"
+  error?: string
+}
+
+function parseMcpStatus(status: unknown): ParsedMcpStatus[] {
   if (!status || typeof status !== "object") return []
 
-  try {
-    const obj = status as Record<string, string>
-    return Object.entries(obj).map(([name, statusValue]) => {
-      let mappedStatus: "running" | "stopped" | "error"
+  const result: ParsedMcpStatus[] = []
 
-      if (statusValue === "connected") {
-        mappedStatus = "running"
-      } else if (statusValue === "disabled") {
-        mappedStatus = "stopped"
-      } else if (statusValue === "failed") {
-        mappedStatus = "error"
-      } else {
-        mappedStatus = "stopped"
-      }
+  for (const [name, value] of Object.entries(status as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue
+    const rawStatus = (value as { status?: string }).status
+    if (!rawStatus) continue
 
-      return {
-        name,
-        status: mappedStatus,
-      }
+    let mappedStatus: ParsedMcpStatus["status"]
+    if (rawStatus === "connected") {
+      mappedStatus = "running"
+    } else if (rawStatus === "failed") {
+      mappedStatus = "error"
+    } else {
+      mappedStatus = "stopped"
+    }
+
+    result.push({
+      name,
+      status: mappedStatus,
+      error: typeof (value as { error?: unknown }).error === "string" ? (value as { error?: string }).error : undefined,
     })
-  } catch {
-    return []
   }
+
+  return result
 }
 
 const InstanceInfo: Component<InstanceInfoProps> = (props) => {
@@ -173,19 +180,37 @@ const InstanceInfo: Component<InstanceInfoProps> = (props) => {
             <div class="space-y-1.5">
               <For each={mcpServers()}>
                 {(server) => (
-                  <div class="flex items-center justify-between px-2 py-1.5 rounded border bg-surface-secondary border-base">
-                    <span class="text-xs text-primary font-medium truncate">{server.name}</span>
-                    <div class="flex items-center gap-1.5 flex-shrink-0">
-                      <Show when={server.status === "running"}>
-                        <div class="status-dot ready animate-pulse" />
-                      </Show>
-                      <Show when={server.status === "error"}>
-                        <div class="status-dot error" />
-                      </Show>
-                      <Show when={server.status === "stopped"}>
-                        <div class="status-dot stopped" />
-                      </Show>
+                  <div class="px-2 py-1.5 rounded border bg-surface-secondary border-base">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-xs text-primary font-medium truncate">{server.name}</span>
+                      <div class="flex items-center gap-1.5 flex-shrink-0 text-xs text-secondary">
+                        <div
+                          class={`status-dot ${
+                            server.status === "running"
+                              ? "ready animate-pulse"
+                              : server.status === "error"
+                                ? "error"
+                                : "stopped"
+                          }`}
+                        />
+                        <span>
+                          {
+                            server.status === "running"
+                              ? "Connected"
+                              : server.status === "error"
+                                ? "Error"
+                                : "Disabled"
+                          }
+                        </span>
+                      </div>
                     </div>
+                    <Show when={server.error}>
+                      {(error) => (
+                        <div class="text-[11px] mt-1 break-words" style={{ color: "var(--status-error)" }}>
+                          {error()}
+                        </div>
+                      )}
+                    </Show>
                   </div>
                 )}
               </For>
