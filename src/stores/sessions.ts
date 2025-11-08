@@ -1409,19 +1409,20 @@ function handleMessageUpdate(instanceId: string, event: any): void {
       message.status = "complete" as const
       message.version += 1
       message.displayParts = computeDisplayParts(message, preferences().showThinkingBlocks)
-
-      session.messagesInfo.set(info.id, info)
-
-      withSession(instanceId, info.sessionID, (session) => {
-        // Session already mutated in place
-      })
-
-      updateSessionInfo(instanceId, info.sessionID)
     }
+
+    session.messagesInfo.set(info.id, info)
+
+    withSession(instanceId, info.sessionID, (session) => {
+      // Session already mutated in place
+    })
+
+    updateSessionInfo(instanceId, info.sessionID)
   }
 }
 
 function handleSessionUpdate(instanceId: string, event: any): void {
+
   const info = event.properties?.info
   if (!info) return
 

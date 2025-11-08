@@ -270,6 +270,8 @@ export default function MessageStream(props: MessageStreamProps) {
     )
   })
 
+  const currentSession = createMemo(() => sessions().get(props.instanceId)?.get(props.sessionId))
+
   const formattedSessionInfo = createMemo(() => {
     const sessionInfo = getSessionInfo(props.instanceId, props.sessionId) || {
       tokens: 0,
@@ -286,6 +288,7 @@ export default function MessageStream(props: MessageStreamProps) {
       sessionInfo.contextUsageTokens,
     )
   })
+
 
   function isNearBottom(element: HTMLDivElement, offset = SCROLL_OFFSET) {
     const { scrollTop, scrollHeight, clientHeight } = element
@@ -388,7 +391,14 @@ export default function MessageStream(props: MessageStreamProps) {
 
       tokenSegments.push(`${message.id}:${message.version ?? 0}:${message.status}:${message.parts.length}`)
 
+      for (const part of message.parts) {
+        const partId = typeof part.id === "string" ? part.id : part.type ?? "part"
+        const partVersion = typeof (part as any).version === "number" ? (part as any).version : 0
+        tokenSegments.push(`${message.id}:${partId}:${partVersion}`)
+      }
+
       const baseDisplayParts = message.displayParts
+
       const displayParts: MessageDisplayParts =
         baseDisplayParts && baseDisplayParts.showThinking === showThinking
           ? baseDisplayParts
