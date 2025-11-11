@@ -6,6 +6,7 @@ let highlighterPromise: Promise<Highlighter> | null = null
 let currentTheme: "light" | "dark" = "light"
 let isInitialized = false
 let highlightSuppressed = false
+let rendererSetup = false
 
 const extensionToLanguage: Record<string, string> = {
   ts: "typescript",
@@ -237,7 +238,7 @@ async function runLanguageLoadQueue() {
 }
 
 function setupRenderer(isDark: boolean) {
-  if (!highlighter) return
+  if (!highlighter || rendererSetup) return
 
   currentTheme = isDark ? "dark" : "light"
 
@@ -284,13 +285,13 @@ function setupRenderer(isDark: boolean) {
 
     // Skip highlighting for "text" aliases
     if (langKey === "text" || raw === "text") {
-      return `<div class="markdown-code-block" data-language="${escapedLang}" data-code="${encodedCode}">${header}<pre><code>${escapeHtml(decodedCode)}</code></pre></div>`
+      return `<div class="markdown-code-block" data-language="${escapedLang}" data-code="${encodedCode}">${header}<pre><code class="language-${escapedLang}">${escapeHtml(decodedCode)}</code></pre></div>`
     }
 
     // Use highlighting if language is loaded, otherwise fall back to plain code
     if (loadedLanguages.has(langKey)) {
       try {
-        const html = highlighter.codeToHtml(decodedCode, {
+        const html = highlighter!.codeToHtml(decodedCode, {
           lang: langKey,
           theme: currentTheme === "dark" ? "github-dark" : "github-light",
         })
@@ -314,6 +315,7 @@ function setupRenderer(isDark: boolean) {
   }
 
   marked.use({ renderer })
+  rendererSetup = true
 }
 
 export async function initMarkdown(isDark: boolean) {
