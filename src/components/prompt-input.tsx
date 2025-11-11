@@ -33,24 +33,7 @@ export default function PromptInput(props: PromptInputProps) {
   let textareaRef: HTMLTextAreaElement | undefined
   let containerRef: HTMLDivElement | undefined
 
-  const MAX_TEXTAREA_HEIGHT = 200
-  const MIN_TEXTAREA_LINES = 4
 
-  function adjustTextareaHeight(textarea: HTMLTextAreaElement | undefined) {
-    if (!textarea) return
-
-    const computedStyle = window.getComputedStyle(textarea)
-    const fontSizeValue = parseFloat(computedStyle.fontSize)
-    const fallbackFontSize = Number.isFinite(fontSizeValue) && fontSizeValue > 0 ? fontSizeValue : 16
-    const lineHeightValue = parseFloat(computedStyle.lineHeight)
-    const lineHeight = Number.isFinite(lineHeightValue) && lineHeightValue > 0 ? lineHeightValue : fallbackFontSize * 1.5
-    const minHeight = lineHeight * MIN_TEXTAREA_LINES
-
-    textarea.style.height = "auto"
-    const scrollHeight = textarea.scrollHeight
-    const newHeight = Math.min(Math.max(scrollHeight, minHeight), MAX_TEXTAREA_HEIGHT)
-    textarea.style.height = newHeight + "px"
-  }
 
 
   const attachments = () => getAttachments(props.instanceId, props.sessionId)
@@ -131,10 +114,6 @@ export default function PromptInput(props: PromptInputProps) {
         setAtPosition(null)
         setSearchQuery("")
         syncAttachmentCounters(storedPrompt, currentAttachments)
-
-        queueMicrotask(() => {
-          adjustTextareaHeight(textareaRef)
-        })
       }
     )
   )
@@ -172,8 +151,6 @@ export default function PromptInput(props: PromptInputProps) {
       }
 
       setPrompt(newPrompt)
-
-      adjustTextareaHeight(textareaRef)
     }
   }
 
@@ -222,7 +199,6 @@ export default function PromptInput(props: PromptInputProps) {
             setTimeout(() => {
               const newCursorPos = start + placeholder.length
               textarea.setSelectionRange(newCursorPos, newCursorPos)
-              adjustTextareaHeight(textarea)
               textarea.focus()
             }, 0)
           }
@@ -266,7 +242,6 @@ export default function PromptInput(props: PromptInputProps) {
         setTimeout(() => {
           const newCursorPos = start + placeholder.length
           textarea.setSelectionRange(newCursorPos, newCursorPos)
-          adjustTextareaHeight(textarea)
           textarea.focus()
         }, 0)
       }
@@ -351,7 +326,6 @@ export default function PromptInput(props: PromptInputProps) {
 
           setTimeout(() => {
             textarea.setSelectionRange(placeholderStart, placeholderStart)
-            adjustTextareaHeight(textarea)
           }, 0)
 
           return
@@ -393,7 +367,6 @@ export default function PromptInput(props: PromptInputProps) {
 
           setTimeout(() => {
             textarea.setSelectionRange(placeholderStart, placeholderStart)
-            adjustTextareaHeight(textarea)
           }, 0)
 
           return
@@ -437,7 +410,6 @@ export default function PromptInput(props: PromptInputProps) {
 
             setTimeout(() => {
               textarea.setSelectionRange(mentionStart, mentionStart)
-              adjustTextareaHeight(textarea)
             }, 0)
 
             return
@@ -463,9 +435,6 @@ export default function PromptInput(props: PromptInputProps) {
       const newIndex = historyIndex() === -1 ? 0 : Math.min(historyIndex() + 1, currentHistory.length - 1)
       setHistoryIndex(newIndex)
       setPrompt(currentHistory[newIndex])
-      setTimeout(() => {
-        adjustTextareaHeight(textarea)
-      }, 0)
       return
     }
 
@@ -479,9 +448,6 @@ export default function PromptInput(props: PromptInputProps) {
         setHistoryIndex(-1)
         setPrompt("")
       }
-      setTimeout(() => {
-        adjustTextareaHeight(textarea)
-      }, 0)
     }
   }
 
@@ -495,8 +461,6 @@ export default function PromptInput(props: PromptInputProps) {
     setIgnoredAtPositions(new Set<number>())
     setPasteCount(0)
     setImageCount(0)
-
-    adjustTextareaHeight(textareaRef)
 
     try {
       await addToHistory(props.instanceFolder, text)
@@ -517,8 +481,6 @@ export default function PromptInput(props: PromptInputProps) {
     const value = target.value
     setPrompt(value)
     setHistoryIndex(-1)
-
-    adjustTextareaHeight(target)
 
     const cursorPos = target.selectionStart
     const textBeforeCursor = value.substring(0, cursorPos)
@@ -582,7 +544,6 @@ export default function PromptInput(props: PromptInputProps) {
           if (textareaRef) {
             const newCursorPos = pos + attachmentText.length + 1
             textareaRef.setSelectionRange(newCursorPos, newCursorPos)
-            adjustTextareaHeight(textareaRef)
           }
         }, 0)
       }
@@ -607,8 +568,6 @@ export default function PromptInput(props: PromptInputProps) {
             if (textareaRef) {
               const newCursorPos = pos + 1 + path.length
               textareaRef.setSelectionRange(newCursorPos, newCursorPos)
-              adjustTextareaHeight(textareaRef)
-              textareaRef.focus()
             }
           }, 0)
         }
@@ -639,7 +598,6 @@ export default function PromptInput(props: PromptInputProps) {
           if (textareaRef) {
             const newCursorPos = pos + attachmentText.length + 1
             textareaRef.setSelectionRange(newCursorPos, newCursorPos)
-            adjustTextareaHeight(textareaRef)
           }
         }, 0)
       }
@@ -805,7 +763,7 @@ export default function PromptInput(props: PromptInputProps) {
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             disabled={props.disabled}
-            rows={1}
+            rows={4}
             style={attachments().length > 0 ? { "padding-top": "8px" } : {}}
             spellcheck={false}
           />
