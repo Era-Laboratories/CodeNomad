@@ -6,6 +6,7 @@ import { useTheme } from "../lib/theme"
 import { getLanguageFromPath } from "../lib/markdown"
 import { isRenderableDiffText } from "../lib/diff-utils"
 import { getToolRenderCache, setToolRenderCache } from "../lib/tool-render-cache"
+import { preferences, setDiffViewMode, type DiffViewMode } from "../stores/preferences"
 import type { TextPart } from "../types/message"
 
 
@@ -385,6 +386,33 @@ export default function ToolCall(props: ToolCallProps) {
     const relativePath = payload.filePath ? getRelativePath(payload.filePath) : ""
     const toolbarLabel = relativePath ? `Diff · ${relativePath}` : "Diff"
     const cacheKey = makeRenderCacheKey(toolCallId(), props.messageId, props.messageVersion, props.partVersion)
+    const diffMode = () => (preferences().diffViewMode || "split") as DiffViewMode
+    const themeKey = isDark() ? "dark" : "light"
+
+    // Check if we have valid cache
+    let cachedHtml: string | undefined
+    if (cacheKey) {
+      const cached = getToolRenderCache(cacheKey)
+      const currentMode = diffMode()
+      if (cached && 
+          cached.text === payload.diffText && 
+          cached.theme === themeKey &&
+          cached.mode === currentMode) {
+        cachedHtml = cached.html
+      }
+    }
+
+    const handleModeChange = (mode: DiffViewMode) => {
+      setDiffViewMode(mode)
+    }
+
+    const handleDiffRendered = () => {
+      if (cacheKey && !cachedHtml) {
+        // Cache will be updated by the diff viewer component itself
+        // We'll capture HTML from the rendered component
+      }
+      handleScrollRendered()
+    }
 
     return (
       <div
@@ -392,14 +420,35 @@ export default function ToolCall(props: ToolCallProps) {
         ref={(element) => initializeScrollContainer(element)}
         onScroll={(event) => updateScrollState(toolCallId(), event.currentTarget)}
       >
-        <div class="tool-call-diff-toolbar">
+        <div class="tool-call-diff-toolbar" role="group" aria-label="Diff view mode">
           <span class="tool-call-diff-toolbar-label">{toolbarLabel}</span>
+          <div class="tool-call-diff-toggle">
+            <button
+              type="button"
+              class={`tool-call-diff-mode-button${diffMode() === "split" ? " active" : ""}`}
+              aria-pressed={diffMode() === "split"}
+              onClick={() => handleModeChange("split")}
+            >
+              Split
+            </button>
+            <button
+              type="button"
+              class={`tool-call-diff-mode-button${diffMode() === "unified" ? " active" : ""}`}
+              aria-pressed={diffMode() === "unified"}
+              onClick={() => handleModeChange("unified")}
+            >
+              Unified
+            </button>
+          </div>
         </div>
         <ToolCallDiffViewer
           diffText={payload.diffText}
           filePath={payload.filePath}
-          theme={isDark() ? "dark" : "light"}
-          renderCacheKey={cacheKey}
+          theme={themeKey}
+          mode={diffMode()}
+          cachedHtml={cachedHtml}
+          cacheKey={cacheKey}
+          onRendered={handleDiffRendered}
         />
       </div>
     )
