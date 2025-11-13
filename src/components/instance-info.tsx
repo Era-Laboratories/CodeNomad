@@ -1,5 +1,6 @@
-import { Component, Show, For, onMount, createSignal } from "solid-js"
+import { Component, Show, For, createSignal, createEffect, onCleanup } from "solid-js"
 import type { Instance, RawMcpStatus } from "../types/instance"
+import { updateInstance } from "../stores/instances"
 
 interface InstanceInfoProps {
   instance: Instance
@@ -41,6 +42,8 @@ function parseMcpStatus(status: RawMcpStatus): ParsedMcpStatus[] {
   return result
 }
 
+const pendingMetadataRequests = new Set<string>()
+
 const InstanceInfo: Component<InstanceInfoProps> = (props) => {
   const [isLoadingMetadata, setIsLoadingMetadata] = createSignal(true)
 
@@ -50,35 +53,73 @@ const InstanceInfo: Component<InstanceInfoProps> = (props) => {
     return status ? parseMcpStatus(status) : []
   }
 
-  onMount(async () => {
-    if (!props.instance.client) {
+  createEffect(() => {
+    const instance = props.instance
+    const instanceId = instance.id
+    const client = instance.client
+    const hasMetadata = Boolean(instance.metadata)
+
+    if (!client) {
       setIsLoadingMetadata(false)
+      pendingMetadataRequests.delete(instanceId)
       return
     }
 
-    setIsLoadingMetadata(true)
-    try {
-      const [projectResult, mcpResult] = await Promise.allSettled([
-        props.instance.client.project.current(),
-        props.instance.client.mcp.status(),
-      ])
-
-      const project = projectResult.status === "fulfilled" ? projectResult.value.data : undefined
-      const mcpStatus = mcpResult.status === "fulfilled" ? mcpResult.value.data as RawMcpStatus : undefined
-
-      const { updateInstance } = await import("../stores/instances")
-      updateInstance(props.instance.id, {
-        metadata: {
-          project,
-          mcpStatus,
-          version: "0.15.8",
-        },
-      })
-    } catch (error) {
-      console.error("Failed to load instance metadata:", error)
-    } finally {
+    if (hasMetadata) {
       setIsLoadingMetadata(false)
+      pendingMetadataRequests.delete(instanceId)
+      return
     }
+
+    if (pendingMetadataRequests.has(instanceId)) {
+      setIsLoadingMetadata(true)
+      return
+    }
+
+    let cancelled = false
+    pendingMetadataRequests.add(instanceId)
+    setIsLoadingMetadata(true)
+
+    void (async () => {
+      try {
+        const [projectResult, mcpResult] = await Promise.allSettled([
+          client.project.current(),
+          client.mcp.status(),
+        ])
+
+        if (cancelled) {
+          return
+        }
+
+        const project = projectResult.status === "fulfilled" ? projectResult.value.data : undefined
+        const mcpStatus = mcpResult.status === "fulfilled" ? (mcpResult.value.data as RawMcpStatus) : undefined
+
+        const nextMetadata = {
+          ...(instance.metadata ?? {}),
+          ...(project ? { project } : {}),
+          ...(mcpStatus ? { mcpStatus } : {}),
+        }
+
+        if (!nextMetadata.version) {
+          nextMetadata.version = "0.15.8"
+        }
+
+        updateInstance(instanceId, { metadata: nextMetadata })
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load instance metadata:", error)
+        }
+      } finally {
+        pendingMetadataRequests.delete(instanceId)
+        if (!cancelled) {
+          setIsLoadingMetadata(false)
+        }
+      }
+    })()
+
+    onCleanup(() => {
+      cancelled = true
+    })
   })
 
   return (

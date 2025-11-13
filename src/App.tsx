@@ -1032,10 +1032,10 @@ const App: Component = () => {
               onNew={handleNewInstanceRequest}
             />
 
-            <Show when={activeInstance()}>
+            <Show when={activeInstance()} keyed>
               {(instance) => (
                 <>
-                  <Show when={activeSessions().size > 0} fallback={<InstanceWelcomeView instance={instance()} />}>
+                  <Show when={activeSessions().size > 0} fallback={<InstanceWelcomeView instance={instance} />}>
                     <div class="flex flex-1 min-h-0">
                       {/* Session Sidebar */}
                       <div
@@ -1043,12 +1043,12 @@ const App: Component = () => {
                         style={{ width: `${sessionSidebarWidth()}px` }}
                       >
                             <SessionList
-                              instanceId={instance().id}
+                              instanceId={instance.id}
                               sessions={activeSessions()}
                               activeSessionId={activeSessionIdForInstance()}
-                              onSelect={(id) => setActiveSession(instance().id, id)}
-                              onClose={(id) => handleCloseSession(instance().id, id)}
-                              onNew={() => handleNewSession(instance().id)}
+                              onSelect={(id) => setActiveSession(instance.id, id)}
+                              onClose={(id) => handleCloseSession(instance.id, id)}
+                              onNew={() => handleNewSession(instance.id)}
                               showHeader
                               showFooter={false}
                               headerContent={
@@ -1075,16 +1075,17 @@ const App: Component = () => {
                         <Show when={activeSessionForInstance()}>
                           {(activeSession) => (
                             <>
-                              <ContextUsagePanel instanceId={instance().id} sessionId={activeSession().id} />
+                              <ContextUsagePanel instanceId={instance.id} sessionId={activeSession().id} />
                               <div class="session-sidebar-controls px-3 py-3 border-r border-base flex flex-col gap-3">
                                 <AgentSelector
-                                  instanceId={instance().id}
+                                  instanceId={instance.id}
                                   sessionId={activeSession().id}
                                   currentAgent={activeSession().agent}
                                   onAgentChange={handleSidebarAgentChange}
                                 />
+
                                 <ModelSelector
-                                  instanceId={instance().id}
+                                  instanceId={instance.id}
                                   sessionId={activeSession().id}
                                   currentModel={activeSession().model}
                                   onModelChange={handleSidebarModelChange}
@@ -1115,15 +1116,15 @@ const App: Component = () => {
                                 <SessionView
                                   sessionId={sessionId}
                                   activeSessions={activeSessions()}
-                                  instanceId={activeInstance()!.id}
-                                  instanceFolder={activeInstance()!.folder}
+                                  instanceId={instance.id}
+                                  instanceFolder={instance.folder}
                                   escapeInDebounce={escapeInDebounce()}
                                 />
                               )}
                             </Show>
                           }
                         >
-                          <InfoView instanceId={instance().id} />
+                          <InfoView instanceId={instance.id} />
                         </Show>
                       </div>
                     </div>
