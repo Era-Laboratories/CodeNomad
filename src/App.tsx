@@ -63,6 +63,7 @@ import {
   agents,
   getSessionInfo,
   isSessionMessagesLoading,
+  fetchSessions,
 } from "./stores/sessions"
 import { isSessionBusy } from "./stores/session-status"
 import { setupTabKeyboardShortcuts } from "./lib/keyboard"
@@ -461,13 +462,24 @@ const App: Component = () => {
     const sessions = getSessions(instanceId)
     const session = sessions.find((s) => s.id === sessionId)
 
-    const isParent = session?.parentId === null
+    if (!session) {
+      return
+    }
 
-    if (!isParent) {
+    const parentSessionId = session.parentId ?? session.id
+    const parentSession = sessions.find((s) => s.id === parentSessionId)
+
+    if (!parentSession || parentSession.parentId !== null) {
       return
     }
 
     clearActiveParentSession(instanceId)
+
+    try {
+      await fetchSessions(instanceId)
+    } catch (error) {
+      console.error("Failed to refresh sessions after closing:", error)
+    }
   }
 
   function setupCommands() {

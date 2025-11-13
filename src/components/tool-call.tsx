@@ -699,7 +699,7 @@ export default function ToolCall(props: ToolCallProps) {
       }
     }
 
-    const shouldShowTag = (status: string) => status === "in_progress" || status === "cancelled"
+    const shouldShowTag = (status: string) => status === "cancelled"
 
     return (
       <div class="tool-call-todos" role="list">

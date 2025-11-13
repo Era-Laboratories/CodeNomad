@@ -409,15 +409,19 @@ async function fetchSessions(instanceId: string): Promise<void> {
       return
     }
 
+    const existingSessions = sessions().get(instanceId)
+
     for (const apiSession of response.data) {
+      const existingSession = existingSessions?.get(apiSession.id)
+
       sessionMap.set(apiSession.id, {
         id: apiSession.id,
         instanceId,
         title: apiSession.title || "Untitled",
         parentId: apiSession.parentID || null,
-        agent: "",
-        model: { providerId: "", modelId: "" },
-        version: apiSession.version,  // Include version from SDK
+        agent: existingSession?.agent ?? "",
+        model: existingSession?.model ?? { providerId: "", modelId: "" },
+        version: apiSession.version, // Include version from SDK
         time: {
           ...apiSession.time,
         },
@@ -429,14 +433,31 @@ async function fetchSessions(instanceId: string): Promise<void> {
               diff: apiSession.revert.diff,
             }
           : undefined,
-        messages: [],
-        messagesInfo: new Map(),
+        messages: existingSession?.messages ?? [],
+        messagesInfo: existingSession?.messagesInfo ?? new Map(),
       })
     }
+
+    const validSessionIds = new Set(sessionMap.keys())
 
     setSessions((prev) => {
       const next = new Map(prev)
       next.set(instanceId, sessionMap)
+      return next
+    })
+
+    setMessagesLoaded((prev) => {
+      const next = new Map(prev)
+      const loadedSet = next.get(instanceId)
+      if (loadedSet) {
+        const filtered = new Set<string>()
+        for (const id of loadedSet) {
+          if (validSessionIds.has(id)) {
+            filtered.add(id)
+          }
+        }
+        next.set(instanceId, filtered)
+      }
       return next
     })
 

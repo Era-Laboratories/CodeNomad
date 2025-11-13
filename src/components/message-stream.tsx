@@ -545,15 +545,14 @@ export default function MessageStream(props: MessageStreamProps) {
   return (
     <div class="message-stream-container">
       <div class="connection-status">
-        <div class="connection-status-text flex items-center gap-2 text-sm font-medium">
+        <div class="connection-status-text connection-status-info flex items-center gap-2 text-sm font-medium">
           <span>{formattedSessionInfo()}</span>
         </div>
-        <div class="flex-1" />
-        <div class="connection-status-text flex items-center gap-2 text-sm font-medium">
+        <div class="connection-status-text connection-status-shortcut flex items-center gap-2 text-sm font-medium">
           <span>Command Palette</span>
           <Kbd shortcut="cmd+shift+p" />
         </div>
-        <div class="flex-1 flex items-center justify-end gap-3">
+        <div class="connection-status-meta flex items-center justify-end gap-3">
           <Show when={connectionStatus() === "connected"}>
             <span class="status-indicator connected">
               <span class="status-dot" />

@@ -225,7 +225,7 @@ const SessionList: Component<SessionListProps> = (props) => {
             </div>
             <Show when={rowProps.canClose}>
               <span
-                class="session-item-close opacity-0 group-hover:opacity-100 hover:bg-status-error hover:text-white rounded p-0.5 transition-all"
+                class="session-item-close opacity-80 hover:opacity-100 hover:bg-status-error hover:text-white rounded p-0.5 transition-all"
                 onClick={(event) => {
                   event.stopPropagation()
                   props.onClose(rowProps.sessionId)
@@ -333,11 +333,13 @@ const SessionList: Component<SessionListProps> = (props) => {
                 role="button"
                 aria-selected={props.activeSessionId === "info"}
               >
-                <div class="flex items-center gap-2 flex-1">
-                  <Info class="w-4 h-4 flex-shrink-0" />
-                  <span class="session-item-title truncate">Instance Info</span>
+                <div class="session-item-row session-item-header">
+                  <div class="session-item-title-row">
+                    <Info class="w-4 h-4 flex-shrink-0" />
+                    <span class="session-item-title truncate">Instance Info</span>
+                  </div>
+                  {infoShortcut && <Kbd shortcut={formatShortcut(infoShortcut)} class="ml-2 not-italic" />}
                 </div>
-                {infoShortcut && <Kbd shortcut={formatShortcut(infoShortcut)} class="ml-2 not-italic" />}
               </button>
             </div>
           </div>
