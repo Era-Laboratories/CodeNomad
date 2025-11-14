@@ -91,9 +91,16 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          for file in release/*.dmg release/*.zip; do
-            [ -e "$file" ] || continue
-            gh release upload "$TAG" "$file" --clobber
+          for file in release/*; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              *.dmg|*.zip)
+                gh release upload "$TAG" "$file" --clobber
+                ;;
+              *)
+                echo "Skipping non-installer asset: $file"
+                ;;
+            esac
           done
 
   build-windows:
@@ -123,11 +130,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
         run: |
-          $patterns = @("*.exe", "*.zip")
-          foreach ($pattern in $patterns) {
-            Get-ChildItem -Path "release" -Filter $pattern -File | ForEach-Object {
-              gh release upload $env:TAG $_.FullName --clobber
-            }
+          Get-ChildItem -Path "release" -File | Where-Object {
+            $_.Name -match '\.(exe|zip)$'
+          } | ForEach-Object {
+            gh release upload $env:TAG $_.FullName --clobber
           }
 
   build-linux:
@@ -158,7 +164,14 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          for file in release/*.AppImage release/*.deb release/*.tar.gz; do
-            [ -e "$file" ] || continue
-            gh release upload "$TAG" "$file" --clobber
+          for file in release/*; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              *.AppImage|*.deb|*.tar.gz)
+                gh release upload "$TAG" "$file" --clobber
+                ;;
+              *)
+                echo "Skipping non-installer asset: $file"
+                ;;
+            esac
           done
