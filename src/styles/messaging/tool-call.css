@@ -66,8 +66,8 @@
   border-color: var(--border-base);
   color: inherit;
   --tool-call-line-unit: 1.4em;
-  --tool-call-lines-compact: 24;
-  --tool-call-lines-large: 48;
+  --tool-call-lines-compact: 15;
+  --tool-call-lines-large: 30;
   --tool-call-max-height-compact: calc(var(--tool-call-lines-compact) * var(--tool-call-line-unit));
   --tool-call-max-height-large: calc(var(--tool-call-lines-large) * var(--tool-call-line-unit));
 }
