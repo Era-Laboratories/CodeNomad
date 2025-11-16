@@ -16,8 +16,11 @@ import type {
 
 interface SSEConnection {
   instanceId: string
+  port: number
   eventSource: EventSource
   status: "connecting" | "connected" | "disconnected" | "error"
+  reconnectAttempts: number
+  reconnectTimer?: ReturnType<typeof setTimeout>
 }
 
 interface TuiToastEvent {
@@ -50,10 +53,13 @@ const [connectionStatus, setConnectionStatus] = createSignal<
 
 class SSEManager {
   private connections = new Map<string, SSEConnection>()
+  private static readonly MAX_RECONNECT_ATTEMPTS = 3
 
-  connect(instanceId: string, port: number): void {
-    if (this.connections.has(instanceId)) {
-      this.disconnect(instanceId)
+  connect(instanceId: string, port: number, reconnectAttempts = 0): void {
+    const existing = this.connections.get(instanceId)
+    if (existing) {
+      this.clearReconnectTimer(existing)
+      existing.eventSource.close()
     }
 
     const url = `http://localhost:${port}/event`
@@ -61,8 +67,10 @@ class SSEManager {
 
     const connection: SSEConnection = {
       instanceId,
+      port,
       eventSource,
       status: "connecting",
+      reconnectAttempts,
     }
 
     this.connections.set(instanceId, connection)
@@ -70,6 +78,7 @@ class SSEManager {
 
     eventSource.onopen = () => {
       connection.status = "connected"
+      connection.reconnectAttempts = 0
       this.updateConnectionStatus(instanceId, "connected")
       console.log(`[SSE] Connected to instance ${instanceId}`)
     }
@@ -87,13 +96,14 @@ class SSEManager {
       connection.status = "error"
       this.updateConnectionStatus(instanceId, "error")
       console.error(`[SSE] Connection error for instance ${instanceId}`)
-      this.handleConnectionLost(instanceId, "Connection to instance lost")
+      this.handleConnectionError(instanceId, "Connection to instance lost")
     }
   }
 
   disconnect(instanceId: string): void {
     const connection = this.connections.get(instanceId)
     if (connection) {
+      this.clearReconnectTimer(connection)
       connection.eventSource.close()
       this.connections.delete(instanceId)
       this.updateConnectionStatus(instanceId, "disconnected")
@@ -143,15 +153,49 @@ class SSEManager {
     }
   }
 
+  private handleConnectionError(instanceId: string, reason: string): void {
+    const connection = this.connections.get(instanceId)
+    if (!connection) return
+
+    connection.eventSource.close()
+
+    if (connection.reconnectAttempts >= SSEManager.MAX_RECONNECT_ATTEMPTS) {
+      this.handleConnectionLost(instanceId, reason)
+      return
+    }
+
+    const nextAttempt = connection.reconnectAttempts + 1
+    const delay = Math.min(nextAttempt * 1000, 5000)
+
+    connection.reconnectAttempts = nextAttempt
+    connection.status = "connecting"
+    this.updateConnectionStatus(instanceId, "connecting")
+
+    console.warn(`[SSE] Attempting reconnect ${nextAttempt} for instance ${instanceId}`)
+
+    connection.reconnectTimer = setTimeout(() => {
+      connection.reconnectTimer = undefined
+      this.connect(instanceId, connection.port, nextAttempt)
+    }, delay)
+  }
+
   private handleConnectionLost(instanceId: string, reason: string): void {
     const connection = this.connections.get(instanceId)
     if (!connection) return
 
+    this.clearReconnectTimer(connection)
     connection.eventSource.close()
     this.connections.delete(instanceId)
     connection.status = "disconnected"
     this.updateConnectionStatus(instanceId, "disconnected")
     this.onConnectionLost?.(instanceId, reason)
+  }
+
+  private clearReconnectTimer(connection: SSEConnection): void {
+    if (connection.reconnectTimer) {
+      clearTimeout(connection.reconnectTimer)
+      connection.reconnectTimer = undefined
+    }
   }
 
   private updateConnectionStatus(instanceId: string, status: SSEConnection["status"]): void {
