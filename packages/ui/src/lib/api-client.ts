@@ -17,7 +17,8 @@ import type {
   WorkspaceEventType,
 } from "../../../cli/src/api-types"
 
-const DEFAULT_BASE = typeof window !== "undefined" ? window.__CODENOMAD_API_BASE__ ?? "" : ""
+const FALLBACK_API_BASE = "http://127.0.0.1:9898"
+const DEFAULT_BASE = typeof window !== "undefined" ? window.__CODENOMAD_API_BASE__ ?? FALLBACK_API_BASE : FALLBACK_API_BASE
 const DEFAULT_EVENTS_URL = typeof window !== "undefined" ? window.__CODENOMAD_EVENTS_URL__ ?? "/api/events" : "/api/events"
 const API_BASE = import.meta.env.VITE_CODENOMAD_API_BASE ?? DEFAULT_BASE
 const EVENTS_URL = API_BASE ? `${API_BASE}${DEFAULT_EVENTS_URL}` : DEFAULT_EVENTS_URL
@@ -129,8 +130,11 @@ export const cliApi = {
       body: JSON.stringify({ path }),
     })
   },
-  listFileSystem(relativePath = "."): Promise<FileSystemEntry[]> {
+  listFileSystem(relativePath = ".", options?: { depth?: number }): Promise<FileSystemEntry[]> {
     const params = new URLSearchParams({ path: relativePath })
+    if (options?.depth) {
+      params.set("depth", String(options.depth))
+    }
     return request<FileSystemEntry[]>(`/api/filesystem?${params.toString()}`)
   },
   readInstanceData(id: string): Promise<InstanceData> {

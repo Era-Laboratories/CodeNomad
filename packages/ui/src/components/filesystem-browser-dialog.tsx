@@ -1,33 +1,198 @@
-import { Component, Show, For, createSignal, createMemo, createEffect, onCleanup } from "solid-js"
+import { Component, Show, For, createSignal, createMemo, createEffect, onCleanup, onMount } from "solid-js"
 import { Folder as FolderIcon, File as FileIcon, Loader2, Search, X } from "lucide-solid"
 import type { FileSystemEntry } from "../../../cli/src/api-types"
 import { cliApi } from "../lib/api-client"
 import { getServerMeta } from "../lib/server-meta"
 
 const MAX_RESULTS = 200
+const DEFAULT_DEPTH = 2
 
-let cachedEntries: FileSystemEntry[] | null = null
-let entriesPromise: Promise<FileSystemEntry[]> | null = null
+type CacheListener = (entries: FileSystemEntry[]) => void
 
-async function loadFileSystemEntries(): Promise<FileSystemEntry[]> {
-  if (cachedEntries) {
-    return cachedEntries
+interface FileSystemCacheState {
+  entriesMap: Map<string, FileSystemEntry>
+  entriesList: FileSystemEntry[]
+  loadedDirectories: Set<string>
+  loadingPromises: Map<string, Promise<void>>
+  pendingDirectories: string[]
+  listeners: Set<CacheListener>
+  queueActive: boolean
+}
+
+const fileSystemCache: FileSystemCacheState = {
+  entriesMap: new Map(),
+  entriesList: [],
+  loadedDirectories: new Set(),
+  loadingPromises: new Map(),
+  pendingDirectories: [],
+  listeners: new Set(),
+  queueActive: false,
+}
+
+let cacheWorkspaceRoot: string | null = null
+
+function normalizeEntryPath(path: string): string {
+  if (!path || path === ".") {
+    return "."
   }
-  if (entriesPromise) {
-    return entriesPromise
+  const cleaned = path.replace(/\\/g, "/").replace(/^\.\/+/, "").replace(/\/+/g, "/")
+  return cleaned || "."
+}
+
+function updateCache(entries: FileSystemEntry[]): boolean {
+  let changed = false
+  for (const entry of entries) {
+    const normalizedPath = normalizeEntryPath(entry.path)
+    const normalizedEntry = normalizedPath === entry.path ? entry : { ...entry, path: normalizedPath }
+    const existing = fileSystemCache.entriesMap.get(normalizedPath)
+
+    if (
+      !existing ||
+      existing.name !== normalizedEntry.name ||
+      existing.type !== normalizedEntry.type ||
+      existing.size !== normalizedEntry.size ||
+      existing.modifiedAt !== normalizedEntry.modifiedAt
+    ) {
+      fileSystemCache.entriesMap.set(normalizedPath, normalizedEntry)
+      changed = true
+    }
   }
-  entriesPromise = cliApi
-    .listFileSystem(".")
+
+  if (changed) {
+    fileSystemCache.entriesList = Array.from(fileSystemCache.entriesMap.values()).sort((a, b) =>
+      a.path.localeCompare(b.path),
+    )
+  }
+
+  return changed
+}
+
+function notifyCacheListeners() {
+  for (const listener of fileSystemCache.listeners) {
+    listener(fileSystemCache.entriesList)
+  }
+}
+
+function subscribeToCache(listener: CacheListener) {
+  fileSystemCache.listeners.add(listener)
+  listener(fileSystemCache.entriesList)
+  return () => fileSystemCache.listeners.delete(listener)
+}
+
+function resetFileSystemCache() {
+  fileSystemCache.entriesMap.clear()
+  fileSystemCache.entriesList = []
+  fileSystemCache.loadedDirectories.clear()
+  fileSystemCache.loadingPromises.clear()
+  fileSystemCache.pendingDirectories = []
+  fileSystemCache.queueActive = false
+  notifyCacheListeners()
+}
+
+function enqueueDirectory(path: string, priority = false) {
+  const normalized = normalizeEntryPath(path)
+  if (normalized === "." || fileSystemCache.loadedDirectories.has(normalized) || fileSystemCache.loadingPromises.has(normalized)) {
+    return
+  }
+
+  const existingIndex = fileSystemCache.pendingDirectories.indexOf(normalized)
+  if (existingIndex !== -1) {
+    if (priority) {
+      fileSystemCache.pendingDirectories.splice(existingIndex, 1)
+      fileSystemCache.pendingDirectories.unshift(normalized)
+    }
+    return
+  }
+
+  if (priority) {
+    fileSystemCache.pendingDirectories.unshift(normalized)
+  } else {
+    fileSystemCache.pendingDirectories.push(normalized)
+  }
+}
+
+async function loadDirectory(path: string): Promise<void> {
+  const normalized = normalizeEntryPath(path)
+  if (fileSystemCache.loadedDirectories.has(normalized)) {
+    return
+  }
+
+  const existing = fileSystemCache.loadingPromises.get(normalized)
+  if (existing) {
+    await existing
+    return
+  }
+
+  const promise = cliApi
+    .listFileSystem(normalized === "." ? "." : normalized, { depth: DEFAULT_DEPTH })
     .then((entries) => {
-      cachedEntries = entries.slice().sort((a, b) => a.path.localeCompare(b.path))
-      entriesPromise = null
-      return cachedEntries
+      const changed = updateCache(entries)
+      fileSystemCache.loadedDirectories.add(normalized)
+      for (const entry of entries) {
+        if (entry.type === "directory") {
+          enqueueDirectory(entry.path)
+        }
+      }
+      if (changed) {
+        notifyCacheListeners()
+      }
     })
-    .catch((error) => {
-      entriesPromise = null
-      throw error
+    .finally(() => {
+      fileSystemCache.loadingPromises.delete(normalized)
     })
-  return entriesPromise
+
+  fileSystemCache.loadingPromises.set(normalized, promise)
+  await promise
+}
+
+async function processDirectoryQueue() {
+  if (fileSystemCache.queueActive) {
+    return
+  }
+  fileSystemCache.queueActive = true
+  try {
+    while (fileSystemCache.pendingDirectories.length > 0) {
+      const next = fileSystemCache.pendingDirectories.shift()
+      if (!next) continue
+      try {
+        await loadDirectory(next)
+      } catch (error) {
+        console.warn("Failed to load directory", next, error)
+      }
+    }
+  } finally {
+    fileSystemCache.queueActive = false
+  }
+}
+
+function startBackgroundLoading() {
+  void processDirectoryQueue()
+}
+
+function prioritizeDirectoriesForQuery(query: string) {
+  const normalized = query.replace(/\\/g, "/").trim()
+  if (!normalized) {
+    return
+  }
+  const segments = normalized.split("/").filter(Boolean)
+  let prefix = ""
+  for (const segment of segments) {
+    prefix = prefix ? `${prefix}/${segment}` : segment
+    enqueueDirectory(prefix, true)
+  }
+  startBackgroundLoading()
+}
+
+async function ensureWorkspaceFilesystemLoaded(workspaceRoot: string) {
+  if (cacheWorkspaceRoot && cacheWorkspaceRoot !== workspaceRoot) {
+    cacheWorkspaceRoot = workspaceRoot
+    resetFileSystemCache()
+  } else if (!cacheWorkspaceRoot) {
+    cacheWorkspaceRoot = workspaceRoot
+  }
+
+  await loadDirectory(".")
+  startBackgroundLoading()
 }
 
 function resolveAbsolutePath(root: string, relativePath: string): string {
@@ -68,13 +233,26 @@ const FileSystemBrowserDialog: Component<FileSystemBrowserDialogProps> = (props)
 
   let searchInputRef: HTMLInputElement | undefined
 
+  onMount(() => {
+    const unsubscribe = subscribeToCache((items) => setEntries(items))
+    onCleanup(unsubscribe)
+  })
+
+  createEffect(() => {
+    const query = searchQuery().trim()
+    if (!query) {
+      return
+    }
+    prioritizeDirectoriesForQuery(query)
+  })
+
   async function refreshEntries() {
     setLoading(true)
     setError(null)
     try {
-      const [items, meta] = await Promise.all([loadFileSystemEntries(), getServerMeta()])
-      setEntries(items)
+      const meta = await getServerMeta()
       setRootPath(meta.workspaceRoot)
+      await ensureWorkspaceFilesystemLoaded(meta.workspaceRoot)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to load filesystem"
       setError(message)

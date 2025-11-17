@@ -13,7 +13,14 @@ export class FileSystemBrowser {
     this.root = path.resolve(options.rootDir)
   }
 
-  list(relativePath: string): FileSystemEntry[] {
+  list(relativePath: string, depth = 2): FileSystemEntry[] {
+    if (depth < 1) {
+      throw new Error("Depth must be at least 1")
+    }
+    return this.walk(relativePath, depth)
+  }
+
+  private walk(relativePath: string, remainingDepth: number): FileSystemEntry[] {
     const resolved = this.toAbsolute(relativePath)
     const entries = fs.readdirSync(resolved, { withFileTypes: true })
 
@@ -30,8 +37,8 @@ export class FileSystemBrowser {
         modifiedAt: stats.mtime.toISOString(),
       }
 
-      if (entry.isDirectory()) {
-        const nested = this.list(entryPath)
+      if (entry.isDirectory() && remainingDepth > 1) {
+        const nested = this.walk(entryPath, remainingDepth - 1)
         return [current, ...nested]
       }
 
