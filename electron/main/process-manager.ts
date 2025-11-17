@@ -1,7 +1,7 @@
-import { spawn, ChildProcess } from "child_process"
+import { spawn, execSync, ChildProcess } from "child_process"
 import { app, BrowserWindow } from "electron"
 import { existsSync, statSync } from "fs"
-import { execSync } from "child_process"
+import { buildUserShellCommand, getUserShellEnv, runUserShellCommandSync, supportsUserShell } from "./user-shell"
 
 export interface ProcessInfo {
   pid: number
@@ -57,17 +57,13 @@ class ProcessManager {
     environmentVariables?: Record<string, string>,
   ): Promise<ProcessInfo> {
     this.validateFolder(folder)
-    const actualBinaryPath =
-      binaryPath && binaryPath !== "opencode" ? this.validateCustomBinary(binaryPath) : this.validateOpenCodeBinary()
+    const useUserShell = supportsUserShell()
+    const logAttempt = (message: string) => {
+      console.info(`[ProcessManager] ${message}`)
+      this.sendLog(instanceId, "debug", message)
+    }
 
-    this.sendLog(
-      instanceId,
-      "info",
-      `Starting OpenCode server for ${folder} using ${binaryPath || "opencode"} (${actualBinaryPath})...`,
-    )
-
-    // Merge environment variables with process environment
-    const env = { ...process.env }
+    const env = useUserShell ? getUserShellEnv() : { ...process.env }
     if (environmentVariables) {
       Object.assign(env, environmentVariables)
       this.sendLog(
@@ -82,13 +78,34 @@ class ProcessManager {
       }
     }
 
+    let targetBinary: string
+    if (!binaryPath || binaryPath === "opencode") {
+      targetBinary = useUserShell ? "opencode" : this.validateOpenCodeBinary(logAttempt)
+    } else {
+      targetBinary = this.validateCustomBinary(binaryPath, logAttempt)
+    }
+
+    const spawnCommand = useUserShell
+      ? this.buildShellServeCommand(targetBinary)
+      : { command: targetBinary, args: this.buildServeArgs() }
+
+    const launchDetail = `${spawnCommand.command} ${spawnCommand.args.join(" ")}`.trim()
+    this.sendLog(instanceId, "debug", `Launching process with: ${launchDetail}`)
+
+    this.sendLog(
+      instanceId,
+      "info",
+      `Starting OpenCode server for ${folder} using ${targetBinary}...`,
+    )
+
     return new Promise((resolve, reject) => {
-      const child = spawn(actualBinaryPath, ["serve", "--port", "0", "--print-logs", "--log-level", "DEBUG"], {
+      const child = spawn(spawnCommand.command, spawnCommand.args, {
         cwd: folder,
         stdio: ["ignore", "pipe", "pipe"],
         env,
         shell: false,
       })
+
 
       const timeout = setTimeout(() => {
         child.kill("SIGKILL")
@@ -129,7 +146,7 @@ class ProcessManager {
             }
 
             this.processes.set(child.pid!, meta)
-            resolve({ pid: child.pid!, port, binaryPath: actualBinaryPath })
+            resolve({ pid: child.pid!, port, binaryPath: targetBinary })
           }
 
           const meta = this.processes.get(child.pid!)
@@ -236,20 +253,45 @@ class ProcessManager {
     }
   }
 
-  private validateOpenCodeBinary(): string {
-    const command = process.platform === "win32" ? "where opencode" : "which opencode"
+  private validateOpenCodeBinary(logAttempt?: (message: string) => void): string {
+    const log = logAttempt ?? ((message: string) => console.info(`[ProcessManager] ${message}`))
+
+    if (process.platform === "win32") {
+      log("Checking PATH via 'where opencode'")
+      return this.resolveBinaryViaLocator("where opencode", log)
+    }
+
+    const shellCheck = buildUserShellCommand("command -v opencode")
+    const shellPreview = [shellCheck.command, ...shellCheck.args].join(" ")
+    log(`Checking PATH via shell: ${shellPreview}`)
+
     try {
-      const output = execSync(command, { stdio: "pipe", encoding: "utf-8" })
-      const paths = output.trim().split("\n")
-      return paths[0].trim()
-    } catch {
-      throw new Error(
-        "opencode binary not found in PATH. Please install OpenCode CLI first: npm install -g @opencode/cli",
-      )
+      const resolved = runUserShellCommandSync("command -v opencode")
+      const path = this.pickFirstPath(resolved)
+      if (path) {
+        log(`Shell located opencode at ${path}`)
+        return path
+      }
+      throw new Error("Empty result from shell lookup")
+    } catch (shellError) {
+      const message = shellError instanceof Error ? shellError.message : String(shellError)
+      log(`Shell lookup failed: ${message}`)
+      try {
+        log("Fallback to 'which opencode'")
+        return this.resolveBinaryViaLocator("which opencode", log)
+      } catch (locatorError) {
+        const locatorMessage = locatorError instanceof Error ? locatorError.message : String(locatorError)
+        log(`Locator fallback failed: ${locatorMessage}`)
+        throw new Error(
+          "opencode binary not found in PATH. Please install OpenCode CLI first: npm install -g @opencode/cli",
+        )
+      }
     }
   }
 
-  private validateCustomBinary(binaryPath: string): string {
+  private validateCustomBinary(binaryPath: string, log?: (message: string) => void): string {
+    log?.(`Validating custom binary at ${binaryPath}`)
+
     if (!existsSync(binaryPath)) {
       throw new Error(`OpenCode binary not found: ${binaryPath}`)
     }
@@ -269,6 +311,36 @@ class ProcessManager {
     }
 
     return binaryPath
+  }
+
+  private resolveBinaryViaLocator(command: string, log?: (message: string) => void): string {
+    log?.(`Running locator command: ${command}`)
+    const output = execSync(command, { stdio: "pipe", encoding: "utf-8" })
+    log?.(`Locator output: ${output.trim() || "<empty>"}`)
+    const path = this.pickFirstPath(output)
+    if (!path) {
+      throw new Error("opencode binary not found in PATH")
+    }
+    return path
+  }
+
+  private pickFirstPath(output: string): string | null {
+    const line = output
+      .split("\n")
+      .map((entry) => entry.trim())
+      .find((entry) => entry.length > 0)
+    return line ?? null
+  }
+
+  private buildServeArgs(): string[] {
+    return ["serve", "--port", "0", "--print-logs", "--log-level", "DEBUG"]
+  }
+
+  private buildShellServeCommand(binaryPath: string): { command: string; args: string[] } {
+    const args = this.buildServeArgs()
+      .map((arg) => JSON.stringify(arg))
+      .join(" ")
+    return buildUserShellCommand(`exec ${JSON.stringify(binaryPath)} ${args}`)
   }
 }
 
