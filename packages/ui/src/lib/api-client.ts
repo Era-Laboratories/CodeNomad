@@ -130,10 +130,13 @@ export const cliApi = {
       body: JSON.stringify({ path }),
     })
   },
-  listFileSystem(relativePath = ".", options?: { depth?: number }): Promise<FileSystemEntry[]> {
+  listFileSystem(relativePath = ".", options?: { depth?: number; includeFiles?: boolean }): Promise<FileSystemEntry[]> {
     const params = new URLSearchParams({ path: relativePath })
     if (options?.depth) {
       params.set("depth", String(options.depth))
+    }
+    if (options?.includeFiles !== undefined) {
+      params.set("includeFiles", String(options.includeFiles))
     }
     return request<FileSystemEntry[]>(`/api/filesystem?${params.toString()}`)
   },

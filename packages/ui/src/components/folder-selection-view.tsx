@@ -2,7 +2,7 @@ import { Component, createSignal, Show, For, onMount, onCleanup, createEffect } 
 import { Folder, Clock, Trash2, FolderPlus, Settings, ChevronRight } from "lucide-solid"
 import { useConfig } from "../stores/preferences"
 import AdvancedSettingsModal from "./advanced-settings-modal"
-import FileSystemBrowserDialog from "./filesystem-browser-dialog"
+import DirectoryBrowserDialog from "./directory-browser-dialog"
 import Kbd from "./kbd"
 
 const codeNomadLogo = new URL("../images/CodeNomad-Icon.png", import.meta.url).href
@@ -386,11 +386,10 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
         isLoading={props.isLoading}
       />
 
-      <FileSystemBrowserDialog
+      <DirectoryBrowserDialog
         open={isFolderBrowserOpen()}
-        mode="directories"
-        title="Browse for Folder"
-        description="Select any directory exposed by the CLI server."
+        title="Select Workspace"
+        description="Select workspace to start coding."
         onClose={() => setIsFolderBrowserOpen(false)}
         onSelect={handleBrowserSelect}
       />

@@ -224,12 +224,15 @@
 }
 
 .selector-button-secondary {
-  background-color: var(--surface-secondary);
+  background-color: var(--surface-base);
   color: var(--text-primary);
+  border-color: var(--border-base);
 }
 
 .selector-button-secondary:hover:not(:disabled) {
-  background-color: var(--surface-hover);
+  background-color: var(--surface-secondary);
+  border-color: var(--border-base);
+  color: var(--text-primary);
 }
 
 .selector-button-secondary:disabled {
