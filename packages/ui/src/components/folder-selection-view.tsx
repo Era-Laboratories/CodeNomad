@@ -2,12 +2,13 @@ import { Component, createSignal, Show, For, onMount, onCleanup, createEffect } 
 import { Folder, Clock, Trash2, FolderPlus, Settings, ChevronRight } from "lucide-solid"
 import { useConfig } from "../stores/preferences"
 import AdvancedSettingsModal from "./advanced-settings-modal"
+import FileSystemBrowserDialog from "./filesystem-browser-dialog"
 import Kbd from "./kbd"
 
 const codeNomadLogo = new URL("../images/CodeNomad-Icon.png", import.meta.url).href
 
 interface FolderSelectionViewProps {
-  onSelectFolder: (folder?: string, binaryPath?: string) => void
+  onSelectFolder: (folder: string, binaryPath?: string) => void
   isLoading?: boolean
   advancedSettingsOpen?: boolean
   onAdvancedSettingsOpen?: () => void
@@ -19,6 +20,7 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
   const [selectedIndex, setSelectedIndex] = createSignal(0)
   const [focusMode, setFocusMode] = createSignal<"recent" | "new" | null>("recent")
   const [selectedBinary, setSelectedBinary] = createSignal(preferences().lastUsedBinary || "opencode")
+  const [isFolderBrowserOpen, setIsFolderBrowserOpen] = createSignal(false)
   let recentListRef: HTMLDivElement | undefined
  
   const folders = () => recentFolders()
@@ -173,12 +175,17 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
  
   function handleBrowse() {
     if (isLoading()) return
-    updateLastUsedBinary(selectedBinary())
-    props.onSelectFolder(undefined, selectedBinary())
+    setFocusMode("new")
+    setIsFolderBrowserOpen(true)
   }
-
-
+ 
+  function handleBrowserSelect(path: string) {
+    setIsFolderBrowserOpen(false)
+    handleFolderSelect(path)
+  }
+ 
   function handleBinaryChange(binary: string) {
+
     setSelectedBinary(binary)
   }
 
@@ -377,6 +384,15 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
         selectedBinary={selectedBinary()}
         onBinaryChange={handleBinaryChange}
         isLoading={props.isLoading}
+      />
+
+      <FileSystemBrowserDialog
+        open={isFolderBrowserOpen()}
+        mode="directories"
+        title="Browse for Folder"
+        description="Select any directory exposed by the CLI server."
+        onClose={() => setIsFolderBrowserOpen(false)}
+        onSelect={handleBrowserSelect}
       />
     </>
   )

@@ -7,7 +7,6 @@ import { registerEscapeShortcut, setEscapeStateChangeHandler } from "../shortcut
 import { keyboardRegistry } from "../keyboard-registry"
 import { abortSession, getSessions, isSessionBusy } from "../../stores/sessions"
 import { showCommandPalette, hideCommandPalette } from "../../stores/command-palette"
-import { addLog, updateInstance } from "../../stores/instances"
 import type { Instance } from "../../types/instance"
 
 interface UseAppLifecycleOptions {
@@ -147,29 +146,6 @@ export function useAppLifecycle(options: UseAppLifecycleOptions) {
     }
 
     window.addEventListener("keydown", handleKeyDown)
-
-    window.electronAPI.onNewInstance(() => {
-      options.handleNewInstanceRequest()
-    })
-
-    window.electronAPI.onInstanceStarted(({ id, port, pid, binaryPath }) => {
-      console.log("Instance started:", { id, port, pid, binaryPath })
-      updateInstance(id, { port, pid, status: "ready", binaryPath })
-    })
-
-    window.electronAPI.onInstanceError(({ id, error }) => {
-      console.error("Instance error:", { id, error })
-      updateInstance(id, { status: "error", error })
-    })
-
-    window.electronAPI.onInstanceStopped(({ id }) => {
-      console.log("Instance stopped:", id)
-      updateInstance(id, { status: "stopped" })
-    })
-
-    window.electronAPI.onInstanceLog(({ id, entry }) => {
-      addLog(id, entry)
-    })
 
     onCleanup(() => {
       window.removeEventListener("keydown", handleKeyDown)

@@ -1,0 +1,143 @@
+import type {
+  AppConfig,
+  AppConfigUpdateRequest,
+  BinaryCreateRequest,
+  BinaryListResponse,
+  BinaryUpdateRequest,
+  BinaryValidationResult,
+  FileSystemEntry,
+  InstanceData,
+  ServerMeta,
+
+  WorkspaceCreateRequest,
+  WorkspaceDescriptor,
+  WorkspaceFileResponse,
+  WorkspaceLogEntry,
+  WorkspaceEventPayload,
+  WorkspaceEventType,
+} from "../../../cli/src/api-types"
+
+const DEFAULT_BASE = typeof window !== "undefined" ? window.__CODENOMAD_API_BASE__ ?? "" : ""
+const DEFAULT_EVENTS_URL = typeof window !== "undefined" ? window.__CODENOMAD_EVENTS_URL__ ?? "/api/events" : "/api/events"
+const API_BASE = import.meta.env.VITE_CODENOMAD_API_BASE ?? DEFAULT_BASE
+const EVENTS_URL = API_BASE ? `${API_BASE}${DEFAULT_EVENTS_URL}` : DEFAULT_EVENTS_URL
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const url = API_BASE ? new URL(path, API_BASE).toString() : path
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(init?.headers ?? {}),
+  }
+
+  const response = await fetch(url, { ...init, headers })
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(message || `Request failed with ${response.status}`)
+  }
+  if (response.status === 204) {
+    return undefined as T
+  }
+  return (await response.json()) as T
+}
+
+export const cliApi = {
+  fetchWorkspaces(): Promise<WorkspaceDescriptor[]> {
+    return request<WorkspaceDescriptor[]>("/api/workspaces")
+  },
+  createWorkspace(payload: WorkspaceCreateRequest): Promise<WorkspaceDescriptor> {
+    return request<WorkspaceDescriptor>("/api/workspaces", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  },
+  fetchServerMeta(): Promise<ServerMeta> {
+    return request<ServerMeta>("/api/meta")
+  },
+  deleteWorkspace(id: string): Promise<void> {
+    return request(`/api/workspaces/${encodeURIComponent(id)}`, { method: "DELETE" })
+  },
+  listWorkspaceFiles(id: string, relativePath = "."): Promise<FileSystemEntry[]> {
+    const params = new URLSearchParams({ path: relativePath })
+    return request<FileSystemEntry[]>(`/api/workspaces/${encodeURIComponent(id)}/files?${params.toString()}`)
+  },
+  readWorkspaceFile(id: string, relativePath: string): Promise<WorkspaceFileResponse> {
+    const params = new URLSearchParams({ path: relativePath })
+    return request<WorkspaceFileResponse>(
+      `/api/workspaces/${encodeURIComponent(id)}/files/content?${params.toString()}`,
+    )
+  },
+  fetchConfig(): Promise<AppConfig> {
+    return request<AppConfig>("/api/config/app")
+  },
+  updateConfig(payload: AppConfig): Promise<AppConfig> {
+    return request<AppConfig>("/api/config/app", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  },
+  patchConfig(payload: AppConfigUpdateRequest): Promise<AppConfig> {
+    return request<AppConfig>("/api/config/app", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    })
+  },
+  listBinaries(): Promise<BinaryListResponse> {
+    return request<BinaryListResponse>("/api/config/binaries")
+  },
+  createBinary(payload: BinaryCreateRequest) {
+    return request<{ binary: BinaryListResponse["binaries"][number] }>("/api/config/binaries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  },
+
+  updateBinary(id: string, updates: BinaryUpdateRequest) {
+    return request<{ binary: BinaryListResponse["binaries"][number] }>(`/api/config/binaries/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    })
+  },
+
+  deleteBinary(id: string): Promise<void> {
+    return request(`/api/config/binaries/${encodeURIComponent(id)}`, { method: "DELETE" })
+  },
+  validateBinary(path: string): Promise<BinaryValidationResult> {
+    return request<BinaryValidationResult>("/api/config/binaries/validate", {
+      method: "POST",
+      body: JSON.stringify({ path }),
+    })
+  },
+  listFileSystem(relativePath = "."): Promise<FileSystemEntry[]> {
+    const params = new URLSearchParams({ path: relativePath })
+    return request<FileSystemEntry[]>(`/api/filesystem?${params.toString()}`)
+  },
+  readInstanceData(id: string): Promise<InstanceData> {
+    return request<InstanceData>(`/api/storage/instances/${encodeURIComponent(id)}`)
+  },
+  writeInstanceData(id: string, data: InstanceData): Promise<void> {
+    return request(`/api/storage/instances/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  },
+  deleteInstanceData(id: string): Promise<void> {
+    return request(`/api/storage/instances/${encodeURIComponent(id)}`, { method: "DELETE" })
+  },
+  connectEvents(onEvent: (event: WorkspaceEventPayload) => void, onError?: () => void) {
+    const source = new EventSource(EVENTS_URL)
+    source.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as WorkspaceEventPayload
+        onEvent(payload)
+      } catch (error) {
+        console.error("Failed to parse SSE event", error)
+      }
+    }
+    source.onerror = () => {
+      onError?.()
+    }
+    return source
+  },
+}
+
+export type { WorkspaceDescriptor, WorkspaceLogEntry, WorkspaceEventPayload, WorkspaceEventType }

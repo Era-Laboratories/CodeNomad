@@ -4,6 +4,9 @@ import type { LspStatus, Permission } from "@opencode-ai/sdk"
 import type { ClientPart, Message } from "../types/message"
 import { sdkManager } from "../lib/sdk-manager"
 import { sseManager } from "../lib/sse-manager"
+import { cliApi } from "../lib/api-client"
+import { cliEvents } from "../lib/cli-events"
+import type { WorkspaceDescriptor, WorkspaceEventPayload, WorkspaceLogEntry } from "../../../cli/src/api-types"
 import {
   fetchSessions,
   fetchAgents,
@@ -34,6 +37,133 @@ interface DisconnectedInstanceInfo {
 const [disconnectedInstance, setDisconnectedInstance] = createSignal<DisconnectedInstanceInfo | null>(null)
 
 const MAX_LOG_ENTRIES = 1000
+
+function workspaceDescriptorToInstance(descriptor: WorkspaceDescriptor): Instance {
+  const existing = instances().get(descriptor.id)
+  return {
+    id: descriptor.id,
+    folder: descriptor.path,
+    port: descriptor.port ?? existing?.port ?? 0,
+    pid: descriptor.pid ?? existing?.pid ?? 0,
+    status: descriptor.status,
+    error: descriptor.error,
+    client: existing?.client ?? null,
+    metadata: existing?.metadata,
+    binaryPath: descriptor.binaryLabel,
+    environmentVariables: existing?.environmentVariables ?? preferences().environmentVariables ?? {},
+  }
+}
+
+function upsertWorkspace(descriptor: WorkspaceDescriptor) {
+  const mapped = workspaceDescriptorToInstance(descriptor)
+  if (instances().has(descriptor.id)) {
+    updateInstance(descriptor.id, mapped)
+  } else {
+    addInstance(mapped)
+    setHasInstances(true)
+  }
+
+  if (descriptor.status === "ready" && descriptor.port) {
+    attachClient(descriptor.id, descriptor.port)
+  }
+}
+
+function attachClient(instanceId: string, port: number) {
+  const instance = instances().get(instanceId)
+  if (!instance) return
+
+  if (instance.port === port && instance.client) {
+    return
+  }
+
+  if (instance.port && instance.client) {
+    sdkManager.destroyClient(instance.port)
+    sseManager.disconnect(instanceId)
+  }
+
+  const client = sdkManager.createClient(port)
+  updateInstance(instanceId, {
+    client,
+    port,
+    status: "ready",
+  })
+  sseManager.connect(instanceId, port)
+  void hydrateInstanceData(instanceId).catch((error) => {
+    console.error("Failed to hydrate instance data", error)
+  })
+}
+
+function releaseInstanceResources(instanceId: string) {
+  const instance = instances().get(instanceId)
+  if (!instance) return
+
+  if (instance.port) {
+    sdkManager.destroyClient(instance.port)
+  }
+  sseManager.disconnect(instanceId)
+}
+
+async function hydrateInstanceData(instanceId: string) {
+  try {
+    await fetchSessions(instanceId)
+    await fetchAgents(instanceId)
+    await fetchProviders(instanceId)
+    const instance = instances().get(instanceId)
+    if (!instance?.client) return
+    await fetchCommands(instanceId, instance.client)
+  } catch (error) {
+    console.error("Failed to fetch initial data:", error)
+  }
+}
+
+void (async function initializeWorkspaces() {
+  try {
+    const workspaces = await cliApi.fetchWorkspaces()
+    workspaces.forEach((workspace) => upsertWorkspace(workspace))
+    if (workspaces.length === 0) {
+      setHasInstances(false)
+    }
+  } catch (error) {
+    console.error("Failed to load workspaces", error)
+  }
+})()
+
+cliEvents.on("*", (event) => handleWorkspaceEvent(event))
+
+function handleWorkspaceEvent(event: WorkspaceEventPayload) {
+  switch (event.type) {
+    case "workspace.created":
+      upsertWorkspace(event.workspace)
+      break
+    case "workspace.started":
+      upsertWorkspace(event.workspace)
+      break
+    case "workspace.error":
+      upsertWorkspace(event.workspace)
+      break
+    case "workspace.stopped":
+      releaseInstanceResources(event.workspaceId)
+      removeInstance(event.workspaceId)
+      if (instances().size === 0) {
+        setHasInstances(false)
+      }
+      break
+    case "workspace.log":
+      handleWorkspaceLog(event.entry)
+      break
+    default:
+      break
+  }
+}
+
+function handleWorkspaceLog(entry: WorkspaceLogEntry) {
+  const logEntry: LogEntry = {
+    timestamp: new Date(entry.timestamp).getTime(),
+    level: (entry.level as LogEntry["level"]) ?? "info",
+    message: entry.message,
+  }
+  addLog(entry.workspaceId, logEntry)
+}
 
 function ensureLogContainer(id: string) {
   setInstanceLogs((prev) => {
@@ -157,61 +287,17 @@ function removeInstance(id: string) {
 }
 
 async function createInstance(folder: string, binaryPath?: string): Promise<string> {
-  const id = `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-  const instance: Instance = {
-    id,
-    folder,
-    port: 0,
-    pid: 0,
-    status: "starting",
-    client: null,
-    environmentVariables: preferences().environmentVariables ?? {},
-  }
-
-  addInstance(instance)
-
-  // Update last used binary
   if (binaryPath) {
     updateLastUsedBinary(binaryPath)
   }
 
   try {
-    const {
-      id: returnedId,
-      port,
-      pid,
-      binaryPath: actualBinaryPath,
-    } = await window.electronAPI.createInstance(id, folder, binaryPath, preferences().environmentVariables)
-
-    const client = sdkManager.createClient(port)
-
-    updateInstance(id, {
-      port,
-      pid,
-      client,
-      status: "ready",
-      binaryPath: actualBinaryPath,
-    })
-
-    setActiveInstanceId(id)
-    sseManager.connect(id, port)
-
-    try {
-      await fetchSessions(id)
-      await fetchAgents(id)
-      await fetchProviders(id)
-      await fetchCommands(id, client)
-    } catch (error) {
-      console.error("Failed to fetch initial data:", error)
-    }
-
-    return id
+    const workspace = await cliApi.createWorkspace({ path: folder })
+    upsertWorkspace(workspace)
+    setActiveInstanceId(workspace.id)
+    return workspace.id
   } catch (error) {
-    updateInstance(id, {
-      status: "error",
-      error: error instanceof Error ? error.message : String(error),
-    })
+    console.error("Failed to create workspace", error)
     throw error
   }
 }
@@ -220,17 +306,18 @@ async function stopInstance(id: string) {
   const instance = instances().get(id)
   if (!instance) return
 
-  sseManager.disconnect(id)
+  releaseInstanceResources(id)
 
-  if (instance.port) {
-    sdkManager.destroyClient(instance.port)
-  }
-
-  if (instance.pid) {
-    await window.electronAPI.stopInstance(instance.pid)
+  try {
+    await cliApi.deleteWorkspace(id)
+  } catch (error) {
+    console.error("Failed to stop workspace", error)
   }
 
   removeInstance(id)
+  if (instances().size === 0) {
+    setHasInstances(false)
+  }
 }
 
 async function fetchLspStatus(instanceId: string): Promise<LspStatus[] | undefined> {

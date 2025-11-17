@@ -85,22 +85,16 @@ const App: Component = () => {
 
   const clearLaunchError = () => setLaunchErrorBinary(null)
 
-  async function handleSelectFolder(folderPath?: string, binaryPath?: string) {
+  async function handleSelectFolder(folderPath: string, binaryPath?: string) {
+    if (!folderPath) {
+      return
+    }
     setIsSelectingFolder(true)
     const selectedBinary = binaryPath || preferences().lastUsedBinary || "opencode"
     try {
-      let folder: string | null | undefined = folderPath
-
-      if (!folder) {
-        folder = await window.electronAPI.selectFolder()
-        if (!folder) {
-          return
-        }
-      }
-
-      addRecentFolder(folder)
+      addRecentFolder(folderPath)
       clearLaunchError()
-      const instanceId = await createInstance(folder, selectedBinary)
+      const instanceId = await createInstance(folderPath, selectedBinary)
       setHasInstances(true)
       setShowFolderSelection(false)
       setIsAdvancedSettingsOpen(false)
@@ -129,8 +123,6 @@ const App: Component = () => {
   function handleNewInstanceRequest() {
     if (hasInstances()) {
       setShowFolderSelection(true)
-    } else {
-      void handleSelectFolder()
     }
   }
 

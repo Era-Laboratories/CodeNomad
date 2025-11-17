@@ -26,7 +26,7 @@ export default function PromptInput(props: PromptInputProps) {
   const [history, setHistory] = createSignal<string[]>([])
   const [historyIndex, setHistoryIndex] = createSignal(-1)
   const [historyDraft, setHistoryDraft] = createSignal<string | null>(null)
-  const [isFocused, setIsFocused] = createSignal(false)
+  const [, setIsFocused] = createSignal(false)
   const [showPicker, setShowPicker] = createSignal(false)
   const [searchQuery, setSearchQuery] = createSignal("")
   const [atPosition, setAtPosition] = createSignal<number | null>(null)
@@ -744,7 +744,7 @@ export default function PromptInput(props: PromptInputProps) {
             instanceClient={instance()!.client}
             searchQuery={searchQuery()}
             textareaRef={textareaRef}
-            workspaceFolder={props.instanceFolder}
+            workspaceId={props.instanceId}
           />
         </Show>
 

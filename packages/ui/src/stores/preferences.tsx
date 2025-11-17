@@ -17,12 +17,12 @@ export type ExpansionPreference = "expanded" | "collapsed"
 export interface Preferences {
   showThinkingBlocks: boolean
   lastUsedBinary?: string
-  environmentVariables?: Record<string, string>
-  modelRecents?: ModelPreference[]
-  agentModelSelections?: AgentModelSelections
-  diffViewMode?: DiffViewMode
-  toolOutputExpansion?: ExpansionPreference
-  diagnosticsExpansion?: ExpansionPreference
+  environmentVariables: Record<string, string>
+  modelRecents: ModelPreference[]
+  agentModelSelections: AgentModelSelections
+  diffViewMode: DiffViewMode
+  toolOutputExpansion: ExpansionPreference
+  diagnosticsExpansion: ExpansionPreference
 }
 
 export interface OpenCodeBinary {
@@ -41,6 +41,7 @@ const MAX_RECENT_MODELS = 5
 
 const defaultPreferences: Preferences = {
   showThinkingBlocks: false,
+  environmentVariables: {},
   modelRecents: [],
   agentModelSelections: {},
   diffViewMode: "split",
@@ -48,12 +49,41 @@ const defaultPreferences: Preferences = {
   diagnosticsExpansion: "expanded",
 }
 
-const [preferences, setPreferences] = createSignal<Preferences>(defaultPreferences)
+function normalizePreferences(pref?: Partial<Preferences>): Preferences {
+  const environmentVariables = {
+    ...defaultPreferences.environmentVariables,
+    ...(pref?.environmentVariables ?? {}),
+  }
+
+  const sourceModelRecents = pref?.modelRecents ?? defaultPreferences.modelRecents
+  const modelRecents = sourceModelRecents.map((item) => ({ ...item }))
+
+  const sourceAgentSelections = pref?.agentModelSelections ?? defaultPreferences.agentModelSelections
+  const agentModelSelections: AgentModelSelections = {}
+  for (const [instanceId, selections] of Object.entries(sourceAgentSelections)) {
+    agentModelSelections[instanceId] = Object.fromEntries(
+      Object.entries(selections).map(([agentId, selection]) => [agentId, { ...selection }]),
+    )
+  }
+
+  return {
+    showThinkingBlocks: pref?.showThinkingBlocks ?? defaultPreferences.showThinkingBlocks,
+    lastUsedBinary: pref?.lastUsedBinary ?? defaultPreferences.lastUsedBinary,
+    environmentVariables,
+    modelRecents,
+    agentModelSelections,
+    diffViewMode: pref?.diffViewMode ?? defaultPreferences.diffViewMode,
+    toolOutputExpansion: pref?.toolOutputExpansion ?? defaultPreferences.toolOutputExpansion,
+    diagnosticsExpansion: pref?.diagnosticsExpansion ?? defaultPreferences.diagnosticsExpansion,
+  }
+}
+
+const [preferences, setPreferences] = createSignal<Preferences>(normalizePreferences())
 const [recentFolders, setRecentFolders] = createSignal<RecentFolder[]>([])
 const [opencodeBinaries, setOpenCodeBinaries] = createSignal<OpenCodeBinary[]>([])
 const [isConfigLoaded, setIsConfigLoaded] = createSignal(false)
 let cachedConfig: ConfigData = {
-  preferences: defaultPreferences,
+  preferences: normalizePreferences(),
   recentFolders: [],
   opencodeBinaries: [],
 }
@@ -64,15 +94,15 @@ async function loadConfig(): Promise<void> {
     const config = await storage.loadConfig()
     cachedConfig = {
       ...config,
-      preferences: { ...defaultPreferences, ...config.preferences },
-      recentFolders: config.recentFolders || [],
-      opencodeBinaries: config.opencodeBinaries || [],
+      preferences: normalizePreferences(config.preferences),
+      recentFolders: config.recentFolders ?? [],
+      opencodeBinaries: config.opencodeBinaries ?? [],
     }
   } catch (error) {
     console.error("Failed to load config:", error)
     cachedConfig = {
       ...cachedConfig,
-      preferences: { ...defaultPreferences },
+      preferences: normalizePreferences(),
       recentFolders: [],
       opencodeBinaries: [],
     }
@@ -112,7 +142,7 @@ async function ensureConfigLoaded(): Promise<void> {
 
 
 function updatePreferences(updates: Partial<Preferences>): void {
-  const updated = { ...preferences(), ...updates }
+  const updated = normalizePreferences({ ...preferences(), ...updates })
   setPreferences(updated)
   saveConfig().catch(console.error)
 }

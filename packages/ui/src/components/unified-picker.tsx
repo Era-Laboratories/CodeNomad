@@ -1,6 +1,7 @@
 import { Component, createSignal, createEffect, For, Show, onCleanup } from "solid-js"
 import type { Agent } from "../types/session"
 import type { OpencodeClient } from "@opencode-ai/sdk/client"
+import { cliApi } from "../lib/api-client"
 
 interface FileItem {
   path: string
@@ -19,7 +20,7 @@ interface UnifiedPickerProps {
   instanceClient: OpencodeClient | null
   searchQuery: string
   textareaRef?: HTMLTextAreaElement
-  workspaceFolder: string
+  workspaceId: string
 }
 
 const UnifiedPicker: Component<UnifiedPickerProps> = (props) => {
@@ -38,9 +39,9 @@ const UnifiedPicker: Component<UnifiedPickerProps> = (props) => {
 
     try {
       if (allFiles().length === 0) {
-        const scannedPaths = await window.electronAPI.scanDirectory(props.workspaceFolder)
-        const scannedFiles: FileItem[] = scannedPaths.map((path) => ({
-          path,
+        const entries = await cliApi.listWorkspaceFiles(props.workspaceId)
+        const scannedFiles: FileItem[] = entries.map<FileItem>((entry) => ({
+          path: entry.path,
           isGitFile: false,
         }))
         setAllFiles(scannedFiles)

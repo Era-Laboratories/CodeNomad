@@ -1,4 +1,4 @@
-import { storage, type InstanceData } from "../lib/storage"
+import { storage } from "../lib/storage"
 
 const MAX_HISTORY = 100
 
@@ -48,7 +48,8 @@ async function ensureHistoryLoaded(instanceId: string): Promise<void> {
 
   try {
     const data = await storage.loadInstanceData(instanceId)
-    instanceHistories.set(instanceId, data.messageHistory)
+    const history = Array.isArray(data.messageHistory) ? data.messageHistory : []
+    instanceHistories.set(instanceId, history)
     historyLoaded.add(instanceId)
   } catch (error) {
     console.warn("Failed to load history:", error)
