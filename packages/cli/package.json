@@ -4,19 +4,27 @@
   "description": "CodeNomad CLI server for HTTP/SSE control plane",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "codenomad-cli": "dist/bin.js"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsx src/index.ts",
+    "build": "npm run build:ui && npm run prepare-ui && tsc -p tsconfig.json",
+    "build:ui": "npm run build --prefix ../ui",
+    "prepare-ui": "node ./scripts/copy-ui-dist.mjs",
+    "dev": "cross-env CLI_UI_DEV_SERVER=http://localhost:3000 tsx src/index.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",
+    "@fastify/static": "^7.0.4",
     "commander": "^12.1.0",
     "fastify": "^4.28.1",
     "pino": "^9.4.0",
+    "undici": "^6.19.8",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
     "typescript": "^5.6.3"

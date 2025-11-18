@@ -3,7 +3,9 @@
  * For now this only wires the typed modules together; actual command handling comes later.
  */
 import { Command, InvalidArgumentError, Option } from "commander"
-import packageJson from "../package.json"
+import path from "path"
+import { fileURLToPath } from "url"
+import { createRequire } from "module"
 import { createHttpServer } from "./server/http-server"
 import { WorkspaceManager } from "./workspaces/manager"
 import { ConfigStore } from "./config/store"
@@ -14,6 +16,12 @@ import { ServerMeta } from "./api-types"
 import { InstanceStore } from "./storage/instance-store"
 import { createLogger } from "./logger"
 
+const require = createRequire(import.meta.url)
+const packageJson = require("../package.json") as { version: string }
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const DEFAULT_UI_STATIC_DIR = path.resolve(__dirname, "../public")
+
 interface CliOptions {
   port: number
   host: string
@@ -22,6 +30,8 @@ interface CliOptions {
   unrestrictedRoot: boolean
   logLevel?: string
   logDestination?: string
+  uiStaticDir: string
+  uiDevServer?: string
 }
 
 const DEFAULT_PORT = 9898
@@ -43,6 +53,10 @@ function parseCliOptions(argv: string[]): CliOptions {
     .addOption(new Option("--config <path>", "Path to the config file").env("CLI_CONFIG").default(DEFAULT_CONFIG_PATH))
     .addOption(new Option("--log-level <level>", "Log level (trace|debug|info|warn|error)").env("CLI_LOG_LEVEL"))
     .addOption(new Option("--log-destination <path>", "Log destination file (defaults to stdout)").env("CLI_LOG_DESTINATION"))
+    .addOption(
+      new Option("--ui-dir <path>", "Directory containing the built UI bundle").env("CLI_UI_DIR").default(DEFAULT_UI_STATIC_DIR),
+    )
+    .addOption(new Option("--ui-dev-server <url>", "Proxy UI requests to a running dev server").env("CLI_UI_DEV_SERVER"))
 
   program.parse(argv, { from: "user" })
   const parsed = program.opts<{
@@ -54,6 +68,8 @@ function parseCliOptions(argv: string[]): CliOptions {
     config: string
     logLevel?: string
     logDestination?: string
+    uiDir: string
+    uiDevServer?: string
   }>()
 
   const resolvedRoot = parsed.workspaceRoot ?? parsed.root ?? process.cwd()
@@ -66,6 +82,8 @@ function parseCliOptions(argv: string[]): CliOptions {
     unrestrictedRoot: Boolean(parsed.unrestrictedRoot),
     logLevel: parsed.logLevel,
     logDestination: parsed.logDestination,
+    uiStaticDir: parsed.uiDir,
+    uiDevServer: parsed.uiDevServer,
   }
 }
 
@@ -116,11 +134,15 @@ async function main() {
     eventBus,
     serverMeta,
     instanceStore,
+    uiStaticDir: options.uiStaticDir,
+    uiDevServerUrl: options.uiDevServer,
   })
 
 
   await server.start()
   logger.info({ port: options.port, host: options.host }, "HTTP server listening")
+  const displayHost = options.host === "127.0.0.1" || options.host === "0.0.0.0" ? "localhost" : options.host
+  console.log(`CodeNomad Server is ready at http://${displayHost}:${options.port}`)
 
   let shuttingDown = false
 
