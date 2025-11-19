@@ -67,8 +67,9 @@ export function createHttpServer(deps: HttpServerDeps) {
   registerFilesystemRoutes(app, { fileSystemBrowser: deps.fileSystemBrowser })
   registerMetaRoutes(app, { serverMeta: deps.serverMeta })
   registerEventRoutes(app, { eventBus: deps.eventBus, registerClient: registerSseClient })
-  registerStorageRoutes(app, { instanceStore: deps.instanceStore })
+  registerStorageRoutes(app, { instanceStore: deps.instanceStore, eventBus: deps.eventBus })
   registerInstanceProxyRoutes(app, { workspaceManager: deps.workspaceManager, logger: proxyLogger })
+
 
   if (deps.uiDevServerUrl) {
     setupDevProxy(app, deps.uiDevServerUrl)

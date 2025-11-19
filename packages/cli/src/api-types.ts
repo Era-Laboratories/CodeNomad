@@ -154,6 +154,7 @@ export type WorkspaceEventType =
   | "workspace.log"
   | "config.appChanged"
   | "config.binariesChanged"
+  | "instance.dataChanged"
 
 export type WorkspaceEventPayload =
   | { type: "workspace.created"; workspace: WorkspaceDescriptor }
@@ -163,6 +164,7 @@ export type WorkspaceEventPayload =
   | { type: "workspace.log"; entry: WorkspaceLogEntry }
   | { type: "config.appChanged"; config: AppConfig }
   | { type: "config.binariesChanged"; binaries: BinaryRecord[] }
+  | { type: "instance.dataChanged"; instanceId: string; data: InstanceData }
 
 export interface ServerMeta {
   /** Base URL clients should target for REST calls (useful for Electron embedding). */

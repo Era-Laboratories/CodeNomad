@@ -21,6 +21,7 @@ export class EventBus extends EventEmitter {
     this.on("workspace.log", handler)
     this.on("config.appChanged", handler)
     this.on("config.binariesChanged", handler)
+    this.on("instance.dataChanged", handler)
     return () => {
       this.off("workspace.created", handler)
       this.off("workspace.started", handler)
@@ -29,6 +30,7 @@ export class EventBus extends EventEmitter {
       this.off("workspace.log", handler)
       this.off("config.appChanged", handler)
       this.off("config.binariesChanged", handler)
+      this.off("instance.dataChanged", handler)
     }
   }
 }

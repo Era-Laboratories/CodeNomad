@@ -4,12 +4,17 @@ import { cliEvents } from "./cli-events"
 
 export type ConfigData = AppConfig
 
+const DEFAULT_INSTANCE_DATA: InstanceData = {
+  messageHistory: [],
+}
+
 function isDeepEqual(a: unknown, b: unknown): boolean {
   if (a === b) {
     return true
   }
 
   if (typeof a === "object" && a !== null && typeof b === "object" && b !== null) {
+
     try {
       return JSON.stringify(a) === JSON.stringify(b)
     } catch (error) {
@@ -24,11 +29,19 @@ export class ServerStorage {
   private configChangeListeners: Set<(config: ConfigData) => void> = new Set()
   private configCache: ConfigData | null = null
   private loadPromise: Promise<ConfigData> | null = null
+  private instanceDataCache = new Map<string, InstanceData>()
+  private instanceDataListeners = new Map<string, Set<(data: InstanceData) => void>>()
+  private instanceLoadPromises = new Map<string, Promise<InstanceData>>()
 
   constructor() {
     cliEvents.on("config.appChanged", (event) => {
       if (event.type !== "config.appChanged") return
       this.setConfigCache(event.config)
+    })
+
+    cliEvents.on("instance.dataChanged", (event) => {
+      if (event.type !== "instance.dataChanged") return
+      this.setInstanceDataCache(event.instanceId, event.data)
     })
   }
 
@@ -59,15 +72,38 @@ export class ServerStorage {
   }
 
   async loadInstanceData(instanceId: string): Promise<InstanceData> {
-    return cliApi.readInstanceData(instanceId)
+    const cached = this.instanceDataCache.get(instanceId)
+    if (cached) {
+      return cached
+    }
+
+    if (!this.instanceLoadPromises.has(instanceId)) {
+      const promise = cliApi
+        .readInstanceData(instanceId)
+        .then((data) => {
+          const normalized = this.normalizeInstanceData(data)
+          this.setInstanceDataCache(instanceId, normalized)
+          return normalized
+        })
+        .finally(() => {
+          this.instanceLoadPromises.delete(instanceId)
+        })
+
+      this.instanceLoadPromises.set(instanceId, promise)
+    }
+
+    return this.instanceLoadPromises.get(instanceId)!
   }
 
   async saveInstanceData(instanceId: string, data: InstanceData): Promise<void> {
-    await cliApi.writeInstanceData(instanceId, data)
+    const normalized = this.normalizeInstanceData(data)
+    await cliApi.writeInstanceData(instanceId, normalized)
+    this.setInstanceDataCache(instanceId, normalized)
   }
 
   async deleteInstanceData(instanceId: string): Promise<void> {
     await cliApi.deleteInstanceData(instanceId)
+    this.setInstanceDataCache(instanceId, DEFAULT_INSTANCE_DATA)
   }
 
   onConfigChanged(listener: (config: ConfigData) => void): () => void {
@@ -76,6 +112,24 @@ export class ServerStorage {
       listener(this.configCache)
     }
     return () => this.configChangeListeners.delete(listener)
+  }
+
+  onInstanceDataChanged(instanceId: string, listener: (data: InstanceData) => void): () => void {
+    if (!this.instanceDataListeners.has(instanceId)) {
+      this.instanceDataListeners.set(instanceId, new Set())
+    }
+    const bucket = this.instanceDataListeners.get(instanceId)!
+    bucket.add(listener)
+    const cached = this.instanceDataCache.get(instanceId)
+    if (cached) {
+      listener(cached)
+    }
+    return () => {
+      bucket.delete(listener)
+      if (bucket.size === 0) {
+        this.instanceDataListeners.delete(instanceId)
+      }
+    }
   }
 
   private setConfigCache(config: ConfigData) {
@@ -90,6 +144,36 @@ export class ServerStorage {
   private notifyConfigChanged(config: ConfigData) {
     for (const listener of this.configChangeListeners) {
       listener(config)
+    }
+  }
+
+  private normalizeInstanceData(data?: InstanceData | null): InstanceData {
+    const source = data ?? DEFAULT_INSTANCE_DATA
+    const messageHistory = Array.isArray(source.messageHistory) ? [...source.messageHistory] : []
+    return {
+      ...source,
+      messageHistory,
+    }
+  }
+
+  private setInstanceDataCache(instanceId: string, data: InstanceData) {
+    const normalized = this.normalizeInstanceData(data)
+    const previous = this.instanceDataCache.get(instanceId)
+    if (previous && isDeepEqual(previous, normalized)) {
+      this.instanceDataCache.set(instanceId, normalized)
+      return
+    }
+    this.instanceDataCache.set(instanceId, normalized)
+    this.notifyInstanceDataChanged(instanceId, normalized)
+  }
+
+  private notifyInstanceDataChanged(instanceId: string, data: InstanceData) {
+    const listeners = this.instanceDataListeners.get(instanceId)
+    if (!listeners) {
+      return
+    }
+    for (const listener of listeners) {
+      listener(data)
     }
   }
 }
