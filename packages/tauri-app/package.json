@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tauri dev",
     "prebuild": "node ./scripts/prebuild.js",
+    "bundle:server": "npm --workspace @neuralnomads/codenomad run build && npm run prebuild",
     "build": "tauri build"
   },
   "devDependencies": {
