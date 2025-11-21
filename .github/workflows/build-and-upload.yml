@@ -226,6 +226,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --workspaces
 
+      - name: Ensure rollup native binary
+        run: npm install @rollup/rollup-win32-x64-msvc --no-save
+
       - name: Build Windows bundle (Tauri)
         run: npm run build --workspace @codenomad/tauri-app
 
