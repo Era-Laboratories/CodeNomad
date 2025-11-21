@@ -351,19 +351,29 @@ jobs:
           rm -rf "$ARTIFACT_DIR"
           mkdir -p "$ARTIFACT_DIR"
           shopt -s nullglob globstar
-          first_artifact=$(find "$SEARCH_ROOT" -type f \( -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" -o -name "*.tar.gz" \) | head -n1)
-          if [ -n "$first_artifact" ]; then
-            zip -j "$ARTIFACT_DIR/CodeNomad-Tauri-${VERSION}-linux-x64.zip" "$first_artifact"
-          else
-            echo "No bundled artifact found under $SEARCH_ROOT" >&2
+
+          find_one() {
+            find "$SEARCH_ROOT" -type f -iname "$1" | head -n1
+          }
+
+          appimage=$(find_one "*.AppImage")
+          deb=$(find_one "*.deb")
+          rpm=$(find_one "*.rpm")
+
+          if [ -z "$appimage" ] || [ -z "$deb" ] || [ -z "$rpm" ]; then
+            echo "Missing bundle(s): appimage=${appimage:-none} deb=${deb:-none} rpm=${rpm:-none}" >&2
             exit 1
           fi
+
+          cp "$appimage" "$ARTIFACT_DIR/CodeNomad-Tauri-${VERSION}-linux-x64.AppImage"
+          cp "$deb" "$ARTIFACT_DIR/CodeNomad-Tauri-${VERSION}-linux-x64.deb"
+          cp "$rpm" "$ARTIFACT_DIR/CodeNomad-Tauri-${VERSION}-linux-x64.rpm"
 
       - name: Upload Tauri release assets (Linux)
         run: |
           set -euo pipefail
           shopt -s nullglob
-          for file in packages/tauri-app/release-tauri/*.zip; do
+          for file in packages/tauri-app/release-tauri/*; do
             [ -f "$file" ] || continue
             echo "Uploading $file"
             gh release upload "$TAG" "$file" --clobber
