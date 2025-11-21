@@ -1,0 +1,178 @@
+name: Build and Upload Binaries
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Version to apply to workspace packages"
+        required: true
+        type: string
+      tag:
+        description: "Git tag to upload assets to"
+        required: true
+        type: string
+      release_name:
+        description: "Release name (unused here, for context)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: 20
+
+jobs:
+  build-macos:
+    runs-on: macos-13
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ inputs.version }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Set workspace versions
+        run: npm pkg set version=${VERSION} --workspaces --include-workspace-root
+
+      - name: Install dependencies
+        run: npm ci --workspaces
+
+      - name: Build macOS binaries
+        run: npm run build:mac --workspace @neuralnomads/codenomad-electron-app
+
+      - name: Upload release assets
+        run: |
+          shopt -s nullglob
+          for file in packages/electron-app/release/*; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              *.dmg|*.zip)
+                gh release upload "$TAG" "$file" --clobber
+                ;;
+              *)
+                echo "Skipping non-installer asset: $file"
+                ;;
+            esac
+          done
+
+  build-windows:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ inputs.version }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Set workspace versions
+        run: npm pkg set version=${{ env.VERSION }} --workspaces --include-workspace-root
+        shell: bash
+
+      - name: Install dependencies
+        run: npm ci --workspaces
+
+      - name: Build Windows binaries
+        run: npm run build:win --workspace @neuralnomads/codenomad-electron-app
+
+      - name: Upload release assets
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path "packages/electron-app/release" -File | Where-Object {
+            $_.Name -match '\\.(exe|zip)$'
+          } | ForEach-Object {
+            gh release upload $env:TAG $_.FullName --clobber
+          }
+
+  build-linux:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ inputs.version }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Set workspace versions
+        run: npm pkg set version=${VERSION} --workspaces --include-workspace-root
+
+      - name: Install dependencies
+        run: npm ci --workspaces
+
+      - name: Build Linux binaries
+        run: npm run build:linux --workspace @neuralnomads/codenomad-electron-app
+
+      - name: Upload release assets
+        run: |
+          shopt -s nullglob
+          for file in packages/electron-app/release/*; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              *.AppImage|*.deb|*.tar.gz)
+                gh release upload "$TAG" "$file" --clobber
+                ;;
+              *)
+                echo "Skipping non-installer asset: $file"
+                ;;
+            esac
+          done
+
+  build-linux-rpm:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ inputs.version }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install rpm packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm ruby ruby-dev build-essential
+          sudo gem install --no-document fpm
+
+      - name: Set workspace versions
+        run: npm pkg set version=${VERSION} --workspaces --include-workspace-root
+
+      - name: Install project dependencies
+        run: npm ci --workspaces
+
+      - name: Build Linux RPM binaries
+        run: npm run build:linux-rpm --workspace @neuralnomads/codenomad-electron-app
+
+      - name: Upload RPM release assets
+        run: |
+          shopt -s nullglob
+          for file in packages/electron-app/release/*.rpm; do
+            [ -f "$file" ] || continue
+            gh release upload "$TAG" "$file" --clobber
+          done

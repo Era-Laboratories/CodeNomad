@@ -63,84 +63,21 @@ jobs:
             gh release create "$TAG" --title "CodeNomad v${VERSION}" --generate-notes
           fi
 
-  build-macos:
+  build-and-upload:
     needs: prepare-release
-    runs-on: macos-13
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    uses: ./.github/workflows/build-and-upload.yml
+    with:
+      version: ${{ needs.prepare-release.outputs.version }}
+      tag: ${{ needs.prepare-release.outputs.tag }}
+      release_name: CodeNomad v${{ needs.prepare-release.outputs.version }}
+    secrets: inherit
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci --workspaces
-
-      - name: Build macOS binaries
-        run: npm run build:mac --workspace @codenomad/electron-app
-
-      - name: Upload release assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          for file in packages/electron-app/release/*; do
-            [ -f "$file" ] || continue
-            case "$file" in
-              *.dmg|*.zip)
-                gh release upload "$TAG" "$file" --clobber
-                ;;
-              *)
-                echo "Skipping non-installer asset: $file"
-                ;;
-            esac
-          done
-
-  build-windows:
-    needs: prepare-release
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci --workspaces
-
-      - name: Build Windows binaries
-        run: npm run build:win --workspace @codenomad/electron-app
-
-      - name: Upload release assets
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: |
-          Get-ChildItem -Path "packages/electron-app/release" -File | Where-Object {
-            $_.Name -match '\.(exe|zip)$'
-          } | ForEach-Object {
-            gh release upload $env:TAG $_.FullName --clobber
-          }
-
-  build-linux:
-    needs: prepare-release
+  publish-server:
+    needs: build-and-upload
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      NODE_VERSION: 20
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -154,63 +91,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --workspaces
 
-      - name: Build Linux binaries
-        run: npm run build:linux --workspace @codenomad/electron-app
+      - name: Build server package
+        run: npm run build --workspace @neuralnomads/codenomad
 
-      - name: Upload release assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          for file in packages/electron-app/release/*; do
-            [ -f "$file" ] || continue
-            case "$file" in
-              *.AppImage|*.deb|*.tar.gz)
-                gh release upload "$TAG" "$file" --clobber
-                ;;
-              *)
-                echo "Skipping non-installer asset: $file"
-                ;;
-            esac
-          done
-
-  build-linux-rpm:
-    needs: prepare-release
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install rpm packaging dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rpm ruby ruby-dev build-essential
-          sudo gem install --no-document fpm
-
-      - name: Install project dependencies
-        run: npm ci --workspaces
-
-      - name: Build Linux RPM binaries
-        run: npm run build:linux-rpm --workspace @codenomad/electron-app
-
-      - name: Upload RPM release assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          for file in packages/electron-app/release/*.rpm; do
-            [ -f "$file" ] || continue
-            gh release upload "$TAG" "$file" --clobber
-          done
+      - name: Publish server package
+        run: npm publish --workspace @neuralnomads/codenomad --access public --tag latest
