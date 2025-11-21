@@ -172,7 +172,7 @@ jobs:
         run: curl -L https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 
       - name: Install tauri-cli
-        run: cargo binstall tauri-cli --version 2.9.3 --no-confirm --target x86_64-apple-darwin
+        run: cargo binstall tauri-cli --version 2.5.4 --no-confirm --target x86_64-apple-darwin
 
       - name: Set workspace versions
         run: npm version ${VERSION} --workspaces --include-workspace-root --no-git-tag-version --allow-same-version
@@ -232,7 +232,7 @@ jobs:
         run: curl -L https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 
       - name: Install tauri-cli
-        run: cargo binstall tauri-cli --version 2.9.3 --no-confirm --target aarch64-apple-darwin
+        run: cargo binstall tauri-cli --version 2.5.4 --no-confirm --target aarch64-apple-darwin
 
       - name: Set workspace versions
         run: npm version ${VERSION} --workspaces --include-workspace-root --no-git-tag-version --allow-same-version
@@ -293,7 +293,7 @@ jobs:
         shell: pwsh
 
       - name: Install tauri-cli
-        run: cargo binstall tauri-cli --version 2.9.3 --no-confirm --target x86_64-pc-windows-msvc
+        run: cargo binstall tauri-cli --version 2.5.4 --no-confirm --target x86_64-pc-windows-msvc
         shell: bash
 
       - name: Set workspace versions
@@ -354,7 +354,7 @@ jobs:
         run: curl -L https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 
       - name: Install tauri-cli
-        run: cargo binstall tauri-cli --version 2.9.3 --no-confirm
+        run: cargo binstall tauri-cli --version 2.5.4 --no-confirm
 
       - name: Install Tauri Linux dependencies
         run: |
@@ -419,7 +419,7 @@ jobs:
         run: curl -L https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 
       - name: Install tauri-cli
-        run: cargo binstall tauri-cli --version 2.9.3 --no-confirm
+        run: cargo binstall tauri-cli --version 2.5.4 --no-confirm
 
       - name: Install Tauri Linux dependencies (arm64)
         run: |
