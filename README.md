@@ -5,12 +5,19 @@
 CodeNomad is built for people who live inside OpenCode for hours on end and need a cockpit, not a kiosk. It delivers a premium, low-latency workspace that favors speed, clarity, and direct control.
 
 ![Multi-instance workspace](docs/screenshots/newSession.png)
-![Command palette overlay](docs/screenshots/command-palette.png)
+_Manage multiple OpenCode sessions side-by-side._
 
 <details>
 <summary>📸 More Screenshots</summary>
 
-_More screenshots coming soon..._
+![Command palette overlay](docs/screenshots/command-palette.png)
+_Global command palette for keyboard-first control._
+
+![Image Previews](images/image-previews.png)
+_Rich media previews for images and assets._
+
+![Browser Support](images/browser-support.png)
+_Browser support via CodeNomad Server._
 
 </details>
 
