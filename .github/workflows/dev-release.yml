@@ -58,39 +58,7 @@ jobs:
 
   publish-server:
     needs: prepare-dev
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      NODE_VERSION: 20
-      VERSION: ${{ needs.prepare-dev.outputs.version }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          registry-url: https://registry.npmjs.org
-
-      - name: Set workspace versions
-        run: npm version ${VERSION} --workspaces --include-workspace-root --no-git-tag-version --allow-same-version
-
-      - name: Install dependencies
-        run: npm ci --workspaces
-
-      - name: Ensure rollup native binary
-        run: npm install @rollup/rollup-linux-x64-gnu --no-save
-
-      - name: Build server package
-        run: npm run build --workspace @neuralnomads/codenomad
-
-      - name: Publish server package to dev tag
-        env:
-          NPM_CONFIG_PROVENANCE: true
-          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
-          NPM_CONFIG_ALWAYS_AUTH: true
-        run: npm publish --workspace @neuralnomads/codenomad --access public --tag dev --provenance
+    uses: ./.github/workflows/manual-npm-publish.yml
+    with:
+      dist_tag: dev
+    secrets: inherit

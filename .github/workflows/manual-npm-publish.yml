@@ -2,6 +2,18 @@ name: Manual NPM Publish
 
 on:
   workflow_dispatch:
+    inputs:
+      dist_tag:
+        description: "npm dist-tag"
+        required: false
+        default: dev
+        type: string
+  workflow_call:
+    inputs:
+      dist_tag:
+        required: false
+        type: string
+        default: dev
 
 permissions:
   contents: read
@@ -38,7 +50,7 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "DIST_TAG=dev" >> "$GITHUB_ENV"
+          echo "DIST_TAG=${{ inputs.dist_tag || 'dev' }}" >> "$GITHUB_ENV"
 
       - name: Publish server package with provenance
         env:

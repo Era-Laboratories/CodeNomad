@@ -75,35 +75,7 @@ jobs:
 
   publish-server:
     needs: prepare-release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      NODE_VERSION: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          registry-url: https://registry.npmjs.org
-
-      - name: Install dependencies
-        run: npm ci --workspaces
-
-      - name: Ensure rollup native binary
-        run: npm install @rollup/rollup-linux-x64-gnu --no-save
-
-      - name: Build server package
-        run: npm run build --workspace @neuralnomads/codenomad
-
-      - name: Publish server package
-        env:
-          NPM_CONFIG_PROVENANCE: true
-          NPM_CONFIG_REGISTRY: https://registry.npmjs.org
-          NPM_CONFIG_ALWAYS_AUTH: true
-        run: npm publish --workspace @neuralnomads/codenomad --access public --tag latest --provenance
+    uses: ./.github/workflows/manual-npm-publish.yml
+    with:
+      dist_tag: latest
+    secrets: inherit
