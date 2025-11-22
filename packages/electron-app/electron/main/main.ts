@@ -30,22 +30,63 @@ function getIconPath() {
   return join(mainDirname, "../resources/icon.png")
 }
 
-function getLoadingHtmlPath() {
+type LoadingTarget =
+  | { type: "url"; source: string }
+  | { type: "file"; source: string }
+
+function resolveDevLoadingUrl(): string | null {
   if (app.isPackaged) {
-    return join(process.resourcesPath, "loading.html")
+    return null
+  }
+  const devBase = process.env.VITE_DEV_SERVER_URL || process.env.ELECTRON_RENDERER_URL
+  if (!devBase) {
+    return null
   }
 
-  const distResources = join(mainDirname, "../resources/loading.html")
-  if (existsSync(distResources)) {
-    return distResources
+  try {
+    const normalized = devBase.endsWith("/") ? devBase : `${devBase}/`
+    return new URL("loading.html", normalized).toString()
+  } catch (error) {
+    console.warn("[cli] failed to construct dev loading URL", devBase, error)
+    return null
+  }
+}
+
+function resolveLoadingTarget(): LoadingTarget {
+  const devUrl = resolveDevLoadingUrl()
+  if (devUrl) {
+    return { type: "url", source: devUrl }
+  }
+  const filePath = resolveLoadingFilePath()
+  return { type: "file", source: filePath }
+}
+
+function resolveLoadingFilePath() {
+  const candidates = [
+    join(app.getAppPath(), "dist/renderer/loading.html"),
+    join(process.resourcesPath, "dist/renderer/loading.html"),
+    join(mainDirname, "../dist/renderer/loading.html"),
+  ]
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate
+    }
   }
 
-  const devResources = join(mainDirname, "../electron/resources/loading.html")
-  if (existsSync(devResources)) {
-    return devResources
-  }
+  return join(app.getAppPath(), "dist/renderer/loading.html")
+}
 
-  return join(process.cwd(), "electron/resources/loading.html")
+function loadLoadingScreen(window: BrowserWindow) {
+  const target = resolveLoadingTarget()
+  const loader =
+    target.type === "url"
+      ? window.loadURL(target.source)
+      : window.loadFile(target.source)
+
+  loader.catch((error) => {
+    console.error("[cli] failed to load loading screen:", error)
+  })
 }
 
 let cachedPreloadPath: string | null = null
@@ -116,10 +157,9 @@ function createWindow() {
     mainWindow.webContents.session.setSpellCheckerEnabled(false)
   }
 
-  const loadingHtml = getLoadingHtmlPath()
   showingLoadingScreen = true
   currentCliUrl = null
-  mainWindow.loadFile(loadingHtml).catch((error) => console.error("[cli] failed to load loading screen:", error))
+  loadLoadingScreen(mainWindow)
 
   if (process.env.NODE_ENV === "development") {
     mainWindow.webContents.openDevTools({ mode: "detach" })
@@ -156,8 +196,7 @@ function showLoadingScreen(force = false) {
   showingLoadingScreen = true
   currentCliUrl = null
   pendingCliUrl = null
-  const loadingHtml = getLoadingHtmlPath()
-  mainWindow.loadFile(loadingHtml).catch((error) => console.error("[cli] failed to load loading screen:", error))
+  loadLoadingScreen(mainWindow)
 }
 
 function startCliPreload(url: string) {

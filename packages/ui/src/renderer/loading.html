@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CodeNomad</title>
+    <script>
+      ;(function () {
+        try {
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+          if (prefersDark) {
+            document.documentElement.setAttribute('data-theme', 'dark')
+          } else {
+            document.documentElement.setAttribute('data-theme', 'light')
+          }
+        } catch (error) {
+          console.warn('Failed to apply initial theme', error)
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="loading-root"></div>
+    <script type="module" src="./loading/main.tsx"></script>
+  </body>
+</html>

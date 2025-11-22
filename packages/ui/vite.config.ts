@@ -24,5 +24,11 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, "./src/renderer/index.html"),
+        loading: resolve(__dirname, "./src/renderer/loading.html"),
+      },
+    },
   },
 })

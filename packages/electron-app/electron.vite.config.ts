@@ -6,6 +6,7 @@ const uiRoot = resolve(__dirname, "../ui")
 const uiSrc = resolve(uiRoot, "src")
 const uiRendererRoot = resolve(uiRoot, "src/renderer")
 const uiRendererEntry = resolve(uiRendererRoot, "index.html")
+const uiRendererLoadingEntry = resolve(uiRendererRoot, "loading.html")
 
 export default defineConfig({
   main: {
@@ -54,7 +55,10 @@ export default defineConfig({
     build: {
       outDir: resolve(__dirname, "dist/renderer"),
       rollupOptions: {
-        input: uiRendererEntry,
+        input: {
+          main: uiRendererEntry,
+          loading: uiRendererLoadingEntry,
+        },
       },
     },
   },

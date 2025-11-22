@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "ai.opencode.client",
   "build": {
-    "beforeDevCommand": "",
+    "beforeDevCommand": "npm run prebuild",
     "beforeBuildCommand": "npm run bundle:server",
-    "frontendDist": "../src"
+    "frontendDist": "resources/ui-loading"
   },
   "app": {
     "withGlobalTauri": true,
@@ -14,7 +14,7 @@
       {
         "label": "main",
         "title": "CodeNomad",
-        "url": "index.html",
+        "url": "loading.html",
         "width": 1400,
         "height": 900,
         "minWidth": 800,
@@ -34,9 +34,8 @@
   "bundle": {
     "active": true,
     "resources": [
-      "../src/index.html",
-      "../src/icon.png",
-      "resources/server"
+      "resources/server",
+      "resources/ui-loading"
     ],
     "icon": ["icon.icns", "icon.ico", "icon.png"],
     "targets": ["app", "appimage", "deb", "rpm", "nsis"]
