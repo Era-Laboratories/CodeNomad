@@ -231,7 +231,7 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
         >
         <div class="mb-6 text-center shrink-0">
           <div class="mb-3 flex justify-center">
-            <img src={codeNomadLogo} alt="CodeNomad logo" class="h-48 w-auto" loading="lazy" />
+            <img src={codeNomadLogo} alt="CodeNomad logo" class="h-32 w-auto sm:h-48" loading="lazy" />
           </div>
           <h1 class="mb-2 text-3xl font-semibold text-primary">CodeNomad</h1>
           <p class="text-base text-secondary">Select a folder to start coding with AI</p>
@@ -318,7 +318,7 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
             </Show>
 
             <div class="panel shrink-0">
-              <div class="panel-header">
+              <div class="panel-header hidden sm:block">
                 <h2 class="panel-title">Browse for Folder</h2>
                 <p class="panel-subtitle">Select any folder on your computer</p>
               </div>
@@ -354,7 +354,7 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
             </div>
           </div>
 
-          <div class="mt-1 panel panel-footer shrink-0">
+          <div class="mt-1 panel panel-footer shrink-0 hidden sm:block">
             <div class="panel-footer-hints">
               <Show when={folders().length > 0}>
                 <div class="flex items-center gap-1.5">

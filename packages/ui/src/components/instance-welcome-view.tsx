@@ -281,7 +281,7 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
         </div>
       </div>
 
-      <div class="panel-footer">
+      <div class="panel-footer hidden sm:block">
         <div class="panel-footer-hints">
           <div class="flex items-center gap-1.5">
             <kbd class="kbd">↑</kbd>
