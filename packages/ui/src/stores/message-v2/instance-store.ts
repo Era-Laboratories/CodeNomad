@@ -269,45 +269,52 @@ export function createInstanceMessageStore(instanceId: string): InstanceMessageS
     const infoList = infos ? Array.from(infos) : undefined
     const usageState = infoList ? rebuildUsageStateFromInfos(infoList) : state.usage[sessionId]
 
-    setState(
-      produce((draft) => {
-        removedIds.forEach((id) => {
-          if (draft.messages[id]?.sessionId === sessionId) {
-            delete draft.messages[id]
-            delete draft.messageInfoVersion[id]
-            delete draft.pendingParts[id]
-            if (draft.permissions.byMessage[id]) {
-              delete draft.permissions.byMessage[id]
-            }
-          }
-        })
-
-        Object.entries(normalizedRecords).forEach(([id, record]) => {
-          draft.messages[id] = record as MessageRecord
-        })
-
-        const session = draft.sessions[sessionId]!
-        session.messageIds = incomingIds
-        session.updatedAt = Date.now()
-
-        if (usageState) {
-          draft.usage[sessionId] = usageState
-        }
-
-        if (infoList) {
-          for (const info of infoList) {
-            const messageId = info.id as string
-            messageInfoCache.set(messageId, info)
-            const currentVersion = draft.messageInfoVersion[messageId] ?? 0
-            draft.messageInfoVersion[messageId] = currentVersion + 1
-          }
-        }
-      }),
-    )
+    const nextMessages: Record<string, MessageRecord> = { ...state.messages }
+    const nextMessageInfoVersion: Record<string, number> = { ...state.messageInfoVersion }
+    const nextPendingParts: Record<string, PendingPartEntry[]> = { ...state.pendingParts }
+    const nextPermissionsByMessage: Record<string, Record<string, PermissionEntry>> = {
+      ...state.permissions.byMessage,
+    }
 
     removedIds.forEach((id) => {
+      if (nextMessages[id]?.sessionId === sessionId) {
+        delete nextMessages[id]
+        delete nextMessageInfoVersion[id]
+        delete nextPendingParts[id]
+        if (nextPermissionsByMessage[id]) {
+          delete nextPermissionsByMessage[id]
+        }
+      }
       messageInfoCache.delete(id)
     })
+
+    Object.entries(normalizedRecords).forEach(([id, record]) => {
+      nextMessages[id] = record
+    })
+
+    if (infoList) {
+      for (const info of infoList) {
+        const messageId = info.id as string
+        messageInfoCache.set(messageId, info)
+        const currentVersion = nextMessageInfoVersion[messageId] ?? 0
+        nextMessageInfoVersion[messageId] = currentVersion + 1
+      }
+    }
+
+    setState("messages", reconcile(nextMessages))
+    setState("messageInfoVersion", reconcile(nextMessageInfoVersion))
+    setState("pendingParts", reconcile(nextPendingParts))
+    setState("permissions", "byMessage", reconcile(nextPermissionsByMessage))
+
+    if (usageState) {
+      setState("usage", sessionId, usageState)
+    }
+
+    setState("sessions", sessionId, (session) => ({
+      ...session,
+      messageIds: incomingIds,
+      updatedAt: Date.now(),
+    }))
   }
 
   function insertMessageIntoSession(sessionId: string, messageId: string) {
