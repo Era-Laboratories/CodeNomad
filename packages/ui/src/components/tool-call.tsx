@@ -1,5 +1,6 @@
 import { createSignal, Show, For, createEffect, createMemo, onCleanup } from "solid-js"
 import { isToolCallExpanded, toggleToolCallExpanded, setToolCallExpanded } from "../stores/tool-call-state"
+import { messageStoreBus } from "../stores/message-v2/bus"
 import { Markdown } from "./markdown"
 import { ToolCallDiffViewer } from "./diff-viewer"
 import { useTheme } from "../lib/theme"
@@ -346,7 +347,15 @@ export default function ToolCall(props: ToolCallProps) {
   const { preferences, setDiffViewMode } = useConfig()
   const { isDark } = useTheme()
   const toolCallId = () => props.toolCallId || props.toolCall?.id || ""
-  const pendingPermission = createMemo(() => props.toolCall.pendingPermission)
+  const store = createMemo(() => messageStoreBus.getOrCreate(props.instanceId))
+  const permissionState = createMemo(() => store().getPermissionState(props.messageId, toolCallId() || props.toolCall?.id))
+  const pendingPermission = createMemo(() => {
+    const state = permissionState()
+    if (state) {
+      return { permission: state.entry.permission, active: state.active }
+    }
+    return props.toolCall.pendingPermission
+  })
   const expanded = () => (pendingPermission() ? true : isToolCallExpanded(toolCallId()))
   const toolOutputDefaultExpanded = createMemo(() => (preferences().toolOutputExpansion || "expanded") === "expanded")
   const diagnosticsDefaultExpanded = createMemo(() => (preferences().diagnosticsExpansion || "expanded") === "expanded")

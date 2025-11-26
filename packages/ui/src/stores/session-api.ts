@@ -32,6 +32,7 @@ import {
   rebuildSessionUsage,
   updateSessionInfo,
 } from "./session-messages"
+import { seedSessionMessagesV2 } from "./message-v2/bridge"
 
 interface SessionForkResponse {
   id: string
@@ -609,6 +610,14 @@ async function loadMessages(instanceId: string, sessionId: string, force = false
       next.set(instanceId, loadedSet)
       return next
     })
+
+    const sessionForV2 = sessions().get(instanceId)?.get(sessionId) ?? {
+      id: sessionId,
+      title: session?.title,
+      parentId: session?.parentId ?? null,
+      revert: session?.revert,
+    }
+    seedSessionMessagesV2(instanceId, sessionForV2, messages, messagesInfo)
 
   } catch (error) {
     console.error("Failed to load messages:", error)

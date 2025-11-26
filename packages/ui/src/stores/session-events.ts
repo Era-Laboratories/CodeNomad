@@ -34,6 +34,14 @@ import {
 } from "./session-messages"
 import { loadMessages } from "./session-api"
 import { setSessionCompactionState } from "./session-compaction"
+import {
+  applyPartUpdateV2,
+  replaceMessageIdV2,
+  upsertMessageInfoV2,
+  upsertPermissionV2,
+  removePermissionV2,
+  setSessionRevertV2,
+} from "./message-v2/bridge"
 
 interface TuiToastEvent {
   type: "tui.toast.show"
@@ -195,6 +203,7 @@ function handleMessageUpdate(instanceId: string, event: MessageUpdateEvent | Mes
           index.partIndex.delete(oldId)
           index.partIndex.set(message.id, existingPartMap)
         }
+        replaceMessageIdV2(instanceId, oldId, message.id)
       }
 
       if (filteredSynthetics || replacedTemp) {
@@ -212,6 +221,7 @@ function handleMessageUpdate(instanceId: string, event: MessageUpdateEvent | Mes
       /* mutations already applied above */
     })
 
+    applyPartUpdateV2(instanceId, part)
     updateSessionInfo(instanceId, part.sessionID)
     refreshPermissionsForSession(instanceId, part.sessionID)
   } else if (event.type === "message.updated") {
@@ -270,6 +280,7 @@ function handleMessageUpdate(instanceId: string, event: MessageUpdateEvent | Mes
             index.partIndex.delete(oldId)
             index.partIndex.set(message.id, existingPartMap)
           }
+          replaceMessageIdV2(instanceId, oldId, message.id)
         }
       } else {
         const newMessage: any = {
@@ -305,8 +316,11 @@ function handleMessageUpdate(instanceId: string, event: MessageUpdateEvent | Mes
       message.displayParts = computeDisplayParts(message, preferences().showThinkingBlocks)
     }
 
+    upsertMessageInfoV2(instanceId, info, { status: "complete" })
+
     session.messagesInfo.set(info.id, info)
     updateUsageFromMessageInfo(instanceId, info.sessionID, info)
+
     withSession(instanceId, info.sessionID, () => {
       /* ensure reactivity */
     })
@@ -359,6 +373,7 @@ function handleSessionUpdate(instanceId: string, event: EventSessionUpdated): vo
       next.set(instanceId, updated)
       return next
     })
+    setSessionRevertV2(instanceId, info.id, info.revert ?? null)
 
     console.log(`[SSE] New session created: ${info.id}`, newSession)
   } else {
@@ -391,6 +406,7 @@ function handleSessionUpdate(instanceId: string, event: EventSessionUpdated): vo
       next.set(instanceId, updated)
       return next
     })
+    setSessionRevertV2(instanceId, info.id, info.revert ?? null)
   }
 }
 
@@ -490,6 +506,7 @@ function handlePermissionUpdated(instanceId: string, event: EventPermissionUpdat
 
   console.log(`[SSE] Permission updated: ${permission.id} (${permission.type})`)
   addPermissionToQueue(instanceId, permission)
+  upsertPermissionV2(instanceId, permission)
 }
 
 function handlePermissionReplied(instanceId: string, event: EventPermissionReplied): void {
@@ -498,6 +515,7 @@ function handlePermissionReplied(instanceId: string, event: EventPermissionRepli
 
   console.log(`[SSE] Permission replied: ${permissionID}`)
   removePermissionFromQueue(instanceId, permissionID)
+  removePermissionV2(instanceId, permissionID)
 }
 
 export {

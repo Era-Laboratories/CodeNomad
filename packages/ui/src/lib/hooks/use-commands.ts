@@ -3,6 +3,7 @@ import type { Accessor } from "solid-js"
 import type { Preferences, ExpansionPreference } from "../../stores/preferences"
 import { createCommandRegistry, type Command } from "../commands"
 import { instances, activeInstanceId, setActiveInstanceId } from "../../stores/instances"
+import type { ClientPart, MessageInfo } from "../../types/message"
 import {
   activeParentSessionId,
   activeSessionId as activeSessionMap,
@@ -13,6 +14,8 @@ import {
 import { setSessionCompactionState } from "../../stores/session-compaction"
 import { showAlertDialog } from "../../stores/alerts"
 import type { Instance } from "../../types/instance"
+import type { MessageRecord } from "../../stores/message-v2/types"
+import { messageStoreBus } from "../../stores/message-v2/bus"
 
 export interface UseCommandsOptions {
   preferences: Accessor<Preferences>
@@ -27,6 +30,18 @@ export interface UseCommandsOptions {
   handleCloseSession: (instanceId: string, sessionId: string) => Promise<void>
   getActiveInstance: () => Instance | null
   getActiveSessionIdForInstance: () => string | null
+}
+
+function extractUserTextFromRecord(record?: MessageRecord): string | null {
+  if (!record) return null
+  const parts = record.partIds
+    .map((partId) => record.parts[partId]?.data)
+    .filter((part): part is ClientPart => Boolean(part))
+  const textParts = parts.filter((part): part is ClientPart & { type: "text"; text: string } => part.type === "text" && typeof (part as any).text === "string")
+  if (textParts.length === 0) {
+    return null
+  }
+  return textParts.map((part) => (part as any).text as string).join("\n")
 }
 
 export function useCommands(options: UseCommandsOptions) {
@@ -232,31 +247,53 @@ export function useCommands(options: UseCommandsOptions) {
         const session = sessions.find((s) => s.id === sessionId)
         if (!session) return
 
-        let after = 0
-        const revert = session.revert
+        const store = messageStoreBus.getOrCreate(instance.id)
+        const messageIds = store.getSessionMessageIds(sessionId)
+        const infoMap = new Map<string, MessageInfo>()
+        messageIds.forEach((id) => {
+          const info = store.getMessageInfo(id)
+          if (info) infoMap.set(id, info)
+        })
 
-        if (revert?.messageID) {
-          for (let i = session.messages.length - 1; i >= 0; i--) {
-            const msg = session.messages[i]
-            const info = session.messagesInfo.get(msg.id)
-            if (info?.id === revert.messageID) {
-              after = info.time?.created || 0
-              break
-            }
-          }
+        const revertState = store.getSessionRevert(sessionId) ?? session.revert
+        let after = 0
+        if (revertState?.messageID) {
+          const revertInfo = infoMap.get(revertState.messageID) ?? session.messagesInfo.get(revertState.messageID)
+          after = revertInfo?.time?.created || 0
         }
 
         let messageID = ""
-        for (let i = session.messages.length - 1; i >= 0; i--) {
-          const msg = session.messages[i]
-          const info = session.messagesInfo.get(msg.id)
-
-          if (msg.type === "user" && info?.time?.created) {
+        let restoredText: string | null = null
+        for (let i = messageIds.length - 1; i >= 0; i--) {
+          const id = messageIds[i]
+          const record = store.getMessage(id)
+          const info = infoMap.get(id)
+          if (record?.role === "user" && info?.time?.created) {
             if (after > 0 && info.time.created >= after) {
               continue
             }
-            messageID = msg.id
+            messageID = id
+            restoredText = extractUserTextFromRecord(record)
             break
+          }
+        }
+
+        if (!messageID) {
+          for (let i = session.messages.length - 1; i >= 0; i--) {
+            const msg = session.messages[i]
+            const info = session.messagesInfo.get(msg.id)
+
+            if (msg.type === "user" && info?.time?.created) {
+              if (after > 0 && info.time.created >= after) {
+                continue
+              }
+              messageID = msg.id
+              const textParts = msg.parts.filter((p): p is ClientPart & { type: "text"; text: string } => p.type === "text" && typeof (p as any).text === "string")
+              if (textParts.length > 0) {
+                restoredText = textParts.map((p) => (p as any).text as string).join("\n")
+              }
+              break
+            }
           }
         }
 
@@ -274,18 +311,25 @@ export function useCommands(options: UseCommandsOptions) {
             body: { messageID },
           })
 
-          const revertedMessage = session.messages.find((m) => m.id === messageID)
-          const revertedInfo = session.messagesInfo.get(messageID)
-
-          if (revertedMessage && revertedInfo?.role === "user") {
-            const textParts = revertedMessage.parts.filter((p) => p.type === "text")
-            if (textParts.length > 0) {
-              const textarea = document.querySelector(".prompt-input") as HTMLTextAreaElement
-              if (textarea) {
-                textarea.value = textParts.map((p: any) => p.text).join("\n")
-                textarea.dispatchEvent(new Event("input", { bubbles: true }))
-                textarea.focus()
+          if (!restoredText) {
+            const revertedMessage = session.messages.find((m) => m.id === messageID)
+            const revertedInfo = session.messagesInfo.get(messageID)
+            if (revertedMessage && revertedInfo?.role === "user") {
+              const textParts = revertedMessage.parts.filter(
+                (p): p is ClientPart & { type: "text"; text: string } => p.type === "text" && typeof (p as any).text === "string",
+              )
+              if (textParts.length > 0) {
+                restoredText = textParts.map((p) => (p as any).text as string).join("\n")
               }
+            }
+          }
+
+          if (restoredText) {
+            const textarea = document.querySelector(".prompt-input") as HTMLTextAreaElement
+            if (textarea) {
+              textarea.value = restoredText
+              textarea.dispatchEvent(new Event("input", { bubbles: true }))
+              textarea.focus()
             }
           }
         } catch (error) {

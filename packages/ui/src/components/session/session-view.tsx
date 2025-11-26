@@ -2,11 +2,16 @@ import { Show, createMemo, createEffect, onCleanup, type Component } from "solid
 import type { Session } from "../../types/session"
 import type { Attachment } from "../../types/attachment"
 import type { ClientPart } from "../../types/message"
-import MessageStream from "../message-stream"
+import MessageStreamV2 from "../message-stream-v2"
+import { messageStoreBus } from "../../stores/message-v2/bus"
 import PromptInput from "../prompt-input"
 import { instances } from "../../stores/instances"
 import { loadMessages, sendMessage, forkSession, isSessionMessagesLoading, setActiveParentSession, setActiveSession, runShellCommand } from "../../stores/sessions"
 import { showAlertDialog } from "../../stores/alerts"
+
+function isTextPart(part: ClientPart): part is ClientPart & { type: "text"; text: string } {
+  return part?.type === "text" && typeof (part as any).text === "string"
+}
 
 interface SessionViewProps {
   sessionId: string
@@ -19,6 +24,7 @@ interface SessionViewProps {
 export const SessionView: Component<SessionViewProps> = (props) => {
   const session = () => props.activeSessions.get(props.sessionId)
   const messagesLoading = createMemo(() => isSessionMessagesLoading(props.instanceId, props.sessionId))
+  const messageStore = createMemo(() => messageStoreBus.getOrCreate(props.instanceId))
 
   createEffect(() => {
     const currentSession = session()
@@ -36,6 +42,17 @@ export const SessionView: Component<SessionViewProps> = (props) => {
   }
 
   function getUserMessageText(messageId: string): string | null {
+    const normalizedMessage = messageStore().getMessage(messageId)
+    if (normalizedMessage && normalizedMessage.role === "user") {
+      const parts = normalizedMessage.partIds
+        .map((partId) => normalizedMessage.parts[partId]?.data)
+        .filter((part): part is ClientPart => Boolean(part))
+      const textParts = parts.filter(isTextPart)
+      if (textParts.length > 0) {
+        return textParts.map((part) => part.text).join("\n")
+      }
+    }
+
     const currentSession = session()
     if (!currentSession) return null
 
@@ -45,7 +62,7 @@ export const SessionView: Component<SessionViewProps> = (props) => {
       return null
     }
 
-    const textParts = targetMessage.parts.filter((p): p is ClientPart & { type: "text"; text: string } => p.type === "text")
+    const textParts = targetMessage.parts.filter(isTextPart)
     if (textParts.length === 0) {
       return null
     }
@@ -129,12 +146,9 @@ export const SessionView: Component<SessionViewProps> = (props) => {
     >
       {(s) => (
         <div class="session-view">
-          <MessageStream
+          <MessageStreamV2
             instanceId={props.instanceId}
             sessionId={s().id}
-            messages={s().messages || []}
-            messagesInfo={s().messagesInfo}
-            revert={s().revert}
             loading={messagesLoading()}
             onRevert={handleRevert}
             onFork={handleFork}
