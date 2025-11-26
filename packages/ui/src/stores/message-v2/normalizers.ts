@@ -1,6 +1,4 @@
 import { decodeHtmlEntities } from "../../lib/markdown"
-import { partHasRenderableText } from "../../types/message"
-import type { MessageDisplayParts, Message } from "../../types/message"
 
 function decodeTextSegment(segment: any): any {
   if (typeof segment === "string") {
@@ -74,23 +72,3 @@ export function normalizeMessagePart(part: any): any {
   return normalized
 }
 
-export function computeDisplayParts(message: Message, showThinking: boolean): MessageDisplayParts {
-  const text: any[] = []
-  const tool: any[] = []
-  const reasoning: any[] = []
-
-  for (const part of message.parts) {
-    if (part.type === "text" && !part.synthetic && partHasRenderableText(part)) {
-      text.push(part)
-    } else if (part.type === "tool") {
-      tool.push(part)
-    } else if (part.type === "reasoning" && showThinking && partHasRenderableText(part)) {
-      reasoning.push(part)
-    }
-  }
-
-  const combined = reasoning.length > 0 ? [...text, ...reasoning] : [...text]
-  const version = typeof message.version === "number" ? message.version : 0
-
-  return { text, tool, reasoning, combined, showThinking, version }
-}

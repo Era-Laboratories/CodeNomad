@@ -1,9 +1,10 @@
-import { createMemo, Show, onMount, createEffect } from "solid-js"
+import { createMemo, Show, createEffect, onCleanup } from "solid-js"
 import { DiffView, DiffModeEnum } from "@git-diff-view/solid"
 import type { DiffHighlighterLang } from "@git-diff-view/core"
 import { getLanguageFromPath } from "../lib/markdown"
 import { normalizeDiffText } from "../lib/diff-utils"
-import { setToolRenderCache } from "../lib/tool-render-cache"
+import { setCacheEntry } from "../lib/global-cache"
+import type { CacheEntryParams } from "../lib/global-cache"
 import type { DiffViewMode } from "../stores/preferences"
 
 interface ToolCallDiffViewerProps {
@@ -13,13 +14,20 @@ interface ToolCallDiffViewerProps {
   mode: DiffViewMode
   onRendered?: () => void
   cachedHtml?: string
-  cacheKey?: string
+  cacheEntryParams?: CacheEntryParams
 }
 
 type DiffData = {
   oldFile?: { fileName?: string | null; fileLang?: string | null; content?: string | null }
   newFile?: { fileName?: string | null; fileLang?: string | null; content?: string | null }
   hunks: string[]
+}
+
+type CaptureContext = {
+  theme: ToolCallDiffViewerProps["theme"]
+  mode: DiffViewMode
+  diffText: string
+  cacheEntryParams?: CacheEntryParams
 }
 
 export function ToolCallDiffViewer(props: ToolCallDiffViewerProps) {
@@ -46,30 +54,93 @@ export function ToolCallDiffViewer(props: ToolCallDiffViewerProps) {
   })
 
   let diffContainerRef: HTMLDivElement | undefined
+  let pendingCapture: number | undefined
+  let pendingContext: CaptureContext | undefined
+  let lastRenderedMarkup: string | undefined
+  let lastCachedHtml: string | undefined
 
-  const captureAndCacheHtml = () => {
-    if (diffContainerRef && props.cacheKey && !props.cachedHtml) {
-      // Extract the rendered HTML from DiffView container
-      const renderedHtml = diffContainerRef.innerHTML
-      if (renderedHtml) {
-        setToolRenderCache(props.cacheKey, {
-          text: props.diffText,
-          html: renderedHtml,
-          theme: props.theme,
-          mode: props.mode,
+  const clearPendingCapture = () => {
+    if (pendingCapture !== undefined) {
+      cancelAnimationFrame(pendingCapture)
+      pendingCapture = undefined
+    }
+    pendingContext = undefined
+  }
+
+  const runCapture = (context: CaptureContext) => {
+    if (!diffContainerRef) {
+      props.onRendered?.()
+      return
+    }
+
+    const markup = diffContainerRef.innerHTML
+    if (!markup) {
+      props.onRendered?.()
+      return
+    }
+
+    const hasChanged = markup !== lastRenderedMarkup
+    if (hasChanged) {
+      lastRenderedMarkup = markup
+      if (context.cacheEntryParams) {
+        setCacheEntry(context.cacheEntryParams, {
+          text: context.diffText,
+          html: markup,
+          theme: context.theme,
+          mode: context.mode,
         })
       }
     }
+
     props.onRendered?.()
   }
 
-  // Also capture HTML when diff data changes
+  const scheduleCapture = (context: CaptureContext) => {
+    clearPendingCapture()
+    pendingContext = context
+    pendingCapture = requestAnimationFrame(() => {
+      const activeContext = pendingContext
+      pendingContext = undefined
+      pendingCapture = undefined
+      if (activeContext) {
+        runCapture(activeContext)
+      }
+    })
+  }
+
   createEffect(() => {
-    const data = diffData()
-    if (data && !props.cachedHtml) {
-      // Delay to allow DiffView to re-render with new data
-      setTimeout(captureAndCacheHtml, 100)
+    const cachedHtml = props.cachedHtml
+    if (cachedHtml) {
+      clearPendingCapture()
+      if (cachedHtml !== lastCachedHtml) {
+        lastCachedHtml = cachedHtml
+        lastRenderedMarkup = cachedHtml
+        props.onRendered?.()
+      }
+      return
     }
+
+    lastCachedHtml = undefined
+
+    const data = diffData()
+    const theme = props.theme
+    const mode = props.mode
+
+    if (!data) {
+      clearPendingCapture()
+      return
+    }
+
+    scheduleCapture({
+      theme,
+      mode,
+      diffText: props.diffText,
+      cacheEntryParams: props.cacheEntryParams,
+    })
+  })
+
+  onCleanup(() => {
+    clearPendingCapture()
   })
 
   return (

@@ -1,26 +1,29 @@
 import { For, Show, createMemo } from "solid-js"
-import type { Message, SDKPart, MessageInfo, ClientPart } from "../types/message"
+import type { MessageInfo, ClientPart } from "../types/message"
 import { partHasRenderableText } from "../types/message"
+import type { MessageRecord } from "../stores/message-v2/types"
 import { formatTokenTotal } from "../lib/formatters"
 import { preferences } from "../stores/preferences"
 import MessagePart from "./message-part"
 
 interface MessageItemProps {
-  message: Message
+  record: MessageRecord
   messageInfo?: MessageInfo
   instanceId: string
   sessionId: string
   isQueued?: boolean
-  parts?: ClientPart[]
+  combinedParts: ClientPart[]
+  orderedParts: ClientPart[]
   onRevert?: (messageId: string) => void
   onFork?: (messageId?: string) => void
 }
 
 export default function MessageItem(props: MessageItemProps) {
-  const isUser = () => props.message.type === "user"
+  const isUser = () => props.record.role === "user"
   const showUsageMetrics = () => preferences().showUsageMetrics ?? true
   const timestamp = () => {
-    const date = new Date(props.message.timestamp)
+    const createdTime = props.messageInfo?.time?.created ?? props.record.createdAt
+    const date = new Date(createdTime)
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   }
 
@@ -30,10 +33,10 @@ export default function MessageItem(props: MessageItemProps) {
     filename?: string
   }
 
-  const displayParts = () => props.parts ?? props.message.parts
+  const combinedParts = () => props.combinedParts
 
   const fileAttachments = () =>
-    props.message.parts.filter((part): part is FilePart => part?.type === "file" && typeof (part as FilePart).url === "string")
+    props.orderedParts.filter((part): part is FilePart => part?.type === "file" && typeof (part as FilePart).url === "string")
 
   const getAttachmentName = (part: FilePart) => {
     if (part.filename && part.filename.trim().length > 0) {
@@ -123,7 +126,7 @@ export default function MessageItem(props: MessageItemProps) {
       return true
     }
 
-    return displayParts().some((part) => partHasRenderableText(part))
+    return combinedParts().some((part) => partHasRenderableText(part))
   }
 
   const isGenerating = () => {
@@ -133,7 +136,7 @@ export default function MessageItem(props: MessageItemProps) {
 
   const handleRevert = () => {
     if (props.onRevert && isUser()) {
-      props.onRevert(props.message.id)
+      props.onRevert(props.record.id)
     }
   }
 
@@ -227,7 +230,7 @@ export default function MessageItem(props: MessageItemProps) {
           <Show when={isUser() && props.onFork}>
             <button
               class="bg-transparent border border-[var(--border-base)] text-[var(--text-muted)] cursor-pointer px-3 py-0.5 rounded text-xs font-semibold leading-none transition-all duration-200 flex items-center justify-center h-6 hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] active:scale-95"
-              onClick={() => props.onFork?.(props.message.id)}
+              onClick={() => props.onFork?.(props.record.id)}
               title="Fork from this message"
               aria-label="Fork from this message"
             >
@@ -254,11 +257,11 @@ export default function MessageItem(props: MessageItemProps) {
           </div>
         </Show>
 
-        <For each={displayParts()}>
+        <For each={combinedParts()}>
           {(part) => (
             <MessagePart
               part={part}
-              messageType={props.message.type}
+              messageType={props.record.role}
               instanceId={props.instanceId}
               sessionId={props.sessionId}
             />
@@ -341,7 +344,7 @@ export default function MessageItem(props: MessageItemProps) {
           </div>
         )}
       </Show>
-      <Show when={props.message.status === "sending"}>
+      <Show when={props.record.status === "sending"}>
 
 
         <div class="message-sending">
@@ -349,7 +352,7 @@ export default function MessageItem(props: MessageItemProps) {
         </div>
       </Show>
 
-      <Show when={props.message.status === "error"}>
+      <Show when={props.record.status === "error"}>
         <div class="message-error">⚠ Message failed to send</div>
       </Show>
     </div>

@@ -6,11 +6,12 @@ import { ToolCallDiffViewer } from "./diff-viewer"
 import { useTheme } from "../lib/theme"
 import { getLanguageFromPath } from "../lib/markdown"
 import { isRenderableDiffText } from "../lib/diff-utils"
-import { getToolRenderCache, setToolRenderCache } from "../lib/tool-render-cache"
+import { useGlobalCache } from "../lib/hooks/use-global-cache"
+import { useScrollCache } from "../lib/hooks/use-scroll-cache"
 import { useConfig } from "../stores/preferences"
 import type { DiffViewMode } from "../stores/preferences"
 import { sendPermissionResponse } from "../stores/instances"
-import type { TextPart, SDKPart, ClientPart } from "../types/message"
+import type { TextPart, SDKPart, ClientPart, RenderCache } from "../types/message"
 
 type ToolCallPart = Extract<ClientPart, { type: "tool" }>
 
@@ -34,46 +35,19 @@ function isToolStateError(state: ToolState): state is ToolStateError {
 }
 
 
-const toolScrollState = new Map<string, { scrollTop: number; atBottom: boolean }>()
+const TOOL_CALL_CACHE_SCOPE = "tool-call"
 
 function makeRenderCacheKey(
   toolCallId?: string | null,
   messageId?: string,
   messageVersion?: number,
   partVersion?: number,
+  variant = "default",
 ) {
-  const suffix = `${messageVersion ?? 0}:${partVersion ?? 0}`
-  const keyBase = `${messageId}:${toolCallId}`
-  return `${keyBase}::${suffix}`
-}
-
-function updateScrollState(id: string, element: HTMLElement) {
-  if (!id) return
-  const distanceFromBottom = element.scrollHeight - (element.scrollTop + element.clientHeight)
-  const atBottom = distanceFromBottom <= 2
-  toolScrollState.set(id, { scrollTop: element.scrollTop, atBottom })
-}
-
-function restoreScrollState(id: string, element: HTMLElement) {
-  if (!id) return
-  const state = toolScrollState.get(id)
-  if (!state) {
-    requestAnimationFrame(() => {
-      element.scrollTop = element.scrollHeight
-      updateScrollState(id, element)
-    })
-    return
-  }
-
-  requestAnimationFrame(() => {
-    if (state.atBottom) {
-      element.scrollTop = element.scrollHeight
-    } else {
-      const maxScrollTop = Math.max(element.scrollHeight - element.clientHeight, 0)
-      element.scrollTop = Math.min(state.scrollTop, maxScrollTop)
-    }
-    updateScrollState(id, element)
-  })
+  const messageComponent = messageId ?? "unknown-message"
+  const toolCallComponent = toolCallId ?? "unknown-tool-call"
+  const versionComponent = `${messageVersion ?? 0}:${partVersion ?? 0}`
+  return `${messageComponent}:${toolCallComponent}:${versionComponent}:${variant}`
 }
 
 
@@ -348,6 +322,34 @@ export default function ToolCall(props: ToolCallProps) {
   const { isDark } = useTheme()
   const toolCallId = () => props.toolCallId || props.toolCall?.id || ""
   const store = createMemo(() => messageStoreBus.getOrCreate(props.instanceId))
+
+  const cacheContext = createMemo(() => ({
+    toolCallId: toolCallId(),
+    messageId: props.messageId,
+    messageVersion: props.messageVersion ?? 0,
+    partVersion: props.partVersion ?? 0,
+  }))
+
+  const createVariantCache = (variant: string) =>
+    useGlobalCache({
+      instanceId: () => props.instanceId,
+      sessionId: () => props.sessionId,
+      scope: TOOL_CALL_CACHE_SCOPE,
+      key: () => {
+        const context = cacheContext()
+        return makeRenderCacheKey(
+          context.toolCallId || undefined,
+          context.messageId,
+          context.messageVersion,
+          context.partVersion,
+          variant,
+        )
+      },
+    })
+
+  const diffCache = createVariantCache("diff")
+  const permissionDiffCache = createVariantCache("permission-diff")
+  const markdownCache = createVariantCache("markdown")
   const permissionState = createMemo(() => store().getPermissionState(props.messageId, toolCallId() || props.toolCall?.id))
   const pendingPermission = createMemo(() => {
     const state = permissionState()
@@ -383,30 +385,49 @@ export default function ToolCall(props: ToolCallProps) {
 
   let scrollContainerRef: HTMLDivElement | undefined
   let toolCallRootRef: HTMLDivElement | undefined
- 
-  const handleScrollRendered = () => {
- 
-   const id = toolCallId()
 
-    if (!id || !scrollContainerRef) return
-    restoreScrollState(id, scrollContainerRef)
+  const scrollScopeId = createMemo(() => {
+    const id = toolCallId()
+    if (id) return id
+    const messageKey = props.messageId || "unknown"
+    const partKey = typeof props.partVersion === "number" ? props.partVersion : 0
+    return `${messageKey}:${partKey}`
+  })
+
+  const scrollCache = useScrollCache({
+    instanceId: () => props.instanceId,
+    sessionId: () => props.sessionId,
+    scope: () => `${TOOL_CALL_CACHE_SCOPE}:scroll:${scrollScopeId()}`,
+  })
+
+  const persistScrollSnapshot = (element?: HTMLElement | null) => {
+    if (!element) return
+    scrollCache.persist(element, { atBottomOffset: 2 })
+  }
+
+  const restoreScrollSnapshot = (element?: HTMLElement | null) => {
+    if (!element) return
+    scrollCache.restore(element, {
+      fallback: () => {
+        requestAnimationFrame(() => {
+          if (!element || !element.isConnected) return
+          element.scrollTop = element.scrollHeight
+          persistScrollSnapshot(element)
+        })
+      },
+    })
+  }
+
+  const handleScrollRendered = () => {
+    if (!scrollContainerRef) return
+    restoreScrollSnapshot(scrollContainerRef)
   }
 
   const initializeScrollContainer = (element: HTMLDivElement | null | undefined) => {
     const resolvedElement = element || undefined
     scrollContainerRef = resolvedElement
-    const id = toolCallId()
-    if (!resolvedElement || !id) return
-
-    if (!toolScrollState.has(id)) {
-      requestAnimationFrame(() => {
-        if (!scrollContainerRef || toolCallId() !== id) return
-        scrollContainerRef.scrollTop = scrollContainerRef.scrollHeight
-        updateScrollState(id, scrollContainerRef)
-      })
-    } else {
-      restoreScrollState(id, resolvedElement)
-    }
+    if (!resolvedElement) return
+    restoreScrollSnapshot(resolvedElement)
   }
 
   createEffect(() => {
@@ -433,16 +454,6 @@ export default function ToolCall(props: ToolCallProps) {
     } else {
       setPermissionError(null)
     }
-  })
-
-  // Cleanup cache entry when component unmounts or toolCallId changes
-  createEffect(() => {
-    const id = toolCallId()
-    if (!id) return
-
-    onCleanup(() => {
-      toolScrollState.delete(id)
-    })
   })
 
   createEffect(() => {
@@ -734,25 +745,20 @@ export default function ToolCall(props: ToolCallProps) {
     return renderMarkdownTool(toolName, state)
   }
 
-  function renderDiffTool(payload: DiffPayload, options?: { cacheKeySuffix?: string; disableScrollTracking?: boolean; label?: string }) {
+  function renderDiffTool(payload: DiffPayload, options?: { variant?: string; disableScrollTracking?: boolean; label?: string }) {
     const relativePath = payload.filePath ? getRelativePath(payload.filePath) : ""
     const toolbarLabel = options?.label || (relativePath ? `Diff · ${relativePath}` : "Diff")
-    const cacheKeyBase = makeRenderCacheKey(toolCallId(), props.messageId, props.messageVersion, props.partVersion)
-    const cacheKey = options?.cacheKeySuffix ? `${cacheKeyBase}${options.cacheKeySuffix}` : cacheKeyBase
+    const selectedVariant = options?.variant === "permission-diff" ? "permission-diff" : "diff"
+    const cacheHandle = selectedVariant === "permission-diff" ? permissionDiffCache : diffCache
     const diffMode = () => (preferences().diffViewMode || "split") as DiffViewMode
     const themeKey = isDark() ? "dark" : "light"
 
     // Check if we have valid cache
     let cachedHtml: string | undefined
-    if (cacheKey) {
-      const cached = getToolRenderCache(cacheKey)
-      const currentMode = diffMode()
-      if (cached && 
-          cached.text === payload.diffText && 
-          cached.theme === themeKey &&
-          cached.mode === currentMode) {
-        cachedHtml = cached.html
-      }
+    const cached = cacheHandle.get<RenderCache>()
+    const currentMode = diffMode()
+    if (cached && cached.text === payload.diffText && cached.theme === themeKey && cached.mode === currentMode) {
+      cachedHtml = cached.html
     }
 
     const handleModeChange = (mode: DiffViewMode) => {
@@ -760,10 +766,6 @@ export default function ToolCall(props: ToolCallProps) {
     }
 
     const handleDiffRendered = () => {
-      if (cacheKey && !cachedHtml) {
-        // Cache will be updated by the diff viewer component itself
-        // We'll capture HTML from the rendered component
-      }
       if (!options?.disableScrollTracking) {
         handleScrollRendered()
       }
@@ -776,7 +778,7 @@ export default function ToolCall(props: ToolCallProps) {
           if (options?.disableScrollTracking) return
           initializeScrollContainer(element)
         }}
-        onScroll={options?.disableScrollTracking ? undefined : (event) => updateScrollState(toolCallId(), event.currentTarget)}
+        onScroll={options?.disableScrollTracking ? undefined : (event) => persistScrollSnapshot(event.currentTarget)}
       >
 
         <div class="tool-call-diff-toolbar" role="group" aria-label="Diff view mode">
@@ -806,7 +808,7 @@ export default function ToolCall(props: ToolCallProps) {
           theme={themeKey}
           mode={diffMode()}
           cachedHtml={cachedHtml}
-          cacheKey={cacheKey}
+          cacheEntryParams={cacheHandle.params()}
           onRendered={handleDiffRendered}
         />
       </div>
@@ -822,20 +824,15 @@ export default function ToolCall(props: ToolCallProps) {
     const isLarge = toolName === "edit" || toolName === "write" || toolName === "patch"
     const messageClass = `message-text tool-call-markdown${isLarge ? " tool-call-markdown-large" : ""}`
     const disableHighlight = state?.status === "running"
-    const cacheKey = makeRenderCacheKey(toolCallId(), props.messageId, props.messageVersion, props.partVersion)
 
     const markdownPart: TextPart = { type: "text", text: content }
-    if (cacheKey) {
-      const cached = getToolRenderCache(cacheKey)
-      if (cached) {
-        markdownPart.renderCache = cached
-      }
+    const cached = markdownCache.get<RenderCache>()
+    if (cached) {
+      markdownPart.renderCache = cached
     }
 
     const handleMarkdownRendered = () => {
-      if (cacheKey) {
-        setToolRenderCache(cacheKey, markdownPart.renderCache)
-      }
+      markdownCache.set(markdownPart.renderCache)
       handleScrollRendered()
     }
 
@@ -843,7 +840,7 @@ export default function ToolCall(props: ToolCallProps) {
       <div
         class={messageClass}
         ref={(element) => initializeScrollContainer(element)}
-        onScroll={(event) => updateScrollState(toolCallId(), event.currentTarget)}
+        onScroll={(event) => persistScrollSnapshot(event.currentTarget)}
       >
         <Markdown
           part={markdownPart}
@@ -1053,7 +1050,7 @@ export default function ToolCall(props: ToolCallProps) {
       <div
         class="message-text tool-call-markdown tool-call-task-container"
         ref={(element) => initializeScrollContainer(element)}
-        onScroll={(event) => updateScrollState(toolCallId(), event.currentTarget)}
+        onScroll={(event) => persistScrollSnapshot(event.currentTarget)}
       >
         <div class="tool-call-task-summary">
           <For each={summary}>
@@ -1131,7 +1128,7 @@ export default function ToolCall(props: ToolCallProps) {
             {(payload) => (
               <div class="tool-call-permission-diff">
                 {renderDiffTool(payload(), {
-                  cacheKeySuffix: "::permission",
+                  variant: "permission-diff",
                   disableScrollTracking: true,
                   label: payload().filePath ? `Requested diff · ${getRelativePath(payload().filePath || "")}` : "Requested diff",
                 })}

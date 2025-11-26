@@ -41,15 +41,6 @@ export type ClientPart = SDKPart & {
   pendingPermission?: PendingPermissionState
 }
 
-export interface MessageDisplayParts {
-  text: ClientPart[]
-  tool: ClientPart[]
-  reasoning: ClientPart[]
-  combined: ClientPart[]
-  showThinking: boolean
-  version: number
-}
-
 export interface Message {
   id: string
   sessionId: string
@@ -58,7 +49,6 @@ export interface Message {
   timestamp: number
   status: "sending" | "sent" | "streaming" | "complete" | "error"
   version: number
-  displayParts?: MessageDisplayParts
 }
 
 export interface TextPart {

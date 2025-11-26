@@ -20,7 +20,7 @@ import { preferences } from "./preferences"
 import { setSessionPendingPermission } from "./session-state"
 import { setHasInstances } from "./ui"
 import { messageStoreBus } from "./message-v2/bus"
-import { clearScrollCacheForInstance } from "../lib/scroll-cache"
+import { clearCacheForInstance } from "../lib/global-cache"
 import type { MessageRecord } from "./message-v2/types"
 
 
@@ -296,7 +296,7 @@ function removeInstance(id: string) {
   }
 
   // Clean up session indexes and drafts for removed instance
-  clearScrollCacheForInstance(id)
+  clearCacheForInstance(id)
   messageStoreBus.unregisterInstance(id)
   clearInstanceDraftPrompts(id)
 }

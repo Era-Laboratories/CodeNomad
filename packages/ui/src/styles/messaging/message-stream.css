@@ -70,6 +70,40 @@
   color: inherit;
 }
 
+.message-stream-virtual-padding {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.message-stream-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.message-stream-load-older {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.message-stream-load-older-button {
+  @apply inline-flex items-center justify-center rounded-md border text-sm font-medium px-3 py-1.5 transition-colors;
+  border-color: var(--border-base);
+  background-color: var(--surface-base);
+  color: var(--text-secondary);
+}
+
+.message-stream-load-older-button:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.message-stream-load-older-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--surface-base), 0 0 0 4px var(--accent-primary);
+}
+
 .message-scroll-button-wrapper {
   position: absolute;
   right: 1rem;
