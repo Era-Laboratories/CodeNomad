@@ -645,11 +645,11 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
               instanceId={props.instanceId}
               sessionId={props.sessionId}
               store={store}
-              messageIndexMap={messageIndexMap()}
-              lastAssistantIndex={lastAssistantIndex()}
-              showThinking={preferences().showThinkingBlocks}
-              thinkingDefaultExpanded={(preferences().thinkingBlocksExpansion ?? "expanded") === "expanded"}
-              showUsageMetrics={showUsagePreference()}
+              messageIndexMap={messageIndexMap}
+              lastAssistantIndex={lastAssistantIndex}
+              showThinking={() => preferences().showThinkingBlocks}
+              thinkingDefaultExpanded={() => (preferences().thinkingBlocksExpansion ?? "expanded") === "expanded"}
+              showUsageMetrics={showUsagePreference}
               onRevert={props.onRevert}
               onFork={props.onFork}
             />
@@ -694,11 +694,11 @@ interface MessageBlockProps {
   instanceId: string
   sessionId: string
   store: () => InstanceMessageStore
-  messageIndexMap: Map<string, number>
-  lastAssistantIndex: number
-  showThinking: boolean
-  thinkingDefaultExpanded: boolean
-  showUsageMetrics: boolean
+  messageIndexMap: () => Map<string, number>
+  lastAssistantIndex: () => number
+  showThinking: () => boolean
+  thinkingDefaultExpanded: () => boolean
+  showUsageMetrics: () => boolean
   onRevert?: (messageId: string) => void
   onFork?: (messageId?: string) => void
 }
@@ -712,8 +712,9 @@ function MessageBlock(props: MessageBlockProps) {
     const current = record()
     if (!current) return null
 
-    const index = props.messageIndexMap.get(current.id) ?? 0
-    const isQueued = current.role === "user" && (props.lastAssistantIndex === -1 || index > props.lastAssistantIndex)
+    const index = props.messageIndexMap().get(current.id) ?? 0
+    const lastAssistantIdx = props.lastAssistantIndex()
+    const isQueued = current.role === "user" && (lastAssistantIdx === -1 || index > lastAssistantIdx)
     const info = messageInfo()
     const infoTime = (info?.time ?? {}) as { created?: number; updated?: number; completed?: number }
     const infoTimestamp = typeof infoTime.completed === "number"
@@ -727,9 +728,9 @@ function MessageBlock(props: MessageBlockProps) {
       current.id,
       current.revision,
       isQueued ? 1 : 0,
-      props.showThinking ? 1 : 0,
-      props.thinkingDefaultExpanded ? 1 : 0,
-      props.showUsageMetrics ? 1 : 0,
+      props.showThinking() ? 1 : 0,
+      props.thinkingDefaultExpanded() ? 1 : 0,
+      props.showUsageMetrics() ? 1 : 0,
       infoTimestamp,
       infoErrorName,
     ].join("|")
@@ -824,7 +825,7 @@ function MessageBlock(props: MessageBlockProps) {
 
       if (part.type === "step-finish") {
         flushContent()
-        if (props.showUsageMetrics) {
+        if (props.showUsageMetrics()) {
           const key = `${current.id}:${part.id ?? partIndex}:${part.type}`
           const accentColor = lastAccentColor || defaultAccentColor
           items.push({ type: part.type, key, part, messageInfo: info, accentColor })
@@ -835,7 +836,7 @@ function MessageBlock(props: MessageBlockProps) {
 
       if (part.type === "reasoning") {
         flushContent()
-        if (props.showThinking && reasoningHasRenderableContent(part)) {
+        if (props.showThinking() && reasoningHasRenderableContent(part)) {
           const key = `${current.id}:${part.id ?? partIndex}:reasoning`
           const showAgentMeta = current.role === "assistant" && !agentMetaAttached
           if (showAgentMeta) {
@@ -847,7 +848,7 @@ function MessageBlock(props: MessageBlockProps) {
             part,
             messageInfo: info,
             showAgentMeta,
-            defaultExpanded: props.thinkingDefaultExpanded,
+            defaultExpanded: props.thinkingDefaultExpanded(),
           })
           lastAccentColor = ASSISTANT_BORDER_COLOR
         }
@@ -965,7 +966,7 @@ function MessageBlock(props: MessageBlockProps) {
                 kind="finish"
                 part={(item as StepDisplayItem).part}
                 messageInfo={(item as StepDisplayItem).messageInfo}
-                showUsage={props.showUsageMetrics}
+                showUsage={props.showUsageMetrics()}
                 borderColor={(item as StepDisplayItem).accentColor}
               />
             </Match>
