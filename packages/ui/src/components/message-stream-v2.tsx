@@ -225,20 +225,12 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
   const showUsagePreference = () => preferences().showUsageMetrics ?? true
   const store = createMemo(() => messageStoreBus.getOrCreate(props.instanceId))
   const messageIds = createMemo(() => store().getSessionMessageIds(props.sessionId))
-  const visibleMessageIds = createMemo(() => {
+
+  createEffect(() => {
     const ids = messageIds()
-    const revert = store().getSessionRevert(props.sessionId)
-    if (!revert?.messageID) {
-      return ids
-    }
-    const stopIndex = ids.indexOf(revert.messageID)
-    return stopIndex === -1 ? ids : ids.slice(0, stopIndex)
+    console.info("[MessageStreamV2] messageIds", { sessionId: props.sessionId, ids })
   })
-  const messageRecords = createMemo(() =>
-    visibleMessageIds()
-      .map((id) => store().getMessage(id))
-      .filter((record): record is MessageRecord => Boolean(record)),
-  )
+
 
   const sessionRevision = createMemo(() => store().getSessionRevision(props.sessionId))
   const usageSnapshot = createMemo(() => store().getSessionUsage(props.sessionId))
@@ -528,7 +520,7 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
   })
  
   createEffect(() => {
-    if (messageRecords().length === 0) {
+    if (messageIds().length === 0) {
       setShowScrollTopButton(false)
       setShowScrollBottomButton(false)
       setAutoScroll(true)
@@ -710,7 +702,10 @@ function MessageBlock(props: MessageBlockProps) {
 
   const block = createMemo<MessageDisplayBlock | null>(() => {
     const current = record()
-    if (!current) return null
+    if (!current) {
+      console.warn("[MessageBlock] missing record", { messageId: props.messageId, sessionId: props.sessionId })
+      return null
+    }
 
     const index = props.messageIndexMap.get(current.id) ?? 0
     const isQueued = current.role === "user" && (props.lastAssistantIndex === -1 || index > props.lastAssistantIndex)
