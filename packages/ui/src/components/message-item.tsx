@@ -10,8 +10,7 @@ interface MessageItemProps {
   instanceId: string
   sessionId: string
   isQueued?: boolean
-  combinedParts: ClientPart[]
-  orderedParts: ClientPart[]
+  parts: ClientPart[]
   onRevert?: (messageId: string) => void
   onFork?: (messageId?: string) => void
   showAgentMeta?: boolean
@@ -36,10 +35,11 @@ interface MessageItemProps {
     filename?: string
   }
 
-  const combinedParts = () => props.combinedParts
-
+  const messageParts = () => props.parts
+ 
   const fileAttachments = () =>
-    props.orderedParts.filter((part): part is FilePart => part?.type === "file" && typeof (part as FilePart).url === "string")
+    messageParts().filter((part): part is FilePart => part?.type === "file" && typeof (part as FilePart).url === "string")
+
 
   const getAttachmentName = (part: FilePart) => {
     if (part.filename && part.filename.trim().length > 0) {
@@ -129,7 +129,7 @@ interface MessageItemProps {
       return true
     }
 
-    return combinedParts().some((part) => partHasRenderableText(part))
+    return messageParts().some((part) => partHasRenderableText(part))
   }
 
   const isGenerating = () => {
@@ -237,7 +237,7 @@ interface MessageItemProps {
           </div>
         </Show>
 
-        <For each={combinedParts()}>
+        <For each={messageParts()}>
           {(part) => (
             <MessagePart
               part={part}

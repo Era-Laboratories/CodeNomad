@@ -903,12 +903,12 @@ function MessageBlock(props: MessageBlockProps) {
                   <MessageItem
                     record={(item as ContentDisplayItem).record}
                     messageInfo={(item as ContentDisplayItem).messageInfo}
-                    combinedParts={(item as ContentDisplayItem).parts}
-                    orderedParts={(item as ContentDisplayItem).parts}
+                    parts={(item as ContentDisplayItem).parts}
                     instanceId={props.instanceId}
                     sessionId={props.sessionId}
                     isQueued={(item as ContentDisplayItem).isQueued}
                     showAgentMeta={(item as ContentDisplayItem).showAgentMeta}
+
                     onRevert={props.onRevert}
                     onFork={props.onFork}
                     onContentRendered={props.onContentRendered}
