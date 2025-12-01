@@ -21,11 +21,14 @@ interface MessageItemProps {
  export default function MessageItem(props: MessageItemProps) {
 
   const isUser = () => props.record.role === "user"
+  const createdTimestamp = () => props.messageInfo?.time?.created ?? props.record.createdAt
+
   const timestamp = () => {
-    const createdTime = props.messageInfo?.time?.created ?? props.record.createdAt
-    const date = new Date(createdTime)
+    const date = new Date(createdTimestamp())
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   }
+
+  const timestampIso = () => new Date(createdTimestamp()).toISOString()
 
   type FilePart = Extract<ClientPart, { type: "file" }> & {
     url?: string
@@ -149,6 +152,8 @@ interface MessageItemProps {
       ? "message-item-base bg-[var(--message-user-bg)] border-l-4 border-[var(--message-user-border)]"
       : "message-item-base assistant-message bg-[var(--message-assistant-bg)] border-l-4 border-[var(--message-assistant-border)]"
 
+  const speakerLabel = () => (isUser() ? "You" : "Assistant")
+
   const agentIdentifier = () => {
     if (isUser()) return ""
     const info = props.messageInfo
@@ -166,29 +171,31 @@ interface MessageItemProps {
     return modelID
   }
 
+  const agentMeta = () => {
+    if (isUser() || !props.showAgentMeta) return ""
+    const segments: string[] = []
+    const agent = agentIdentifier()
+    const model = modelIdentifier()
+    if (agent) {
+      segments.push(`Agent: ${agent}`)
+    }
+    if (model) {
+      segments.push(`Model: ${model}`)
+    }
+    return segments.join(" • ")
+  }
+
 
   return (
-
-      <div class={containerClass()}>
-        <div class={`flex justify-between items-center gap-2.5 ${isUser() ? "pb-0.5" : "pb-0"}`}>
-          <div class="flex flex-col">
-            <Show when={isUser()}>
-              <span class="font-semibold text-xs text-[var(--message-user-border)]">You</span>
-            </Show>
-            <Show when={!isUser()}>
-              <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--message-assistant-border)]">
-                <span class="font-semibold">Assistant</span>
-                <Show when={props.showAgentMeta && (agentIdentifier() || modelIdentifier())}>
-                  <span class="message-step-meta-inline">
-                    <Show when={agentIdentifier()}>{(value) => <span class="font-medium text-[var(--message-assistant-border)]">Agent: {value()}</span>}</Show>
-                    <Show when={modelIdentifier()}>{(value) => <span class="font-medium text-[var(--message-assistant-border)]">Model: {value()}</span>}</Show>
-                  </span>
-                </Show>
-              </div>
-            </Show>
-          </div>
-          <div class="flex items-center gap-2">
-
+    <div class={containerClass()}>
+      <header class={`message-item-header ${isUser() ? "pb-0.5" : "pb-0"}`}>
+        <div class="message-speaker">
+          <span class="message-speaker-label" data-role={isUser() ? "user" : "assistant"}>
+            {speakerLabel()}
+          </span>
+          <Show when={agentMeta()}>{(meta) => <span class="message-agent-meta">{meta()}</span>}</Show>
+        </div>
+        <div class="message-item-actions">
           <Show when={isUser() && props.onRevert}>
             <button
               class="bg-transparent border border-[var(--border-base)] text-[var(--text-muted)] cursor-pointer px-3 py-0.5 rounded text-xs font-semibold leading-none transition-all duration-200 flex items-center justify-center h-6 hover:bg-[var(--surface-hover)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] active:scale-95"
@@ -209,11 +216,12 @@ interface MessageItemProps {
               Fork
             </button>
           </Show>
-          <span class="text-[11px] text-[var(--text-muted)]">{timestamp()}</span>
+          <time class="message-timestamp" dateTime={timestampIso()}>{timestamp()}</time>
         </div>
-      </div>
+      </header>
 
       <div class="pt-1 whitespace-pre-wrap break-words leading-[1.1]">
+
 
         <Show when={props.isQueued && isUser()}>
           <div class="message-queued-badge">QUEUED</div>

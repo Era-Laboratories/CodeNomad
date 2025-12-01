@@ -3,6 +3,38 @@
   @apply flex flex-col gap-2 p-3 w-full;
 }
 
+.message-item-header {
+  @apply flex justify-between items-start gap-2.5;
+}
+
+.message-speaker {
+  @apply flex flex-col gap-0.5 text-xs;
+}
+
+.message-speaker-label {
+  font-weight: var(--font-weight-semibold);
+}
+
+.message-speaker-label[data-role="user"] {
+  color: var(--message-user-border);
+}
+
+.message-speaker-label[data-role="assistant"] {
+  color: var(--message-assistant-border);
+}
+
+.message-agent-meta {
+  @apply text-xs text-[var(--message-assistant-border)];
+}
+
+.message-item-actions {
+  @apply flex items-center gap-2;
+}
+
+.message-timestamp {
+  @apply text-[11px] text-[var(--text-muted)];
+}
+
 .assistant-message {
   /* gap: 0.25rem; */
   padding: 0.6rem 0.65rem;
