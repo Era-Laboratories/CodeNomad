@@ -2,7 +2,7 @@ import type { Session } from "../types/session"
 import type { Message } from "../types/message"
 
 import { instances, refreshPermissionsForSession } from "./instances"
-import { setAgentModelPreference } from "./preferences"
+import { preferences, setAgentModelPreference } from "./preferences"
 import { setSessionCompactionState } from "./session-compaction"
 import {
   activeSessionId,
@@ -231,7 +231,9 @@ async function createSession(instanceId: string, agent?: string): Promise<Sessio
       return next
     })
 
-    await cleanupBlankSessions(instanceId, session.id)
+    if (preferences().autoCleanupBlankSessions) {
+      await cleanupBlankSessions(instanceId, session.id)
+    }
 
     return session
   } catch (error) {

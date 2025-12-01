@@ -18,6 +18,7 @@ const PreferencesSchema = z.object({
   toolOutputExpansion: z.enum(["expanded", "collapsed"]).default("expanded"),
   diagnosticsExpansion: z.enum(["expanded", "collapsed"]).default("expanded"),
   showUsageMetrics: z.boolean().default(true),
+  autoCleanupBlankSessions: z.boolean().default(true),
 })
 
 const RecentFolderSchema = z.object({
