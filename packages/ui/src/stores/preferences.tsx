@@ -37,6 +37,7 @@ export interface Preferences {
   toolOutputExpansion: ExpansionPreference
   diagnosticsExpansion: ExpansionPreference
   showUsageMetrics: boolean
+  autoCleanupBlankSessions?: boolean
 }
 
 export interface OpenCodeBinary {
@@ -64,6 +65,7 @@ const defaultPreferences: Preferences = {
   toolOutputExpansion: "expanded",
   diagnosticsExpansion: "expanded",
   showUsageMetrics: true,
+  autoCleanupBlankSessions: true,
 }
 
 function deepEqual(a: unknown, b: unknown): boolean {
@@ -98,6 +100,7 @@ function normalizePreferences(pref?: Partial<Preferences> & { agentModelSelectio
     toolOutputExpansion: sanitized.toolOutputExpansion ?? defaultPreferences.toolOutputExpansion,
     diagnosticsExpansion: sanitized.diagnosticsExpansion ?? defaultPreferences.diagnosticsExpansion,
     showUsageMetrics: sanitized.showUsageMetrics ?? defaultPreferences.showUsageMetrics,
+    autoCleanupBlankSessions: sanitized.autoCleanupBlankSessions ?? defaultPreferences.autoCleanupBlankSessions,
   }
 }
 
@@ -285,6 +288,11 @@ function toggleUsageMetrics(): void {
   updatePreferences({ showUsageMetrics: !preferences().showUsageMetrics })
 }
 
+function toggleAutoCleanupBlankSessions(): void {
+  console.log("toggle auto cleanup")
+  updatePreferences({ autoCleanupBlankSessions: !preferences().autoCleanupBlankSessions })
+}
+
 function addRecentFolder(path: string): void {
   updateConfig((draft) => {
     draft.recentFolders = buildRecentFolderList(path, draft.recentFolders)
@@ -386,6 +394,7 @@ interface ConfigContextValue {
   updateConfig: typeof updateConfig
   toggleShowThinkingBlocks: typeof toggleShowThinkingBlocks
   toggleUsageMetrics: typeof toggleUsageMetrics
+  toggleAutoCleanupBlankSessions: typeof toggleAutoCleanupBlankSessions
   setDiffViewMode: typeof setDiffViewMode
   setToolOutputExpansion: typeof setToolOutputExpansion
   setDiagnosticsExpansion: typeof setDiagnosticsExpansion
@@ -418,6 +427,7 @@ const configContextValue: ConfigContextValue = {
   updateConfig,
   toggleShowThinkingBlocks,
   toggleUsageMetrics,
+  toggleAutoCleanupBlankSessions,
   setDiffViewMode,
   setToolOutputExpansion,
   setDiagnosticsExpansion,
@@ -473,6 +483,7 @@ export {
   updateConfig,
   updatePreferences,
   toggleShowThinkingBlocks,
+  toggleAutoCleanupBlankSessions,
   toggleUsageMetrics,
   recentFolders,
   addRecentFolder,

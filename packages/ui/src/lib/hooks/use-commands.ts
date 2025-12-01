@@ -16,11 +16,13 @@ import { showAlertDialog } from "../../stores/alerts"
 import type { Instance } from "../../types/instance"
 import type { MessageRecord } from "../../stores/message-v2/types"
 import { messageStoreBus } from "../../stores/message-v2/bus"
+import { cleanupBlankSessions } from "../../stores/session-state"
 
 export interface UseCommandsOptions {
   preferences: Accessor<Preferences>
   toggleShowThinkingBlocks: () => void
   toggleUsageMetrics: () => void
+  toggleAutoCleanupBlankSessions: () => void
   setDiffViewMode: (mode: "split" | "unified") => void
   setToolOutputExpansion: (mode: ExpansionPreference) => void
   setDiagnosticsExpansion: (mode: ExpansionPreference) => void
@@ -139,6 +141,19 @@ export function useCommands(options: UseCommandsOptions) {
         const sessionId = activeSessionIdForInstance()
         if (!instance || !sessionId || sessionId === "info") return
         await options.handleCloseSession(instance.id, sessionId)
+      },
+    })
+
+    commandRegistry.register({
+      id: "cleanup-blank-sessions",
+      label: "Scrub Sessions",
+      description: "Remove empty sessions, subagent sessions that have completed their primary task, and extraneous forked sessions.",
+      category: "Session",
+      keywords: ["cleanup", "blank", "empty", "sessions", "remove", "delete",  "scrub"],
+      action: async () => {
+        const instance = activeInstance()
+        if (!instance) return
+        cleanupBlankSessions(instance.id, undefined, true)
       },
     })
 
@@ -466,6 +481,18 @@ export function useCommands(options: UseCommandsOptions) {
       category: "System",
       keywords: ["token", "usage", "cost", "stats"],
       action: options.toggleUsageMetrics,
+    })
+
+    commandRegistry.register({
+      id: "auto-cleanup-blank-sessions",
+      label: () => {
+        const enabled = options.preferences().autoCleanupBlankSessions
+        return `Auto-Cleanup Blank Sessions · ${enabled ? "Enabled" : "Disabled"}`
+      },
+      description: "Automatically clean up blank sessions when creating new ones",
+      category: "System",
+      keywords: ["auto", "cleanup", "blank", "sessions", "toggle"],
+      action: options.toggleAutoCleanupBlankSessions,
     })
  
     commandRegistry.register({
