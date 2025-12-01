@@ -958,7 +958,9 @@ function MessageBlock(props: MessageBlockProps) {
                           partVersion={toolItem.partVersion}
                           instanceId={props.instanceId}
                           sessionId={props.sessionId}
+                          onContentRendered={props.onContentRendered}
                         />
+
                       </div>
                     )
                   })()}
@@ -1059,34 +1061,28 @@ function StepCard(props: StepCardProps) {
 
   const finishStyle = () => (props.borderColor ? { "border-left-color": props.borderColor } : undefined)
 
-  const renderUsageChips = (usage: NonNullable<ReturnType<typeof usageStats>>) => (
-    <div class="message-step-usage">
-      <div class="inline-flex items-center gap-1 rounded-full border border-[var(--border-base)] px-2 py-0.5 text-[10px]">
-        <span class="uppercase text-[9px] tracking-wide text-[var(--text-muted)]">Input</span>
-        <span class="font-semibold text-[var(--text-primary)]">{formatTokenTotal(usage.input)}</span>
+  const renderUsageChips = (usage: NonNullable<ReturnType<typeof usageStats>>) => {
+    const entries = [
+      { label: "Input", value: usage.input, formatter: formatTokenTotal, show: usage.input > 0 },
+      { label: "Output", value: usage.output, formatter: formatTokenTotal, show: usage.output > 0 },
+      { label: "Reasoning", value: usage.reasoning, formatter: formatTokenTotal, show: usage.reasoning > 0 },
+      { label: "Cache Read", value: usage.cacheRead, formatter: formatTokenTotal, show: usage.cacheRead > 0 },
+      { label: "Cache Write", value: usage.cacheWrite, formatter: formatTokenTotal, show: usage.cacheWrite > 0 },
+      { label: "Cost", value: usage.cost, formatter: formatCostValue, show: true },
+    ].filter((entry) => entry.show)
+
+    return (
+      <div class="message-step-usage">
+        <For each={entries}>
+          {(entry) => (
+            <span class="message-step-usage-chip" data-label={entry.label}>
+              {entry.formatter(entry.value)}
+            </span>
+          )}
+        </For>
       </div>
-      <div class="inline-flex items-center gap-1 rounded-full border border-[var(--border-base)] px-2 py-0.5 text-[10px]">
-        <span class="uppercase text-[9px] tracking-wide text-[var(--text-muted)]">Output</span>
-        <span class="font-semibold text-[var(--text-primary)]">{formatTokenTotal(usage.output)}</span>
-      </div>
-      <div class="inline-flex items-center gap-1 rounded-full border border-[var(--border-base)] px-2 py-0.5 text-[10px]">
-        <span class="uppercase text-[9px] tracking-wide text-[var(--text-muted)]">Reasoning</span>
-        <span class="font-semibold text-[var(--text-primary)]">{formatTokenTotal(usage.reasoning)}</span>
-      </div>
-      <div class="inline-flex items-center gap-1 rounded-full border border-[var(--border-base)] px-2 py-0.5 text-[10px]">
-        <span class="uppercase text-[9px] tracking-wide text-[var(--text-muted)]">Cache Read</span>
-        <span class="font-semibold text-[var(--text-primary)]">{formatTokenTotal(usage.cacheRead)}</span>
-      </div>
-      <div class="inline-flex items-center gap-1 rounded-full border border-[var(--border-base)] px-2 py-0.5 text-[10px]">
-        <span class="uppercase text-[9px] tracking-wide text-[var(--text-muted)]">Cache Write</span>
-        <span class="font-semibold text-[var(--text-primary)]">{formatTokenTotal(usage.cacheWrite)}</span>
-      </div>
-      <div class="inline-flex items-center gap-1 rounded-full border border-[var(--border-base)] px-2 py-0.5 text-[10px]">
-        <span class="uppercase text-[9px] tracking-wide text-[var(--text-muted)]">Cost</span>
-        <span class="font-semibold text-[var(--text-primary)]">{formatCostValue(usage.cost)}</span>
-      </div>
-    </div>
-  )
+    )
+  }
 
   if (props.kind === "finish") {
     const usage = usageStats()

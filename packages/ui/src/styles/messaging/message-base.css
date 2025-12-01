@@ -35,6 +35,22 @@
   @apply flex flex-wrap items-center gap-1 text-[10px] text-[var(--text-muted)];
 }
 
+.message-step-usage-chip {
+  @apply inline-flex items-center rounded-full border border-[var(--border-base)] px-2 py-0.5 text-[10px];
+  color: var(--text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.message-step-usage-chip::before {
+  content: attr(data-label);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+  margin-right: 0.35rem;
+}
+
 .message-step-heading {
   @apply flex flex-wrap items-center gap-2 text-xs;
   color: var(--text-muted);

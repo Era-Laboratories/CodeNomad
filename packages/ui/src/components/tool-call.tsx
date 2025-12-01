@@ -56,7 +56,9 @@ interface ToolCallProps {
   partVersion?: number
   instanceId: string
   sessionId: string
-}
+  onContentRendered?: () => void
+ }
+
 
 function getToolIcon(tool: string): string {
   switch (tool) {
@@ -761,7 +763,9 @@ export default function ToolCall(props: ToolCallProps) {
       if (!options?.disableScrollTracking) {
         handleScrollRendered()
       }
+      props.onContentRendered?.()
     }
+
 
     return (
       <div
@@ -826,7 +830,9 @@ export default function ToolCall(props: ToolCallProps) {
     const handleMarkdownRendered = () => {
       markdownCache.set(markdownPart.renderCache)
       handleScrollRendered()
+      props.onContentRendered?.()
     }
+
 
     return (
       <div
