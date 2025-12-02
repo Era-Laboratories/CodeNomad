@@ -28,6 +28,9 @@ const USER_BORDER_COLOR = "var(--message-user-border)"
 const ASSISTANT_BORDER_COLOR = "var(--message-assistant-border)"
 const TOOL_BORDER_COLOR = "var(--message-tool-border)"
 const VIRTUAL_ITEM_MARGIN_PX = 800
+const ESTIMATED_MESSAGE_HEIGHT = 320
+const INITIAL_FORCE_MIN_ITEMS = 12
+const INITIAL_FORCE_OVERSCAN = 6
 
 type ToolCallPart = Extract<ClientPart, { type: "tool" }>
 
@@ -299,11 +302,38 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
   })
  
   const [scrollElement, setScrollElement] = createSignal<HTMLDivElement | undefined>()
+  const [initialForceActive, setInitialForceActive] = createSignal(true)
+  const [initialForceInitialized, setInitialForceInitialized] = createSignal(false)
+  const [initialForceStartIndex, setInitialForceStartIndex] = createSignal(0)
+  const [initialForceRemaining, setInitialForceRemaining] = createSignal(0)
   const [autoScroll, setAutoScroll] = createSignal(true)
 
-  const [showScrollTopButton, setShowScrollTopButton] = createSignal(false)
+  createEffect(() => {
+    props.instanceId
+    props.sessionId
+    setInitialForceActive(true)
+    setInitialForceInitialized(false)
+    setInitialForceStartIndex(0)
+    setInitialForceRemaining(0)
+  })
 
+  createEffect(() => {
+    if (!initialForceActive() || initialForceInitialized()) return
+    const ids = messageIds()
+    if (ids.length === 0) return
+    const viewportHeight = scrollElement()?.clientHeight ?? (typeof window !== "undefined" ? window.innerHeight : 800)
+    const estimatedCount = Math.min(
+      ids.length,
+      Math.max(INITIAL_FORCE_MIN_ITEMS, Math.ceil(viewportHeight / ESTIMATED_MESSAGE_HEIGHT) + INITIAL_FORCE_OVERSCAN),
+    )
+    setInitialForceStartIndex(Math.max(0, ids.length - estimatedCount))
+    setInitialForceRemaining(estimatedCount)
+    setInitialForceInitialized(true)
+  })
+
+  const [showScrollTopButton, setShowScrollTopButton] = createSignal(false)
   const [showScrollBottomButton, setShowScrollBottomButton] = createSignal(false)
+
   let containerRef: HTMLDivElement | undefined
   let lastKnownScrollTop = 0
   let lastMeasuredScrollHeight = 0
@@ -649,30 +679,46 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
         </Show>
 
         <Index each={messageIds()}>
-          {(messageId) => (
-            <VirtualItem
-              cacheKey={messageId()}
-              scrollContainer={scrollElement}
-              threshold={VIRTUAL_ITEM_MARGIN_PX}
-              placeholderClass="message-stream-placeholder"
-              virtualizationEnabled={() => !props.loading}
-            >
-              <MessageBlock
-                messageId={messageId()}
-                instanceId={props.instanceId}
-                sessionId={props.sessionId}
-                store={store}
-                messageIndexMap={messageIndexMap}
-                lastAssistantIndex={lastAssistantIndex}
-                showThinking={() => preferences().showThinkingBlocks}
-                thinkingDefaultExpanded={() => (preferences().thinkingBlocksExpansion ?? "expanded") === "expanded"}
-                showUsageMetrics={showUsagePreference}
-                onRevert={props.onRevert}
-                onFork={props.onFork}
-                onContentRendered={handleContentRendered}
-              />
-            </VirtualItem>
-          )}
+          {(messageId) => {
+            const messageIndex = () => messageIndexMap().get(messageId()) ?? 0
+            const forceVisible = () => initialForceActive() && messageIndex() >= initialForceStartIndex()
+            const handleMeasured = () => {
+              if (!forceVisible()) return
+              setInitialForceRemaining((value) => {
+                const next = value > 0 ? value - 1 : 0
+                if (next === 0) {
+                  setInitialForceActive(false)
+                }
+                return next
+              })
+            }
+            return (
+              <VirtualItem
+                cacheKey={messageId()}
+                scrollContainer={scrollElement}
+                threshold={VIRTUAL_ITEM_MARGIN_PX}
+                placeholderClass="message-stream-placeholder"
+                virtualizationEnabled={() => !props.loading}
+                forceVisible={forceVisible}
+                onMeasured={handleMeasured}
+              >
+                <MessageBlock
+                  messageId={messageId()}
+                  instanceId={props.instanceId}
+                  sessionId={props.sessionId}
+                  store={store}
+                  messageIndexMap={messageIndexMap}
+                  lastAssistantIndex={lastAssistantIndex}
+                  showThinking={() => preferences().showThinkingBlocks}
+                  thinkingDefaultExpanded={() => (preferences().thinkingBlocksExpansion ?? "expanded") === "expanded"}
+                  showUsageMetrics={showUsagePreference}
+                  onRevert={props.onRevert}
+                  onFork={props.onFork}
+                  onContentRendered={handleContentRendered}
+                />
+              </VirtualItem>
+            )
+          }}
         </Index>
       </div>
 

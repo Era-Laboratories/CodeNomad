@@ -97,12 +97,17 @@ interface VirtualItemProps {
   contentClass?: string
   placeholderClass?: string
   virtualizationEnabled?: Accessor<boolean>
+  forceVisible?: Accessor<boolean>
+  onMeasured?: () => void
 }
 
 export default function VirtualItem(props: VirtualItemProps) {
   const resolved = resolveChildren(() => props.children)
+  const cachedHeight = sizeCache.get(props.cacheKey)
   const [isIntersecting, setIsIntersecting] = createSignal(true)
-  const [measuredHeight, setMeasuredHeight] = createSignal(sizeCache.get(props.cacheKey) ?? 0)
+  const [measuredHeight, setMeasuredHeight] = createSignal(cachedHeight ?? 0)
+  const [hasMeasured, setHasMeasured] = createSignal(cachedHeight !== undefined)
+  let hasReportedMeasurement = Boolean(cachedHeight && cachedHeight > 0)
   let pendingVisibility: boolean | null = null
   let visibilityFrame: number | null = null
   const flushVisibility = () => {
@@ -126,7 +131,6 @@ export default function VirtualItem(props: VirtualItemProps) {
       }
     })
   }
-  const [hasMeasured, setHasMeasured] = createSignal(sizeCache.has(props.cacheKey))
   const virtualizationEnabled = () => (props.virtualizationEnabled ? props.virtualizationEnabled() : true)
 
   let wrapperRef: HTMLDivElement | undefined
@@ -156,6 +160,10 @@ export default function VirtualItem(props: VirtualItemProps) {
     if (normalized > 0) {
       sizeCache.set(props.cacheKey, normalized)
       setHasMeasured(true)
+      if (!hasReportedMeasurement) {
+        hasReportedMeasurement = true
+        props.onMeasured?.()
+      }
     }
     setMeasuredHeight(normalized)
   }
@@ -230,6 +238,7 @@ export default function VirtualItem(props: VirtualItemProps) {
   })
 
   const shouldHideContent = createMemo(() => {
+    if (props.forceVisible?.()) return false
     if (!virtualizationEnabled()) return false
     if (!hasMeasured()) return false
     return !isIntersecting()
