@@ -1,5 +1,6 @@
 import { For, Index, Match, Show, Switch, createMemo, createSignal, createEffect, onCleanup } from "solid-js"
 import MessageItem from "./message-item"
+import VirtualItem from "./virtual-item"
 import type { InstanceMessageStore } from "../stores/message-v2/instance-store"
 import ToolCall from "./tool-call"
 import Kbd from "./kbd"
@@ -26,6 +27,7 @@ const codeNomadLogo = new URL("../images/CodeNomad-Icon.png", import.meta.url).h
 const USER_BORDER_COLOR = "var(--message-user-border)"
 const ASSISTANT_BORDER_COLOR = "var(--message-assistant-border)"
 const TOOL_BORDER_COLOR = "var(--message-tool-border)"
+const VIRTUAL_ITEM_MARGIN_PX = 800
 
 type ToolCallPart = Extract<ClientPart, { type: "tool" }>
 
@@ -295,9 +297,12 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
     sessionId: () => props.sessionId,
     scope: SCROLL_SCOPE,
   })
-
+ 
+  const [scrollElement, setScrollElement] = createSignal<HTMLDivElement | undefined>()
   const [autoScroll, setAutoScroll] = createSignal(true)
+
   const [showScrollTopButton, setShowScrollTopButton] = createSignal(false)
+
   const [showScrollBottomButton, setShowScrollBottomButton] = createSignal(false)
   let containerRef: HTMLDivElement | undefined
   let lastKnownScrollTop = 0
@@ -348,6 +353,7 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
 
   function setContainerRef(element: HTMLDivElement | null) {
     containerRef = element || undefined
+    setScrollElement(containerRef)
     lastKnownScrollTop = containerRef?.scrollTop ?? 0
     lastMeasuredScrollHeight = containerRef?.scrollHeight ?? 0
     attachScrollIntentListeners(containerRef)
@@ -644,22 +650,28 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
 
         <Index each={messageIds()}>
           {(messageId) => (
-            <MessageBlock
-               messageId={messageId()}
-               instanceId={props.instanceId}
-               sessionId={props.sessionId}
-               store={store}
-               messageIndexMap={messageIndexMap}
-               lastAssistantIndex={lastAssistantIndex}
-               showThinking={() => preferences().showThinkingBlocks}
-               thinkingDefaultExpanded={() => (preferences().thinkingBlocksExpansion ?? "expanded") === "expanded"}
-               showUsageMetrics={showUsagePreference}
-               onRevert={props.onRevert}
-               onFork={props.onFork}
-               onContentRendered={handleContentRendered}
-             />
-
-
+            <VirtualItem
+              cacheKey={messageId()}
+              scrollContainer={scrollElement}
+              threshold={VIRTUAL_ITEM_MARGIN_PX}
+              placeholderClass="message-stream-placeholder"
+              virtualizationEnabled={() => !props.loading}
+            >
+              <MessageBlock
+                messageId={messageId()}
+                instanceId={props.instanceId}
+                sessionId={props.sessionId}
+                store={store}
+                messageIndexMap={messageIndexMap}
+                lastAssistantIndex={lastAssistantIndex}
+                showThinking={() => preferences().showThinkingBlocks}
+                thinkingDefaultExpanded={() => (preferences().thinkingBlocksExpansion ?? "expanded") === "expanded"}
+                showUsageMetrics={showUsagePreference}
+                onRevert={props.onRevert}
+                onFork={props.onFork}
+                onContentRendered={handleContentRendered}
+              />
+            </VirtualItem>
           )}
         </Index>
       </div>

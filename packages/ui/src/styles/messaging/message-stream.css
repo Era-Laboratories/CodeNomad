@@ -112,3 +112,27 @@
   font-size: var(--font-size-lg);
   color: var(--accent-primary);
 }
+
+.virtual-item-wrapper {
+  width: 100%;
+}
+
+.virtual-item-placeholder,
+.message-stream-placeholder {
+  display: block;
+  width: 100%;
+  position: relative;
+  background-color: transparent;
+}
+
+.virtual-item-content {
+  width: 100%;
+  position: relative;
+}
+
+.virtual-item-content-hidden {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
