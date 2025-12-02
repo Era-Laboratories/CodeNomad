@@ -302,6 +302,12 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
   })
  
   const [scrollElement, setScrollElement] = createSignal<HTMLDivElement | undefined>()
+  const [bottomSentinel, setBottomSentinel] = createSignal<HTMLDivElement | null>(null)
+  createEffect(() => {
+    if (bottomSentinel()) {
+      scheduleAnchorScroll(true)
+    }
+  })
   const [initialForceActive, setInitialForceActive] = createSignal(true)
   const [initialForceInitialized, setInitialForceInitialized] = createSignal(false)
   const [initialForceStartIndex, setInitialForceStartIndex] = createSignal(0)
@@ -338,10 +344,10 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
   let lastKnownScrollTop = 0
   let lastMeasuredScrollHeight = 0
   let pendingScrollFrame: number | null = null
+  let pendingAnchorScroll: number | null = null
   let userScrollIntentUntil = 0
   let detachScrollIntentListeners: (() => void) | undefined
   let hasRestoredScroll = false
-  let hasInitialScroll = false
   // When the user explicitly clicks "scroll to bottom", we want the
   // smooth scroll animation to complete without being immediately
   // overridden by the auto-scroll effects that react to new messages.
@@ -408,26 +414,12 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
     if (!containerRef) return
     const behavior = immediate ? "auto" : "smooth"
     if (!immediate) {
-      // We initiated this scroll (e.g., via the button). Skip the
-      // next auto-scroll reaction so the smooth animation isn't
-      // overridden by changeToken/preference effects.
       suppressAutoScrollOnce = true
     }
     containerRef.scrollTo({ top: containerRef.scrollHeight, behavior })
     setAutoScroll(true)
-    lastMeasuredScrollHeight = containerRef.scrollHeight
-    lastKnownScrollTop = containerRef.scrollTop
     updateScrollIndicators(containerRef)
     scheduleScrollPersist()
-  }
- 
-  function scrollToBottomAndClamp(immediate = false) {
-    scrollToBottom(immediate)
-    if (hasInitialScroll) {
-      requestAnimationFrame(() => clampScrollAfterShrink())
-    } else {
-      hasInitialScroll = true
-    }
   }
  
   function scrollToTop(immediate = false) {
@@ -440,18 +432,33 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
     updateScrollIndicators(containerRef)
     scheduleScrollPersist()
   }
-
-  function handleContentRendered() {
-    if (!containerRef) return
+ 
+  function scheduleAnchorScroll(immediate = false) {
     if (!autoScroll()) return
-    scrollToBottomAndClamp(true)
+    const sentinel = bottomSentinel()
+    if (!sentinel) return
+    if (pendingAnchorScroll !== null) {
+      cancelAnimationFrame(pendingAnchorScroll)
+      pendingAnchorScroll = null
+    }
+    pendingAnchorScroll = requestAnimationFrame(() => {
+      pendingAnchorScroll = null
+      sentinel.scrollIntoView({ block: "end", inline: "nearest", behavior: "auto" })
+    })
   }
+ 
+  function handleContentRendered() {
+    scheduleAnchorScroll()
+  }
+ 
+ 
 
   createEffect(() => {
     if (props.registerScrollToBottom) {
-      props.registerScrollToBottom(() => scrollToBottomAndClamp(true))
+      props.registerScrollToBottom(() => scrollToBottom(true))
     }
   })
+
  
    let pendingScrollPersist: number | null = null
 
@@ -465,21 +472,10 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
     })
   }
 
-  function clampScrollAfterShrink() {
-    if (!containerRef || !autoScroll()) return
-    const currentHeight = containerRef.scrollHeight
-    const clientHeight = containerRef.clientHeight
-    if (currentHeight < lastMeasuredScrollHeight) {
-      const maxScrollTop = Math.max(currentHeight - clientHeight, 0)
-      containerRef.scrollTo({ top: maxScrollTop, behavior: "auto" })
-      lastKnownScrollTop = containerRef.scrollTop
-    }
-    lastMeasuredScrollHeight = currentHeight
-  }
 
 
- 
   function handleScroll(event: Event) {
+
     if (!containerRef) return
     if (pendingScrollFrame !== null) {
       cancelAnimationFrame(pendingScrollFrame)
@@ -549,10 +545,10 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
       return
     }
     if (autoScroll()) {
-      scrollToBottomAndClamp(true)
+      scheduleAnchorScroll(true)
     }
   })
-
+ 
   createEffect(() => {
     preferenceSignature()
     if (props.loading) return
@@ -563,8 +559,9 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
       suppressAutoScrollOnce = false
       return
     }
-    scrollToBottomAndClamp(true)
+    scheduleAnchorScroll(true)
   })
+
 
  
   createEffect(() => {
@@ -584,6 +581,10 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
     if (pendingScrollPersist !== null) {
       cancelAnimationFrame(pendingScrollPersist)
       pendingScrollPersist = null
+    }
+    if (pendingAnchorScroll !== null) {
+      cancelAnimationFrame(pendingAnchorScroll)
+      pendingAnchorScroll = null
     }
     if (detachScrollIntentListeners) {
       detachScrollIntentListeners()
@@ -720,9 +721,11 @@ export default function MessageStreamV2(props: MessageStreamV2Props) {
             )
           }}
         </Index>
+        <div ref={setBottomSentinel} aria-hidden="true" />
       </div>
-
+ 
       <Show when={showScrollTopButton() || showScrollBottomButton()}>
+
         <div class="message-scroll-button-wrapper">
           <Show when={showScrollTopButton()}>
             <button
