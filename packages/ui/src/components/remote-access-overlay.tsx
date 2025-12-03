@@ -115,7 +115,7 @@ export function RemoteAccessOverlay(props: RemoteAccessOverlayProps) {
             <header class="remote-header">
               <div>
                 <p class="remote-eyebrow">Remote handover</p>
-                <h2 class="remote-title">Connect to this session remotely</h2>
+                <h2 class="remote-title">Connect to CodeNomad remotely</h2>
                 <p class="remote-subtitle">Use the addresses below to open CodeNomad from another device.</p>
               </div>
               <button type="button" class="remote-close" onClick={props.onClose} aria-label="Close remote access">
