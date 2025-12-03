@@ -233,7 +233,7 @@ export class CliProcessManager extends EventEmitter {
   }
 
   private buildCliArgs(options: StartOptions): string[] {
-    const args = ["serve", "--host", "127.0.0.1", "--port", "0"]
+    const args = ["serve", "--host", "0.0.0.0", "--port", "0"]
 
     if (options.dev) {
       args.push("--ui-dev-server", "http://localhost:3000", "--log-level", "debug")

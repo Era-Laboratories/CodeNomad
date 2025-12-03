@@ -484,7 +484,7 @@ impl CliEntry {
         let mut args = vec![
             "serve".to_string(),
             "--host".to_string(),
-            "127.0.0.1".to_string(),
+            "0.0.0.0".to_string(),
             "--port".to_string(),
             "0".to_string(),
         ];
