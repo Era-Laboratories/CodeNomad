@@ -231,7 +231,7 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
           aria-busy={isLoading() ? "true" : "false"}
         >
           <Show when={props.onOpenRemoteAccess}>
-            <div class="flex justify-end mb-4">
+            <div class="absolute top-4 right-6">
               <button
                 type="button"
                 class="selector-button selector-button-secondary inline-flex items-center gap-2"
