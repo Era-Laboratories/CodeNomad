@@ -280,7 +280,7 @@ impl CliProcessManager {
         let ready_clone = ready.clone();
         let child_holder_clone = child_holder.clone();
         thread::spawn(move || {
-            let timeout = Duration::from_secs(15);
+            let timeout = Duration::from_secs(60);
             thread::sleep(timeout);
             if ready_clone.load(Ordering::SeqCst) {
                 return;

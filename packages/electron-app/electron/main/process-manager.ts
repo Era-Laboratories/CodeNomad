@@ -116,7 +116,7 @@ export class CliProcessManager extends EventEmitter {
       const timeout = setTimeout(() => {
         this.handleTimeout()
         reject(new Error("CLI startup timeout"))
-      }, 15000)
+      }, 60000)
 
       this.once("ready", (status) => {
         clearTimeout(timeout)
