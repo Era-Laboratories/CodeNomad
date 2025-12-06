@@ -9,7 +9,14 @@ import type { DiffViewMode } from "../stores/preferences"
 import { sendPermissionResponse } from "../stores/instances"
 import type { TextPart, RenderCache } from "../types/message"
 import { resolveToolRenderer } from "./tool-call/renderers"
-import type { DiffPayload, DiffRenderOptions, MarkdownRenderOptions, ToolCallPart, ToolRendererContext } from "./tool-call/types"
+import type {
+  DiffPayload,
+  DiffRenderOptions,
+  MarkdownRenderOptions,
+  ToolCallPart,
+  ToolRendererContext,
+  ToolScrollHelpers,
+} from "./tool-call/types"
 import { getRelativePath, getToolIcon, getToolName, isToolStateCompleted, isToolStateError, isToolStateRunning } from "./tool-call/utils"
 import { getLogger } from "../lib/logger"
 
@@ -419,7 +426,20 @@ export default function ToolCall(props: ToolCallProps) {
     persistScrollSnapshot(event.currentTarget)
   }
 
+  const scrollHelpers: ToolScrollHelpers = {
+    registerContainer: (element, options) => {
+      if (options?.disableTracking) return
+      initializeScrollContainer(element)
+    },
+    handleScroll: handleScrollEvent,
+    renderSentinel: (options) => {
+      if (options?.disableTracking) return null
+      return <div ref={setBottomSentinel} aria-hidden="true" class="tool-call-scroll-sentinel" style={{ height: "1px" }} />
+    },
+  }
+
   createEffect(() => {
+
     const container = scrollContainer()
     if (!container) return
 
@@ -565,11 +585,8 @@ export default function ToolCall(props: ToolCallProps) {
     return (
       <div
         class="message-text tool-call-markdown tool-call-markdown-large tool-call-diff-shell"
-        ref={(element) => {
-          if (options?.disableScrollTracking) return
-          initializeScrollContainer(element)
-        }}
-        onScroll={options?.disableScrollTracking ? undefined : handleScrollEvent}
+        ref={(element) => scrollHelpers.registerContainer(element, { disableTracking: options?.disableScrollTracking })}
+        onScroll={options?.disableScrollTracking ? undefined : scrollHelpers.handleScroll}
       >
         <div class="tool-call-diff-toolbar" role="group" aria-label="Diff view mode">
           <span class="tool-call-diff-toolbar-label">{toolbarLabel}</span>
@@ -601,9 +618,7 @@ export default function ToolCall(props: ToolCallProps) {
           cacheEntryParams={cacheHandle.params()}
           onRendered={handleDiffRendered}
         />
-        <Show when={!options?.disableScrollTracking}>
-          <div ref={setBottomSentinel} aria-hidden="true" class="tool-call-scroll-sentinel" style={{ height: "1px" }} />
-        </Show>
+        {scrollHelpers.renderSentinel({ disableTracking: options?.disableScrollTracking })}
       </div>
     )
   }
@@ -630,14 +645,14 @@ export default function ToolCall(props: ToolCallProps) {
     }
 
     return (
-      <div class={messageClass} ref={(element) => initializeScrollContainer(element)} onScroll={handleScrollEvent}>
+      <div class={messageClass} ref={(element) => scrollHelpers.registerContainer(element)} onScroll={scrollHelpers.handleScroll}>
         <Markdown
           part={markdownPart}
           isDark={isDark()}
           disableHighlight={disableHighlight}
           onRendered={handleMarkdownRendered}
         />
-        <div ref={setBottomSentinel} aria-hidden="true" class="tool-call-scroll-sentinel" style={{ height: "1px" }} />
+        {scrollHelpers.renderSentinel()}
       </div>
     )
   }
@@ -654,6 +669,7 @@ export default function ToolCall(props: ToolCallProps) {
     partVersion: partVersionAccessor,
     renderMarkdown: renderMarkdownContent,
     renderDiff: renderDiffContent,
+    scrollHelpers,
   }
 
   let previousPartVersion: number | undefined

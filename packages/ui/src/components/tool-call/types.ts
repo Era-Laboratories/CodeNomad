@@ -21,6 +21,12 @@ export interface DiffRenderOptions {
   label?: string
 }
 
+export interface ToolScrollHelpers {
+  registerContainer(element: HTMLDivElement | null, options?: { disableTracking?: boolean }): void
+  handleScroll(event: Event & { currentTarget: HTMLDivElement }): void
+  renderSentinel(options?: { disableTracking?: boolean }): JSXElement | null
+}
+
 export interface ToolRendererContext {
   toolCall: Accessor<ToolCallPart>
   toolState: Accessor<ToolState | undefined>
@@ -29,6 +35,7 @@ export interface ToolRendererContext {
   partVersion?: Accessor<number | undefined>
   renderMarkdown(options: MarkdownRenderOptions): JSXElement | null
   renderDiff(payload: DiffPayload, options?: DiffRenderOptions): JSXElement | null
+  scrollHelpers?: ToolScrollHelpers
 }
 
 export interface ToolRenderer {

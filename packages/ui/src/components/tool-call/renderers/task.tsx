@@ -40,7 +40,7 @@ export const taskRenderer: ToolRenderer = {
     }
     return base
   },
-  renderBody({ toolState, toolCall, messageVersion, partVersion }) {
+  renderBody({ toolState, toolCall, messageVersion, partVersion, scrollHelpers }) {
     const items = createMemo(() => {
       // Track the reactive change points so we only recompute when the part/message changes
       messageVersion?.()
@@ -63,7 +63,11 @@ export const taskRenderer: ToolRenderer = {
     if (items().length === 0) return null
 
     return (
-      <div class="message-text tool-call-markdown tool-call-task-container">
+      <div
+        class="message-text tool-call-markdown tool-call-task-container"
+        ref={(element) => scrollHelpers?.registerContainer(element)}
+        onScroll={scrollHelpers ? (event) => scrollHelpers.handleScroll(event as Event & { currentTarget: HTMLDivElement }) : undefined}
+      >
         <div class="tool-call-task-summary">
           <For each={items()}>
             {(item) => {
@@ -78,7 +82,9 @@ export const taskRenderer: ToolRenderer = {
             }}
           </For>
         </div>
+        {scrollHelpers?.renderSentinel?.()}
       </div>
     )
   },
 }
+
