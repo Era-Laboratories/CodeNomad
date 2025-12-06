@@ -13,7 +13,20 @@
 }
 
 .tab-container {
-  @apply flex items-center justify-between gap-1 px-2 py-1 overflow-x-auto;
+  @apply flex items-center justify-between gap-1 px-2 py-1;
+}
+
+.tab-scroll {
+  @apply flex items-center gap-3 w-full;
+  overflow-x: auto;
+}
+
+.tab-strip {
+  @apply flex items-center gap-1 flex-shrink-0;
+}
+
+.tab-shortcuts {
+  @apply flex items-center gap-2 flex-shrink-0;
 }
 
 .tab-base {
