@@ -1,5 +1,5 @@
 import { Component, createSignal, Show, For, createEffect, onMount, onCleanup, createMemo } from "solid-js"
-import { Trash2 } from "lucide-solid"
+import { Loader2, Trash2 } from "lucide-solid"
 
 import type { Instance } from "../types/instance"
 import { getParentSessions, createSession, setActiveParentSession, deleteSession, loading } from "../stores/sessions"
@@ -26,6 +26,7 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
   )
 
   const parentSessions = () => getParentSessions(props.instance.id)
+  const isFetchingSessions = createMemo(() => Boolean(loading().fetchingSessions.get(props.instance.id)))
   const isSessionDeleting = (sessionId: string) => {
     const deleting = loading().deletingSession.get(props.instance.id)
     return deleting ? deleting.has(sessionId) : false
@@ -255,25 +256,38 @@ const InstanceWelcomeView: Component<InstanceWelcomeViewProps> = (props) => {
           <Show
             when={parentSessions().length > 0}
             fallback={
-              <div class="panel panel-empty-state flex-1 flex flex-col justify-center">
-                <div class="panel-empty-state-icon">
-                  <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
+              <Show
+                when={isFetchingSessions()}
+                fallback={
+                  <div class="panel panel-empty-state flex-1 flex flex-col justify-center">
+                    <div class="panel-empty-state-icon">
+                      <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                        />
+                      </svg>
+                    </div>
+                    <p class="panel-empty-state-title">No Previous Sessions</p>
+                    <p class="panel-empty-state-description">Create a new session below to get started</p>
+                    <Show when={!isDesktopLayout() && !showInstanceInfoOverlay()}>
+                      <button type="button" class="button-tertiary mt-4 lg:hidden" onClick={openInstanceInfoOverlay}>
+                        View Instance Info
+                      </button>
+                    </Show>
+                  </div>
+                }
+              >
+                <div class="panel panel-empty-state flex-1 flex flex-col justify-center">
+                  <div class="panel-empty-state-icon">
+                    <Loader2 class="w-12 h-12 mx-auto animate-spin text-muted" />
+                  </div>
+                  <p class="panel-empty-state-title">Loading Sessions</p>
+                  <p class="panel-empty-state-description">Fetching your previous sessions...</p>
                 </div>
-                <p class="panel-empty-state-title">No Previous Sessions</p>
-                <p class="panel-empty-state-description">Create a new session below to get started</p>
-                <Show when={!isDesktopLayout() && !showInstanceInfoOverlay()}>
-                  <button type="button" class="button-tertiary mt-4 lg:hidden" onClick={openInstanceInfoOverlay}>
-                    View Instance Info
-                  </button>
-                </Show>
-              </div>
+              </Show>
             }
           >
             <div class="panel flex flex-col flex-1 min-h-0">
