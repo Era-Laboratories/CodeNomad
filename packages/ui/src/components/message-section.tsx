@@ -39,6 +39,7 @@ export interface MessageSectionProps {
 export default function MessageSection(props: MessageSectionProps) {
   const { preferences } = useConfig()
   const showUsagePreference = () => preferences().showUsageMetrics ?? true
+  const showTimelineToolsPreference = () => preferences().showTimelineTools ?? true
   const store = createMemo<InstanceMessageStore>(() => messageStoreBus.getOrCreate(props.instanceId))
   const messageIds = createMemo(() => store().getSessionMessageIds(props.sessionId))
 
@@ -639,6 +640,7 @@ export default function MessageSection(props: MessageSectionProps) {
               activeMessageId={activeMessageId()}
               instanceId={props.instanceId}
               sessionId={props.sessionId}
+              showToolSegments={showTimelineToolsPreference()}
             />
           </div>
         </Show>

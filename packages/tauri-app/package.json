@@ -1,6 +1,6 @@
 {
   "name": "@codenomad/tauri-app",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "private": true,
   "scripts": {
     "dev": "npx --yes @tauri-apps/cli@^2.9.4 dev",

@@ -24,6 +24,7 @@ const log = getLogger("actions")
 export interface UseCommandsOptions {
   preferences: Accessor<Preferences>
   toggleShowThinkingBlocks: () => void
+  toggleShowTimelineTools: () => void
   toggleUsageMetrics: () => void
   toggleAutoCleanupBlankSessions: () => void
   setDiffViewMode: (mode: "split" | "unified") => void
@@ -408,6 +409,15 @@ export function useCommands(options: UseCommandsOptions) {
       category: "System",
       keywords: ["/thinking", "thinking", "reasoning", "toggle", "show", "hide"],
       action: options.toggleShowThinkingBlocks,
+    })
+
+    commandRegistry.register({
+      id: "timeline-tools",
+      label: () => `${options.preferences().showTimelineTools ? "Hide" : "Show"} Timeline Tool Calls`,
+      description: "Toggle tool call entries in the message timeline",
+      category: "System",
+      keywords: ["timeline", "tool", "toggle"],
+      action: options.toggleShowTimelineTools,
     })
 
     commandRegistry.register({

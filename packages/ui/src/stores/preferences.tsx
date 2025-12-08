@@ -35,6 +35,7 @@ export type ListeningMode = "local" | "all"
 export interface Preferences {
   showThinkingBlocks: boolean
   thinkingBlocksExpansion: ExpansionPreference
+  showTimelineTools: boolean
   lastUsedBinary?: string
   environmentVariables: Record<string, string>
   modelRecents: ModelPreference[]
@@ -67,6 +68,7 @@ const MAX_RECENT_MODELS = 5
 const defaultPreferences: Preferences = {
   showThinkingBlocks: false,
   thinkingBlocksExpansion: "expanded",
+  showTimelineTools: true,
   environmentVariables: {},
   modelRecents: [],
   diffViewMode: "split",
@@ -103,6 +105,7 @@ function normalizePreferences(pref?: Partial<Preferences> & { agentModelSelectio
   return {
     showThinkingBlocks: sanitized.showThinkingBlocks ?? defaultPreferences.showThinkingBlocks,
     thinkingBlocksExpansion: sanitized.thinkingBlocksExpansion ?? defaultPreferences.thinkingBlocksExpansion,
+    showTimelineTools: sanitized.showTimelineTools ?? defaultPreferences.showTimelineTools,
     lastUsedBinary: sanitized.lastUsedBinary ?? defaultPreferences.lastUsedBinary,
     environmentVariables,
     modelRecents,
@@ -301,6 +304,10 @@ function toggleShowThinkingBlocks(): void {
   updatePreferences({ showThinkingBlocks: !preferences().showThinkingBlocks })
 }
 
+function toggleShowTimelineTools(): void {
+  updatePreferences({ showTimelineTools: !preferences().showTimelineTools })
+}
+
 function toggleUsageMetrics(): void {
   updatePreferences({ showUsageMetrics: !preferences().showUsageMetrics })
 }
@@ -411,8 +418,10 @@ interface ConfigContextValue {
   setThemePreference: typeof setThemePreference
   updateConfig: typeof updateConfig
   toggleShowThinkingBlocks: typeof toggleShowThinkingBlocks
+  toggleShowTimelineTools: typeof toggleShowTimelineTools
   toggleUsageMetrics: typeof toggleUsageMetrics
   toggleAutoCleanupBlankSessions: typeof toggleAutoCleanupBlankSessions
+
   setDiffViewMode: typeof setDiffViewMode
   setToolOutputExpansion: typeof setToolOutputExpansion
   setDiagnosticsExpansion: typeof setDiagnosticsExpansion
@@ -445,6 +454,7 @@ const configContextValue: ConfigContextValue = {
   setThemePreference,
   updateConfig,
   toggleShowThinkingBlocks,
+  toggleShowTimelineTools,
   toggleUsageMetrics,
   toggleAutoCleanupBlankSessions,
   setDiffViewMode,
@@ -503,6 +513,7 @@ export {
   updateConfig,
   updatePreferences,
   toggleShowThinkingBlocks,
+  toggleShowTimelineTools,
   toggleAutoCleanupBlankSessions,
   toggleUsageMetrics,
   recentFolders,

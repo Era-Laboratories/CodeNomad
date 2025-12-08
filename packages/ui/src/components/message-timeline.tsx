@@ -24,6 +24,7 @@ interface MessageTimelineProps {
   activeMessageId?: string | null
   instanceId: string
   sessionId: string
+  showToolSegments?: boolean
 }
 
 const SEGMENT_LABELS: Record<TimelineSegmentType, string> = {
@@ -239,6 +240,7 @@ const MessageTimeline: Component<MessageTimelineProps> = (props) => {
   const [hoveredSegment, setHoveredSegment] = createSignal<TimelineSegment | null>(null)
   const [tooltipCoords, setTooltipCoords] = createSignal<{ top: number; left: number }>({ top: 0, left: 0 })
   let hoverTimer: number | null = null
+  const showTools = () => props.showToolSegments ?? true
  
   const registerButtonRef = (segmentId: string, element: HTMLButtonElement | null) => {
     if (element) {
@@ -313,6 +315,7 @@ const MessageTimeline: Component<MessageTimelineProps> = (props) => {
         {(segment) => {
           onCleanup(() => buttonRefs.delete(segment.id))
           const isActive = () => props.activeMessageId === segment.messageId
+          const isHidden = () => segment.type === "tool" && !(showTools() || isActive())
           const shortLabelContent = () => {
             if (segment.type === "tool") {
               return segment.shortLabel ?? getToolIcon("tool")
@@ -326,8 +329,9 @@ const MessageTimeline: Component<MessageTimelineProps> = (props) => {
             <button
               ref={(el) => registerButtonRef(segment.id, el)}
               type="button"
-              class={`message-timeline-segment message-timeline-${segment.type} ${isActive() ? "message-timeline-segment-active" : ""}`}
+              class={`message-timeline-segment message-timeline-${segment.type} ${isActive() ? "message-timeline-segment-active" : ""} ${isHidden() ? "message-timeline-segment-hidden" : ""}`}
               aria-current={isActive() ? "true" : undefined}
+              aria-hidden={isHidden() ? "true" : undefined}
               onClick={() => props.onSegmentClick?.(segment)}
               onMouseEnter={(event) => handleMouseEnter(segment, event)}
               onMouseLeave={handleMouseLeave}
