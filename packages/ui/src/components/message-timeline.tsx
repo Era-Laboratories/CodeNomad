@@ -43,7 +43,9 @@ type ToolCallPart = Extract<ClientPart, { type: "tool" }>
 interface PendingSegment {
   type: TimelineSegmentType
   texts: string[]
+  reasoningTexts: string[]
   toolTitles: string[]
+  hasPrimaryText: boolean
 }
 
 function truncateText(value: string): string {
@@ -143,17 +145,20 @@ export function buildTimelineSegments(instanceId: string, record: MessageRecord)
   const result: TimelineSegment[] = []
   let segmentIndex = 0
   let pending: PendingSegment | null = null
-
   const flushPending = () => {
     if (!pending) return
+    if (pending.type === "assistant" && !pending.hasPrimaryText) {
+      pending = null
+      return
+    }
     const label = SEGMENT_LABELS[pending.type]
     const tooltip = pending.type === "tool"
       ? formatToolTooltip(pending.toolTitles)
       : formatTextsTooltip(
-          pending.texts,
+          [...pending.texts, ...pending.reasoningTexts],
           pending.type === "user" ? "User message" : "Assistant response",
         )
-
+ 
     result.push({
       id: `${record.id}:${segmentIndex}`,
       messageId: record.id,
@@ -164,14 +169,15 @@ export function buildTimelineSegments(instanceId: string, record: MessageRecord)
     segmentIndex += 1
     pending = null
   }
-
+ 
   const ensureSegment = (type: TimelineSegmentType) => {
     if (!pending || pending.type !== type) {
       flushPending()
-      pending = { type, texts: [], toolTitles: [] }
+      pending = { type, texts: [], reasoningTexts: [], toolTitles: [], hasPrimaryText: type !== "assistant" }
     }
     return pending
   }
+
 
   const defaultContentType: TimelineSegmentType = record.role === "user" ? "user" : "assistant"
 
@@ -188,21 +194,28 @@ export function buildTimelineSegments(instanceId: string, record: MessageRecord)
       const text = collectReasoningText(part)
       if (text.trim().length === 0) continue
       const target = ensureSegment(defaultContentType)
-      target.texts.push(text)
+      if (target) {
+        target.reasoningTexts.push(text)
+      }
       continue
     }
-
+ 
     if (part.type === "step-start" || part.type === "step-finish") {
       continue
     }
-
+ 
     const text = collectTextFromPart(part)
     if (text.trim().length === 0) continue
     const target = ensureSegment(defaultContentType)
-    target.texts.push(text)
+    if (target) {
+      target.texts.push(text)
+      target.hasPrimaryText = true
+    }
   }
 
+
   flushPending()
+ 
   return result
 }
 
