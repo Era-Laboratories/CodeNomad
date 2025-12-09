@@ -1,4 +1,4 @@
-import { Component, Show, createMemo, createEffect, createSignal, onMount, onCleanup } from "solid-js"
+import { Component, For, Show, createMemo, createEffect, createSignal, onMount, onCleanup } from "solid-js"
 import { Dialog } from "@kobalte/core/dialog"
 import { Toaster } from "solid-toast"
 import AlertDialog from "./components/alert-dialog"
@@ -324,21 +324,27 @@ const App: Component = () => {
                 onNew={handleNewInstanceRequest}
                 onOpenRemoteAccess={() => setRemoteAccessOpen(true)}
               />
+ 
+              <For each={Array.from(instances().values())}>
+                {(instance) => {
+                  const isActiveInstance = () => activeInstanceId() === instance.id
+                  return (
+                    <div class="flex-1 min-h-0" style={{ display: isActiveInstance() ? "flex" : "none" }}>
+                      <InstanceShell
+                        instance={instance}
+                        escapeInDebounce={escapeInDebounce()}
+                        paletteCommands={paletteCommands}
+                        onCloseSession={(sessionId) => handleCloseSession(instance.id, sessionId)}
+                        onNewSession={() => handleNewSession(instance.id)}
+                        handleSidebarAgentChange={(sessionId, agent) => handleSidebarAgentChange(instance.id, sessionId, agent)}
+                        handleSidebarModelChange={(sessionId, model) => handleSidebarModelChange(instance.id, sessionId, model)}
+                        onExecuteCommand={executeCommand}
+                      />
+                    </div>
+                  )
+                }}
+              </For>
 
-              <Show when={activeInstance()} keyed>
-                {(instance) => (
-                  <InstanceShell
-                    instance={instance}
-                    escapeInDebounce={escapeInDebounce()}
-                    paletteCommands={paletteCommands}
-                    onCloseSession={(sessionId) => handleCloseSession(instance.id, sessionId)}
-                    onNewSession={() => handleNewSession(instance.id)}
-                    handleSidebarAgentChange={(sessionId, agent) => handleSidebarAgentChange(instance.id, sessionId, agent)}
-                    handleSidebarModelChange={(sessionId, model) => handleSidebarModelChange(instance.id, sessionId, model)}
-                    onExecuteCommand={executeCommand}
-                  />
-                )}
-              </Show>
             </>
           }
         >
