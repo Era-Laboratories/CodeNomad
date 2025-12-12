@@ -1,9 +1,14 @@
 import { createEffect, createSignal, onMount, onCleanup } from "solid-js"
 import { renderMarkdown, onLanguagesLoaded, initMarkdown, decodeHtmlEntities } from "../lib/markdown"
-import type { TextPart } from "../types/message"
+import type { TextPart, RenderCache } from "../types/message"
 import { getLogger } from "../lib/logger"
 const log = getLogger("session")
 
+const markdownRenderCache = new Map<string, RenderCache>()
+
+function makeMarkdownCacheKey(partId: string, themeKey: string, highlightEnabled: boolean) {
+  return `${partId}:${themeKey}:${highlightEnabled ? 1 : 0}`
+}
 
 interface MarkdownProps {
   part: TextPart
@@ -29,11 +34,25 @@ export function Markdown(props: MarkdownProps) {
     const dark = Boolean(props.isDark)
     const themeKey = dark ? "dark" : "light"
     const highlightEnabled = !props.disableHighlight
+    const partId = typeof part.id === "string" && part.id.length > 0 ? part.id : "__anonymous__"
+    const cacheKey = makeMarkdownCacheKey(partId, themeKey, highlightEnabled)
 
     latestRequestedText = text
 
-    // Markdown initialization is now handled globally in App.
-    // initMarkdown is idempotent but we avoid per-part calls here.
+    const localCache = part.renderCache
+    if (localCache && localCache.text === text && localCache.theme === themeKey) {
+      setHtml(localCache.html)
+      notifyRendered()
+      return
+    }
+
+    const globalCache = markdownRenderCache.get(cacheKey)
+    if (globalCache && globalCache.text === text) {
+      setHtml(globalCache.html)
+      part.renderCache = globalCache
+      notifyRendered()
+      return
+    }
 
     if (!highlightEnabled) {
       part.renderCache = undefined
@@ -42,23 +61,22 @@ export function Markdown(props: MarkdownProps) {
         const rendered = await renderMarkdown(text, { suppressHighlight: true })
 
         if (latestRequestedText === text) {
+          const cacheEntry: RenderCache = { text, html: rendered, theme: themeKey }
           setHtml(rendered)
+          part.renderCache = cacheEntry
+          markdownRenderCache.set(cacheKey, cacheEntry)
           notifyRendered()
         }
       } catch (error) {
         log.error("Failed to render markdown:", error)
         if (latestRequestedText === text) {
+          const cacheEntry: RenderCache = { text, html: text, theme: themeKey }
           setHtml(text)
+          part.renderCache = cacheEntry
+          markdownRenderCache.set(cacheKey, cacheEntry)
           notifyRendered()
         }
       }
-      return
-    }
-
-    const cache = part.renderCache
-    if (cache && cache.text === text && cache.theme === themeKey) {
-      setHtml(cache.html)
-      notifyRendered()
       return
     }
 
@@ -66,15 +84,19 @@ export function Markdown(props: MarkdownProps) {
       const rendered = await renderMarkdown(text)
 
       if (latestRequestedText === text) {
+        const cacheEntry: RenderCache = { text, html: rendered, theme: themeKey }
         setHtml(rendered)
-        part.renderCache = { text, html: rendered, theme: themeKey }
+        part.renderCache = cacheEntry
+        markdownRenderCache.set(cacheKey, cacheEntry)
         notifyRendered()
       }
     } catch (error) {
       log.error("Failed to render markdown:", error)
       if (latestRequestedText === text) {
+        const cacheEntry: RenderCache = { text, html: text, theme: themeKey }
         setHtml(text)
-        part.renderCache = { text, html: text, theme: themeKey }
+        part.renderCache = cacheEntry
+        markdownRenderCache.set(cacheKey, cacheEntry)
         notifyRendered()
       }
     }
