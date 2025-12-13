@@ -622,6 +622,18 @@ fn resolve_dist_entry(_app: &AppHandle) -> Option<String> {
             candidates.push(Some(resources.join("resources/server/dist/index.js")));
             candidates.push(Some(resources.join("resources/server/dist/server/bin.js")));
             candidates.push(Some(resources.join("resources/server/dist/server/index.js")));
+
+            let linux_resource_roots = [dir.join("../lib/CodeNomad"), dir.join("../lib/codenomad")];
+            for root in linux_resource_roots {
+                candidates.push(Some(root.join("server/dist/bin.js")));
+                candidates.push(Some(root.join("server/dist/index.js")));
+                candidates.push(Some(root.join("server/dist/server/bin.js")));
+                candidates.push(Some(root.join("server/dist/server/index.js")));
+                candidates.push(Some(root.join("resources/server/dist/bin.js")));
+                candidates.push(Some(root.join("resources/server/dist/index.js")));
+                candidates.push(Some(root.join("resources/server/dist/server/bin.js")));
+                candidates.push(Some(root.join("resources/server/dist/server/index.js")));
+            }
         }
     }
 
