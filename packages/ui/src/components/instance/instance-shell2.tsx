@@ -697,7 +697,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
       }}
     >
       <AppBar position="sticky" color="default" elevation={0} class="border-b border-base">
-        <Toolbar variant="dense" class="session-toolbar flex flex-wrap items-center gap-2 py-0">
+        <Toolbar variant="dense" class="session-toolbar flex flex-wrap items-center gap-2 py-0 min-h-[40px]">
           <Show
             when={!isPhoneLayout()}
             fallback={
