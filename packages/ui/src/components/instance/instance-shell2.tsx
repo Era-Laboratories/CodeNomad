@@ -401,6 +401,35 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
     }
   }
 
+  const closeFloatingDrawersIfAny = () => {
+    let handled = false
+    if (!leftPinned() && leftOpen()) {
+      setLeftOpen(false)
+      blurIfInside(leftDrawerContentEl())
+      focusTarget(leftToggleButtonEl())
+      handled = true
+    }
+    if (!rightPinned() && rightOpen()) {
+      setRightOpen(false)
+      blurIfInside(rightDrawerContentEl())
+      focusTarget(rightToggleButtonEl())
+      handled = true
+    }
+    return handled
+  }
+
+  onMount(() => {
+    if (typeof window === "undefined") return
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      if (!closeFloatingDrawersIfAny()) return
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    window.addEventListener("keydown", handleEscape, true)
+    onCleanup(() => window.removeEventListener("keydown", handleEscape, true))
+  })
+
   const handleSessionSelect = (sessionId: string) => {
     setActiveSession(props.instance.id, sessionId)
   }
