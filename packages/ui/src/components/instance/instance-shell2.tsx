@@ -76,12 +76,28 @@ const SESSION_CACHE_LIMIT = 2
 const APP_BAR_HEIGHT = 56
 const LEFT_DRAWER_STORAGE_KEY = "opencode-session-sidebar-width-v8"
 const RIGHT_DRAWER_STORAGE_KEY = "opencode-session-right-drawer-width-v1"
+const LEFT_PIN_STORAGE_KEY = "opencode-session-left-drawer-pinned-v1"
+const RIGHT_PIN_STORAGE_KEY = "opencode-session-right-drawer-pinned-v1"
+
+
 
 
 type LayoutMode = "desktop" | "tablet" | "phone"
 
 const clampWidth = (value: number) => Math.min(MAX_SESSION_SIDEBAR_WIDTH, Math.max(MIN_SESSION_SIDEBAR_WIDTH, value))
 const clampRightWidth = (value: number) => Math.min(MAX_RIGHT_DRAWER_WIDTH, Math.max(MIN_RIGHT_DRAWER_WIDTH, value))
+const getPinStorageKey = (side: "left" | "right") => (side === "left" ? LEFT_PIN_STORAGE_KEY : RIGHT_PIN_STORAGE_KEY)
+function readStoredPinState(side: "left" | "right", defaultValue: boolean) {
+  if (typeof window === "undefined") return defaultValue
+  const stored = window.localStorage.getItem(getPinStorageKey(side))
+  if (stored === "true") return true
+  if (stored === "false") return false
+  return defaultValue
+}
+function persistPinState(side: "left" | "right", value: boolean) {
+  if (typeof window === "undefined") return
+  window.localStorage.setItem(getPinStorageKey(side), value ? "true" : "false")
+}
 
 const InstanceShell2: Component<InstanceShellProps> = (props) => {
   const [sessionSidebarWidth, setSessionSidebarWidth] = createSignal(DEFAULT_SESSION_SIDEBAR_WIDTH)
@@ -117,21 +133,34 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
   })
 
   const isPhoneLayout = createMemo(() => layoutMode() === "phone")
+  const leftPinningSupported = createMemo(() => layoutMode() === "desktop")
+  const rightPinningSupported = createMemo(() => layoutMode() !== "phone")
+
+  const persistPinIfSupported = (side: "left" | "right", value: boolean) => {
+    if (side === "left" && !leftPinningSupported()) return
+    if (side === "right" && !rightPinningSupported()) return
+    persistPinState(side, value)
+  }
 
   createEffect(() => {
     switch (layoutMode()) {
-      case "desktop":
-        setLeftPinned(true)
-        setLeftOpen(true)
-        setRightPinned(true)
-        setRightOpen(true)
+      case "desktop": {
+        const leftSaved = readStoredPinState("left", true)
+        const rightSaved = readStoredPinState("right", true)
+        setLeftPinned(leftSaved)
+        setLeftOpen(leftSaved)
+        setRightPinned(rightSaved)
+        setRightOpen(rightSaved)
         break
-      case "tablet":
+      }
+      case "tablet": {
+        const rightSaved = readStoredPinState("right", true)
         setLeftPinned(false)
         setLeftOpen(false)
-        setRightPinned(true)
-        setRightOpen(true)
+        setRightPinned(rightSaved)
+        setRightOpen(rightSaved)
         break
+      }
       default:
         setLeftPinned(false)
         setLeftOpen(false)
@@ -484,12 +513,12 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
 
 
    const pinLeftDrawer = () => {
-
     blurIfInside(leftDrawerContentEl())
     batch(() => {
       setLeftPinned(true)
       setLeftOpen(true)
     })
+    persistPinIfSupported("left", true)
     measureDrawerHost()
   }
 
@@ -499,6 +528,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
       setLeftPinned(false)
       setLeftOpen(true)
     })
+    persistPinIfSupported("left", false)
     measureDrawerHost()
   }
 
@@ -508,6 +538,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
       setRightPinned(true)
       setRightOpen(true)
     })
+    persistPinIfSupported("right", true)
     measureDrawerHost()
   }
 
@@ -517,6 +548,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
       setRightPinned(false)
       setRightOpen(true)
     })
+    persistPinIfSupported("right", false)
     measureDrawerHost()
   }
 
