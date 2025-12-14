@@ -1,0 +1,907 @@
+import {
+  For,
+  Show,
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+  type Accessor,
+  type Component,
+} from "solid-js"
+import AppBar from "@suid/material/AppBar"
+import Box from "@suid/material/Box"
+import Divider from "@suid/material/Divider"
+import Drawer from "@suid/material/Drawer"
+import IconButton from "@suid/material/IconButton"
+import Toolbar from "@suid/material/Toolbar"
+import Typography from "@suid/material/Typography"
+import useMediaQuery from "@suid/material/useMediaQuery"
+import CloseIcon from "@suid/icons-material/Close"
+import MenuIcon from "@suid/icons-material/Menu"
+import MenuOpenIcon from "@suid/icons-material/MenuOpen"
+import PushPinIcon from "@suid/icons-material/PushPin"
+import PushPinOutlinedIcon from "@suid/icons-material/PushPinOutlined"
+import type { Instance } from "../../types/instance"
+import type { Command } from "../../lib/commands"
+import {
+  activeParentSessionId,
+  activeSessionId as activeSessionMap,
+  getSessionFamily,
+  getSessionInfo,
+  setActiveSession,
+} from "../../stores/sessions"
+import { keyboardRegistry, type KeyboardShortcut } from "../../lib/keyboard-registry"
+import { messageStoreBus } from "../../stores/message-v2/bus"
+import { clearSessionRenderCache } from "../message-block"
+import { buildCustomCommandEntries } from "../../lib/command-utils"
+import { getCommands as getInstanceCommands } from "../../stores/commands"
+import { isOpen as isCommandPaletteOpen, hideCommandPalette, showCommandPalette } from "../../stores/command-palette"
+import SessionList from "../session-list"
+import KeyboardHint from "../keyboard-hint"
+import InstanceWelcomeView from "../instance-welcome-view"
+import InfoView from "../info-view"
+import AgentSelector from "../agent-selector"
+import ModelSelector from "../model-selector"
+import CommandPalette from "../command-palette"
+import Kbd from "../kbd"
+import ContextUsagePanel from "../session/context-usage-panel"
+import SessionView from "../session/session-view"
+import { formatTokenTotal } from "../../lib/formatters"
+import { sseManager } from "../../lib/sse-manager"
+import { getLogger } from "../../lib/logger"
+
+const log = getLogger("session")
+
+interface InstanceShellProps {
+  instance: Instance
+  escapeInDebounce: boolean
+  paletteCommands: Accessor<Command[]>
+  onCloseSession: (sessionId: string) => Promise<void> | void
+  onNewSession: () => Promise<void> | void
+  handleSidebarAgentChange: (sessionId: string, agent: string) => Promise<void>
+  handleSidebarModelChange: (sessionId: string, model: { providerId: string; modelId: string }) => Promise<void>
+  onExecuteCommand: (command: Command) => void
+  tabBarOffset: number
+}
+
+const DEFAULT_SESSION_SIDEBAR_WIDTH = 280
+const MIN_SESSION_SIDEBAR_WIDTH = 220
+const MAX_SESSION_SIDEBAR_WIDTH = 360
+const RIGHT_DRAWER_WIDTH = 260
+const SESSION_CACHE_LIMIT = 2
+const APP_BAR_HEIGHT = 56
+
+
+type LayoutMode = "desktop" | "tablet" | "phone"
+
+const clampWidth = (value: number) => Math.min(MAX_SESSION_SIDEBAR_WIDTH, Math.max(MIN_SESSION_SIDEBAR_WIDTH, value))
+
+const InstanceShell2: Component<InstanceShellProps> = (props) => {
+  const [sessionSidebarWidth, setSessionSidebarWidth] = createSignal(DEFAULT_SESSION_SIDEBAR_WIDTH)
+  const [leftPinned, setLeftPinned] = createSignal(true)
+  const [leftOpen, setLeftOpen] = createSignal(true)
+  const [rightPinned, setRightPinned] = createSignal(true)
+  const [rightOpen, setRightOpen] = createSignal(true)
+  const [cachedSessionIds, setCachedSessionIds] = createSignal<string[]>([])
+  const [pendingEvictions, setPendingEvictions] = createSignal<string[]>([])
+  const [drawerHost, setDrawerHost] = createSignal<HTMLElement | null>(null)
+  const [floatingDrawerTop, setFloatingDrawerTop] = createSignal(0)
+  const [floatingDrawerHeight, setFloatingDrawerHeight] = createSignal(0)
+  const [leftDrawerContentEl, setLeftDrawerContentEl] = createSignal<HTMLElement | null>(null)
+  const [rightDrawerContentEl, setRightDrawerContentEl] = createSignal<HTMLElement | null>(null)
+  const [leftToggleButtonEl, setLeftToggleButtonEl] = createSignal<HTMLElement | null>(null)
+  const [rightToggleButtonEl, setRightToggleButtonEl] = createSignal<HTMLElement | null>(null)
+
+  const messageStore = createMemo(() => messageStoreBus.getOrCreate(props.instance.id))
+
+
+  const desktopQuery = useMediaQuery("(min-width: 1280px)")
+
+  const tabletQuery = useMediaQuery("(min-width: 768px)")
+
+  const layoutMode = createMemo<LayoutMode>(() => {
+    if (desktopQuery()) return "desktop"
+    if (tabletQuery()) return "tablet"
+    return "phone"
+  })
+
+  const isPhoneLayout = createMemo(() => layoutMode() === "phone")
+
+  createEffect(() => {
+    switch (layoutMode()) {
+      case "desktop":
+        setLeftPinned(true)
+        setLeftOpen(true)
+        setRightPinned(true)
+        setRightOpen(true)
+        break
+      case "tablet":
+        setLeftPinned(false)
+        setLeftOpen(false)
+        setRightPinned(true)
+        setRightOpen(true)
+        break
+      default:
+        setLeftPinned(false)
+        setLeftOpen(false)
+        setRightPinned(false)
+        setRightOpen(false)
+        break
+    }
+  })
+
+  const measureDrawerHost = () => {
+    if (typeof window === "undefined") return
+    const host = drawerHost()
+    if (!host) return
+    const rect = host.getBoundingClientRect()
+    const toolbar = host.querySelector<HTMLElement>(".session-toolbar")
+    const toolbarHeight = toolbar?.offsetHeight ?? APP_BAR_HEIGHT
+    setFloatingDrawerTop(rect.top + toolbarHeight)
+    setFloatingDrawerHeight(Math.max(0, rect.height - toolbarHeight))
+  }
+
+  onMount(() => {
+    if (typeof window === "undefined") return
+    const handleResize = () => {
+      const width = clampWidth(window.innerWidth * 0.3)
+      setSessionSidebarWidth((current) => clampWidth(current || width))
+      measureDrawerHost()
+    }
+
+    handleResize()
+    window.addEventListener("resize", handleResize)
+    onCleanup(() => window.removeEventListener("resize", handleResize))
+  })
+
+  createEffect(() => {
+    props.tabBarOffset
+    requestAnimationFrame(() => measureDrawerHost())
+  })
+
+  const activeSessions = createMemo(() => {
+    const parentId = activeParentSessionId().get(props.instance.id)
+    if (!parentId) return new Map<string, ReturnType<typeof getSessionFamily>[number]>()
+    const sessionFamily = getSessionFamily(props.instance.id, parentId)
+    return new Map(sessionFamily.map((s) => [s.id, s]))
+  })
+
+  const activeSessionIdForInstance = createMemo(() => {
+    return activeSessionMap().get(props.instance.id) || null
+  })
+
+  const parentSessionIdForInstance = createMemo(() => {
+    return activeParentSessionId().get(props.instance.id) || null
+  })
+
+  const activeSessionForInstance = createMemo(() => {
+    const sessionId = activeSessionIdForInstance()
+    if (!sessionId || sessionId === "info") return null
+    return activeSessions().get(sessionId) ?? null
+  })
+
+  const activeSessionUsage = createMemo(() => {
+    const sessionId = activeSessionIdForInstance()
+    if (!sessionId) return null
+    const store = messageStore()
+    return store?.getSessionUsage(sessionId) ?? null
+  })
+
+  const activeSessionInfoDetails = createMemo(() => {
+    const sessionId = activeSessionIdForInstance()
+    if (!sessionId) return null
+    return getSessionInfo(props.instance.id, sessionId) ?? null
+  })
+
+  const tokenStats = createMemo(() => {
+    const usage = activeSessionUsage()
+    const info = activeSessionInfoDetails()
+    return {
+      used: usage?.actualUsageTokens ?? info?.actualUsageTokens ?? 0,
+      avail: info?.contextAvailableTokens ?? null,
+    }
+  })
+
+  const connectionStatus = () => sseManager.getStatus(props.instance.id)
+  const connectionStatusClass = () => {
+    const status = connectionStatus()
+    if (status === "connecting") return "connecting"
+    if (status === "connected") return "connected"
+    return "disconnected"
+  }
+
+  const handleCommandPaletteClick = () => {
+    showCommandPalette(props.instance.id)
+  }
+
+  const customCommands = createMemo(() => buildCustomCommandEntries(props.instance.id, getInstanceCommands(props.instance.id)))
+
+  const instancePaletteCommands = createMemo(() => [...props.paletteCommands(), ...customCommands()])
+  const paletteOpen = createMemo(() => isCommandPaletteOpen(props.instance.id))
+
+  const keyboardShortcuts = createMemo(() =>
+    [keyboardRegistry.get("session-prev"), keyboardRegistry.get("session-next")].filter(
+      (shortcut): shortcut is KeyboardShortcut => Boolean(shortcut),
+    ),
+  )
+
+  const handleSessionSelect = (sessionId: string) => {
+    setActiveSession(props.instance.id, sessionId)
+  }
+
+  const handleSidebarWidthChange = (nextWidth: number) => {
+    setSessionSidebarWidth(clampWidth(nextWidth))
+  }
+
+  const evictSession = (sessionId: string) => {
+    if (!sessionId) return
+    log.info("Evicting cached session", { instanceId: props.instance.id, sessionId })
+    const store = messageStoreBus.getInstance(props.instance.id)
+    store?.clearSession(sessionId)
+    clearSessionRenderCache(props.instance.id, sessionId)
+  }
+
+  const scheduleEvictions = (ids: string[]) => {
+    if (!ids.length) return
+    setPendingEvictions((current) => {
+      const existing = new Set(current)
+      const next = [...current]
+      ids.forEach((id) => {
+        if (!existing.has(id)) {
+          next.push(id)
+          existing.add(id)
+        }
+      })
+      return next
+    })
+  }
+
+  createEffect(() => {
+    const pending = pendingEvictions()
+    if (!pending.length) return
+    const cached = new Set(cachedSessionIds())
+    const remaining: string[] = []
+    pending.forEach((id) => {
+      if (cached.has(id)) {
+        remaining.push(id)
+      } else {
+        evictSession(id)
+      }
+    })
+    if (remaining.length !== pending.length) {
+      setPendingEvictions(remaining)
+    }
+  })
+
+  createEffect(() => {
+    const sessionsMap = activeSessions()
+    const parentId = parentSessionIdForInstance()
+    const activeId = activeSessionIdForInstance()
+    setCachedSessionIds((current) => {
+      const next: string[] = []
+      const append = (id: string | null) => {
+        if (!id || id === "info") return
+        if (!sessionsMap.has(id)) return
+        if (next.includes(id)) return
+        next.push(id)
+      }
+
+      append(parentId)
+      append(activeId)
+      current.forEach((id) => append(id))
+
+      const limit = parentId ? SESSION_CACHE_LIMIT + 1 : SESSION_CACHE_LIMIT
+      const trimmed = next.length > limit ? next.slice(0, limit) : next
+      const trimmedSet = new Set(trimmed)
+      const removed = current.filter((id) => !trimmedSet.has(id))
+      if (removed.length) {
+        scheduleEvictions(removed)
+      }
+      return trimmed
+    })
+  })
+
+  const showEmbeddedSidebarToggle = createMemo(() => !leftPinned() && !leftOpen())
+
+  const drawerContainer = () => {
+    const host = drawerHost()
+    if (host) return host
+    if (typeof document !== "undefined") {
+      return document.body
+    }
+    return undefined
+  }
+
+  const fallbackDrawerTop = () => APP_BAR_HEIGHT + props.tabBarOffset
+  const floatingTop = () => {
+    const measured = floatingDrawerTop()
+    if (measured > 0) return measured
+    return fallbackDrawerTop()
+  }
+  const floatingTopPx = () => `${floatingTop()}px`
+  const floatingHeight = () => {
+    const measured = floatingDrawerHeight()
+    if (measured > 0) return `${measured}px`
+    return `calc(100% - ${floatingTop()}px)`
+  }
+
+  type DrawerViewState = "pinned" | "floating-open" | "floating-closed"
+
+  const leftDrawerState = createMemo<DrawerViewState>(() => {
+    if (leftPinned()) return "pinned"
+    return leftOpen() ? "floating-open" : "floating-closed"
+  })
+
+  const rightDrawerState = createMemo<DrawerViewState>(() => {
+    if (rightPinned()) return "pinned"
+    return rightOpen() ? "floating-open" : "floating-closed"
+  })
+
+  const leftAppBarButtonLabel = () => {
+    const state = leftDrawerState()
+    if (state === "pinned") return "Left drawer pinned"
+    if (state === "floating-closed") return "Open left drawer"
+    return "Close left drawer"
+  }
+
+  const rightAppBarButtonLabel = () => {
+    const state = rightDrawerState()
+    if (state === "pinned") return "Right drawer pinned"
+    if (state === "floating-closed") return "Open right drawer"
+    return "Close right drawer"
+  }
+
+  const leftAppBarButtonIcon = () => {
+    const state = leftDrawerState()
+    if (state === "floating-closed") return <MenuIcon fontSize="small" />
+    return <MenuOpenIcon fontSize="small" />
+  }
+
+  const rightAppBarButtonIcon = () => {
+    const state = rightDrawerState()
+    if (state === "floating-closed") return <MenuIcon fontSize="small" sx={{ transform: "scaleX(-1)" }} />
+    return <MenuOpenIcon fontSize="small" sx={{ transform: "scaleX(-1)" }} />
+  }
+
+
+
+
+   const pinLeftDrawer = () => {
+
+    blurIfInside(leftDrawerContentEl())
+    batch(() => {
+      setLeftPinned(true)
+      setLeftOpen(true)
+    })
+    measureDrawerHost()
+  }
+
+  const unpinLeftDrawer = () => {
+    blurIfInside(leftDrawerContentEl())
+    batch(() => {
+      setLeftPinned(false)
+      setLeftOpen(true)
+    })
+    measureDrawerHost()
+  }
+
+  const pinRightDrawer = () => {
+    blurIfInside(rightDrawerContentEl())
+    batch(() => {
+      setRightPinned(true)
+      setRightOpen(true)
+    })
+    measureDrawerHost()
+  }
+
+  const unpinRightDrawer = () => {
+    blurIfInside(rightDrawerContentEl())
+    batch(() => {
+      setRightPinned(false)
+      setRightOpen(true)
+    })
+    measureDrawerHost()
+  }
+
+  const handleLeftAppBarButtonClick = () => {
+    const state = leftDrawerState()
+    if (state === "pinned") return
+    if (state === "floating-closed") {
+      setLeftOpen(true)
+      measureDrawerHost()
+      return
+    }
+    blurIfInside(leftDrawerContentEl())
+    setLeftOpen(false)
+    focusTarget(leftToggleButtonEl())
+    measureDrawerHost()
+  }
+
+  const handleRightAppBarButtonClick = () => {
+    const state = rightDrawerState()
+    if (state === "pinned") return
+    if (state === "floating-closed") {
+      setRightOpen(true)
+      measureDrawerHost()
+      return
+    }
+    blurIfInside(rightDrawerContentEl())
+    setRightOpen(false)
+    focusTarget(rightToggleButtonEl())
+    measureDrawerHost()
+  }
+
+
+  const focusTarget = (element: HTMLElement | null) => {
+    if (!element) return
+    requestAnimationFrame(() => {
+      element.focus()
+    })
+  }
+
+  const blurIfInside = (element: HTMLElement | null) => {
+    if (typeof document === "undefined" || !element) return
+    const active = document.activeElement as HTMLElement | null
+    if (active && element.contains(active)) {
+      active.blur()
+    }
+  }
+
+  const closeLeftDrawer = () => {
+    if (leftDrawerState() === "pinned") return
+    blurIfInside(leftDrawerContentEl())
+    setLeftOpen(false)
+    focusTarget(leftToggleButtonEl())
+  }
+  const closeRightDrawer = () => {
+    if (rightDrawerState() === "pinned") return
+    blurIfInside(rightDrawerContentEl())
+    setRightOpen(false)
+    focusTarget(rightToggleButtonEl())
+  }
+
+  const formattedUsedTokens = () => formatTokenTotal(tokenStats().used)
+
+
+  const formattedAvailableTokens = () => {
+    const avail = tokenStats().avail
+    if (typeof avail === "number") {
+      return formatTokenTotal(avail)
+    }
+    return "--"
+  }
+
+  const LeftDrawerContent = () => (
+    <div class="flex flex-col h-full min-h-0" ref={setLeftDrawerContentEl}>
+      <div class="flex items-start justify-between gap-2 px-4 py-3 border-b border-base">
+        <div class="flex flex-col gap-1">
+          <span class="session-sidebar-title text-sm font-semibold uppercase text-primary">Sessions</span>
+          <div class="session-sidebar-shortcuts">
+            <Show when={keyboardShortcuts().length}>
+              <KeyboardHint shortcuts={keyboardShortcuts()} separator=" " showDescription={false} />
+            </Show>
+          </div>
+        </div>
+          <div class="flex items-center gap-2">
+            <IconButton
+              size="small"
+              color="inherit"
+              aria-label={leftPinned() ? "Unpin left drawer" : "Pin left drawer"}
+              onClick={() => (leftPinned() ? unpinLeftDrawer() : pinLeftDrawer())}
+            >
+              {leftPinned() ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
+            </IconButton>
+          </div>
+
+      </div>
+
+      <div class="session-sidebar flex flex-col flex-1 min-h-0">
+        <SessionList
+          instanceId={props.instance.id}
+          sessions={activeSessions()}
+          activeSessionId={activeSessionIdForInstance()}
+          onSelect={handleSessionSelect}
+          onClose={(id) => {
+            const result = props.onCloseSession(id)
+            if (result instanceof Promise) {
+              void result.catch((error) => log.error("Failed to close session:", error))
+            }
+          }}
+          onNew={() => {
+            const result = props.onNewSession()
+            if (result instanceof Promise) {
+              void result.catch((error) => log.error("Failed to create session:", error))
+            }
+          }}
+          showHeader={false}
+          showFooter={false}
+          onWidthChange={handleSidebarWidthChange}
+        />
+
+        <Divider />
+        <Show when={activeSessionForInstance()}>
+          {(activeSession) => (
+            <>
+              <ContextUsagePanel instanceId={props.instance.id} sessionId={activeSession().id} />
+              <div class="session-sidebar-controls px-4 py-4 border-t border-base flex flex-col gap-3">
+                <AgentSelector
+                  instanceId={props.instance.id}
+                  sessionId={activeSession().id}
+                  currentAgent={activeSession().agent}
+                  onAgentChange={(agent) => props.handleSidebarAgentChange(activeSession().id, agent)}
+                />
+
+                <div class="sidebar-selector-hints" aria-hidden="true">
+                  <span class="hint sidebar-selector-hint sidebar-selector-hint--left">
+                    <Kbd shortcut="cmd+shift+a" />
+                  </span>
+                  <span class="hint sidebar-selector-hint sidebar-selector-hint--right">
+                    <Kbd shortcut="cmd+shift+m" />
+                  </span>
+                </div>
+
+                <ModelSelector
+                  instanceId={props.instance.id}
+                  sessionId={activeSession().id}
+                  currentModel={activeSession().model}
+                  onModelChange={(model) => props.handleSidebarModelChange(activeSession().id, model)}
+                />
+              </div>
+            </>
+          )}
+        </Show>
+      </div>
+    </div>
+  )
+
+  const RightDrawerContent = () => (
+    <div class="flex flex-col h-full" ref={setRightDrawerContentEl}>
+      <div class="flex items-center justify-between px-4 py-3 border-b border-base">
+        <Typography variant="subtitle2" class="uppercase tracking-wide text-xs font-semibold">
+          Side Panel
+        </Typography>
+        <div class="flex items-center gap-2">
+          <IconButton
+            size="small"
+            color="inherit"
+            aria-label={rightPinned() ? "Unpin right drawer" : "Pin right drawer"}
+            onClick={() => (rightPinned() ? unpinRightDrawer() : pinRightDrawer())}
+          >
+            {rightPinned() ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
+          </IconButton>
+        </div>
+      </div>
+      <div class="flex-1" />
+    </div>
+  )
+
+  const renderLeftPanel = () => {
+    if (leftPinned()) {
+      return (
+        <Box
+          class="session-sidebar-container"
+          sx={{
+            width: `${sessionSidebarWidth()}px`,
+            flexShrink: 0,
+            borderRight: "1px solid var(--border-base)",
+            backgroundColor: "var(--surface-secondary)",
+            height: "100%",
+            minHeight: 0,
+          }}
+        >
+          <LeftDrawerContent />
+        </Box>
+      )
+    }
+    const container = drawerContainer()
+    const modalProps = container ? { container: container as Element } : undefined
+    return (
+      <Drawer
+        anchor="left"
+        variant="temporary"
+        open={leftOpen()}
+        onClose={closeLeftDrawer}
+        ModalProps={modalProps}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: `${sessionSidebarWidth()}px`,
+            boxSizing: "border-box",
+            borderRight: "1px solid var(--border-base)",
+            backgroundColor: "var(--surface-secondary)",
+            backgroundImage: "none",
+            color: "var(--text-primary)",
+            boxShadow: "none",
+            borderRadius: 0,
+            top: floatingTopPx(),
+            height: floatingHeight(),
+          },
+
+          "& .MuiBackdrop-root": {
+            backgroundColor: "transparent",
+          },
+        }}
+      >
+        <LeftDrawerContent />
+      </Drawer>
+    )
+  }
+
+
+  const renderRightPanel = () => {
+    if (rightPinned()) {
+      return (
+        <Box
+          class="session-right-panel"
+          sx={{
+            width: RIGHT_DRAWER_WIDTH,
+            flexShrink: 0,
+            borderLeft: "1px solid var(--border-base)",
+            backgroundColor: "var(--surface-secondary)",
+            height: "100%",
+            minHeight: 0,
+          }}
+        >
+          <RightDrawerContent />
+        </Box>
+      )
+    }
+    const container = drawerContainer()
+    const modalProps = container ? { container: container as Element } : undefined
+    return (
+      <Drawer
+        anchor="right"
+        variant="temporary"
+        open={rightOpen()}
+        onClose={closeRightDrawer}
+        ModalProps={modalProps}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: `${RIGHT_DRAWER_WIDTH}px`,
+            boxSizing: "border-box",
+            borderLeft: "1px solid var(--border-base)",
+            backgroundColor: "var(--surface-secondary)",
+            backgroundImage: "none",
+            color: "var(--text-primary)",
+            boxShadow: "none",
+            borderRadius: 0,
+            top: floatingTopPx(),
+            height: floatingHeight(),
+          },
+          "& .MuiBackdrop-root": {
+            backgroundColor: "transparent",
+          },
+        }}
+      >
+        <RightDrawerContent />
+      </Drawer>
+
+    )
+  }
+
+  const hasSessions = createMemo(() => activeSessions().size > 0)
+
+  const showingInfoView = createMemo(() => activeSessionIdForInstance() === "info")
+
+  const sessionLayout = (
+    <div
+      class="session-shell-panels flex flex-col flex-1 min-h-0"
+      ref={(element) => {
+        setDrawerHost(element)
+        measureDrawerHost()
+      }}
+    >
+      <AppBar position="sticky" color="default" elevation={0} class="border-b border-base">
+        <Toolbar class="session-toolbar flex flex-wrap items-center gap-4">
+          <Show
+            when={!isPhoneLayout()}
+            fallback={
+              <div class="flex flex-col w-full gap-2">
+                <div class="flex items-center justify-between gap-2">
+                  <IconButton
+                    ref={setLeftToggleButtonEl}
+                    color="inherit"
+                    onClick={handleLeftAppBarButtonClick}
+                    aria-label={leftAppBarButtonLabel()}
+                    size="small"
+                    aria-expanded={leftDrawerState() !== "floating-closed"}
+                    disabled={leftDrawerState() === "pinned"}
+                  >
+                    {leftAppBarButtonIcon()}
+                  </IconButton>
+
+                  <div class="flex items-center gap-2 justify-center">
+                    <button
+                      type="button"
+                      class="connection-status-button px-3 py-1 text-sm"
+                      onClick={handleCommandPaletteClick}
+                      aria-label="Open command palette"
+                      style={{ flex: "0 0 auto", width: "auto" }}
+                    >
+                      Command Palette
+                    </button>
+                    <span class="connection-status-shortcut-hint">
+                      <Kbd shortcut="cmd+shift+p" />
+                    </span>
+                    <span
+                      class={`status-indicator ${connectionStatusClass()}`}
+                      aria-label={`Connection ${connectionStatus()}`}
+                    >
+                      <span class="status-dot" />
+                    </span>
+                  </div>
+
+                  <IconButton
+                    ref={setRightToggleButtonEl}
+                    color="inherit"
+                    onClick={handleRightAppBarButtonClick}
+                    aria-label={rightAppBarButtonLabel()}
+                    size="small"
+                    aria-expanded={rightDrawerState() !== "floating-closed"}
+                    disabled={rightDrawerState() === "pinned"}
+                  >
+                    {rightAppBarButtonIcon()}
+                  </IconButton>
+                </div>
+
+                <div class="flex items-center justify-center gap-2 pb-1">
+                  <div class="inline-flex items-center gap-1 rounded-full border border-base px-2 py-0.5 text-xs text-primary">
+                    <span class="uppercase text-[10px] tracking-wide text-primary/70">Used</span>
+                    <span class="font-semibold text-primary">{formattedUsedTokens()}</span>
+                  </div>
+                  <div class="inline-flex items-center gap-1 rounded-full border border-base px-2 py-0.5 text-xs text-primary">
+                    <span class="uppercase text-[10px] tracking-wide text-primary/70">Avail</span>
+                    <span class="font-semibold text-primary">{formattedAvailableTokens()}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          >
+            <div class="session-toolbar-left flex items-center gap-3 min-w-0">
+              <IconButton
+                ref={setLeftToggleButtonEl}
+                color="inherit"
+                onClick={handleLeftAppBarButtonClick}
+                aria-label={leftAppBarButtonLabel()}
+                size="small"
+                aria-expanded={leftDrawerState() !== "floating-closed"}
+                disabled={leftDrawerState() === "pinned"}
+              >
+                {leftAppBarButtonIcon()}
+              </IconButton>
+
+              <div class="inline-flex items-center gap-1 rounded-full border border-base px-2 py-0.5 text-xs text-primary">
+                <span class="uppercase text-[10px] tracking-wide text-primary/70">Used</span>
+                <span class="font-semibold text-primary">{formattedUsedTokens()}</span>
+              </div>
+              <div class="inline-flex items-center gap-1 rounded-full border border-base px-2 py-0.5 text-xs text-primary">
+                <span class="uppercase text-[10px] tracking-wide text-primary/70">Avail</span>
+                <span class="font-semibold text-primary">{formattedAvailableTokens()}</span>
+              </div>
+            </div>
+
+            <div class="session-toolbar-center flex-1 flex items-center justify-center gap-2 min-w-[200px]">
+              <button
+                type="button"
+                class="connection-status-button"
+                onClick={handleCommandPaletteClick}
+                aria-label="Open command palette"
+              >
+                Command Palette
+              </button>
+              <span class="connection-status-shortcut-hint">
+                <Kbd shortcut="cmd+shift+p" />
+              </span>
+            </div>
+
+            <div class="session-toolbar-right flex items-center gap-3">
+              <div class="connection-status-meta flex items-center gap-3">
+                <Show when={connectionStatus() === "connected"}>
+                  <span class="status-indicator connected">
+                    <span class="status-dot" />
+                    <span class="status-text">Connected</span>
+                  </span>
+                </Show>
+                <Show when={connectionStatus() === "connecting"}>
+                  <span class="status-indicator connecting">
+                    <span class="status-dot" />
+                    <span class="status-text">Connecting...</span>
+                  </span>
+                </Show>
+                <Show when={connectionStatus() === "error" || connectionStatus() === "disconnected"}>
+                  <span class="status-indicator disconnected">
+                    <span class="status-dot" />
+                    <span class="status-text">Disconnected</span>
+                  </span>
+                </Show>
+              </div>
+              <IconButton
+                ref={setRightToggleButtonEl}
+                color="inherit"
+                onClick={handleRightAppBarButtonClick}
+                aria-label={rightAppBarButtonLabel()}
+                size="small"
+                aria-expanded={rightDrawerState() !== "floating-closed"}
+                disabled={rightDrawerState() === "pinned"}
+              >
+                {rightAppBarButtonIcon()}
+              </IconButton>
+            </div>
+          </Show>
+        </Toolbar>
+      </AppBar>
+
+      <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
+        {renderLeftPanel()}
+
+        <Box
+          component="main"
+          sx={{ flexGrow: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
+          class="content-area"
+        >
+          <Show
+            when={cachedSessionIds().length > 0 && activeSessionIdForInstance()}
+            fallback={
+              <div class="flex items-center justify-center h-full">
+                <div class="text-center text-gray-500 dark:text-gray-400">
+                  <p class="mb-2">No session selected</p>
+                  <p class="text-sm">Select a session to view messages</p>
+                </div>
+              </div>
+            }
+          >
+            <For each={cachedSessionIds()}>
+              {(sessionId) => {
+                const isActive = () => activeSessionIdForInstance() === sessionId
+                return (
+                  <div
+                    class="session-cache-pane flex flex-col flex-1 min-h-0"
+                    style={{ display: isActive() ? "flex" : "none" }}
+                    data-session-id={sessionId}
+                    aria-hidden={!isActive()}
+                  >
+                    <SessionView
+                      sessionId={sessionId}
+                      activeSessions={activeSessions()}
+                      instanceId={props.instance.id}
+                      instanceFolder={props.instance.folder}
+                      escapeInDebounce={props.escapeInDebounce}
+                      showSidebarToggle={showEmbeddedSidebarToggle()}
+                      onSidebarToggle={() => setLeftOpen(true)}
+                      forceCompactStatusLayout={showEmbeddedSidebarToggle()}
+                      isActive={isActive()}
+                    />
+                  </div>
+                )
+              }}
+            </For>
+          </Show>
+        </Box>
+
+        {renderRightPanel()}
+      </Box>
+    </div>
+  )
+
+  return (
+    <>
+      <div class="instance-shell2 flex flex-col flex-1 min-h-0">
+        <Show when={hasSessions()} fallback={<InstanceWelcomeView instance={props.instance} />}>
+          <Show when={showingInfoView()} fallback={sessionLayout}>
+            <InfoView instanceId={props.instance.id} />
+          </Show>
+        </Show>
+      </div>
+
+      <CommandPalette
+        open={paletteOpen()}
+        onClose={() => hideCommandPalette(props.instance.id)}
+        commands={instancePaletteCommands()}
+        onExecute={props.onExecuteCommand}
+      />
+    </>
+  )
+}
+
+export default InstanceShell2
