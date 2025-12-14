@@ -485,14 +485,16 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
           </div>
         </div>
           <div class="flex items-center gap-2">
-            <IconButton
-              size="small"
-              color="inherit"
-              aria-label={leftPinned() ? "Unpin left drawer" : "Pin left drawer"}
-              onClick={() => (leftPinned() ? unpinLeftDrawer() : pinLeftDrawer())}
-            >
-              {leftPinned() ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
-            </IconButton>
+            <Show when={!isPhoneLayout()}>
+              <IconButton
+                size="small"
+                color="inherit"
+                aria-label={leftPinned() ? "Unpin left drawer" : "Pin left drawer"}
+                onClick={() => (leftPinned() ? unpinLeftDrawer() : pinLeftDrawer())}
+              >
+                {leftPinned() ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
+              </IconButton>
+            </Show>
           </div>
 
       </div>
@@ -563,14 +565,16 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
           Side Panel
         </Typography>
         <div class="flex items-center gap-2">
-          <IconButton
-            size="small"
-            color="inherit"
-            aria-label={rightPinned() ? "Unpin right drawer" : "Pin right drawer"}
-            onClick={() => (rightPinned() ? unpinRightDrawer() : pinRightDrawer())}
-          >
-            {rightPinned() ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
-          </IconButton>
+          <Show when={!isPhoneLayout()}>
+            <IconButton
+              size="small"
+              color="inherit"
+              aria-label={rightPinned() ? "Unpin right drawer" : "Pin right drawer"}
+              onClick={() => (rightPinned() ? unpinRightDrawer() : pinRightDrawer())}
+            >
+              {rightPinned() ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
+            </IconButton>
+          </Show>
         </div>
       </div>
       <div class="flex-1" />
@@ -606,9 +610,9 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
         ModalProps={modalProps}
         sx={{
           "& .MuiDrawer-paper": {
-            width: `${sessionSidebarWidth()}px`,
+            width: isPhoneLayout() ? "100vw" : `${sessionSidebarWidth()}px`,
             boxSizing: "border-box",
-            borderRight: "1px solid var(--border-base)",
+            borderRight: isPhoneLayout() ? "none" : "1px solid var(--border-base)",
             backgroundColor: "var(--surface-secondary)",
             backgroundImage: "none",
             color: "var(--text-primary)",
@@ -658,9 +662,9 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
         ModalProps={modalProps}
         sx={{
           "& .MuiDrawer-paper": {
-            width: `${RIGHT_DRAWER_WIDTH}px`,
+            width: isPhoneLayout() ? "100vw" : `${RIGHT_DRAWER_WIDTH}px`,
             boxSizing: "border-box",
-            borderLeft: "1px solid var(--border-base)",
+            borderLeft: isPhoneLayout() ? "none" : "1px solid var(--border-base)",
             backgroundColor: "var(--surface-secondary)",
             backgroundImage: "none",
             color: "var(--text-primary)",
@@ -693,11 +697,11 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
       }}
     >
       <AppBar position="sticky" color="default" elevation={0} class="border-b border-base">
-        <Toolbar class="session-toolbar flex flex-wrap items-center gap-4">
+        <Toolbar variant="dense" class="session-toolbar flex flex-wrap items-center gap-2 py-0">
           <Show
             when={!isPhoneLayout()}
             fallback={
-              <div class="flex flex-col w-full gap-2">
+              <div class="flex flex-col w-full gap-1.5">
                 <div class="flex items-center justify-between gap-2">
                   <IconButton
                     ref={setLeftToggleButtonEl}
@@ -714,7 +718,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                   <div class="flex items-center gap-2 justify-center">
                     <button
                       type="button"
-                      class="connection-status-button px-3 py-1 text-sm"
+                      class="connection-status-button px-2 py-0.5 text-xs"
                       onClick={handleCommandPaletteClick}
                       aria-label="Open command palette"
                       style={{ flex: "0 0 auto", width: "auto" }}
@@ -781,19 +785,21 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
               </div>
             </div>
 
-            <div class="session-toolbar-center flex-1 flex items-center justify-center gap-2 min-w-[200px]">
-              <button
-                type="button"
-                class="connection-status-button"
-                onClick={handleCommandPaletteClick}
-                aria-label="Open command palette"
-              >
-                Command Palette
-              </button>
-              <span class="connection-status-shortcut-hint">
-                <Kbd shortcut="cmd+shift+p" />
-              </span>
-            </div>
+              <div class="session-toolbar-center flex-1 flex items-center justify-center gap-2 min-w-[160px]">
+                <button
+                  type="button"
+                  class="connection-status-button px-2 py-0.5 text-xs"
+                  onClick={handleCommandPaletteClick}
+                  aria-label="Open command palette"
+                  style={{ flex: "0 0 auto", width: "auto" }}
+                >
+                  Command Palette
+                </button>
+                <span class="connection-status-shortcut-hint">
+                  <Kbd shortcut="cmd+shift+p" />
+                </span>
+              </div>
+
 
             <div class="session-toolbar-right flex items-center gap-3">
               <div class="connection-status-meta flex items-center gap-3">
