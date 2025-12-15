@@ -901,7 +901,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
       <div class="flex flex-col h-full" ref={setRightDrawerContentEl}>
         <div class="flex items-center justify-between px-4 py-2 border-b border-base">
           <Typography variant="subtitle2" class="uppercase tracking-wide text-xs font-semibold">
-            Control Panel
+            Status Panel
           </Typography>
           <div class="flex items-center gap-2">
             <Show when={!isPhoneLayout()}>
