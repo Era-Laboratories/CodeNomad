@@ -1,6 +1,7 @@
 import type { Instance, RawMcpStatus } from "../../types/instance"
-import { fetchLspStatus, updateInstance } from "../../stores/instances"
+import { fetchLspStatus } from "../../stores/instances"
 import { getLogger } from "../../lib/logger"
+import { getInstanceMetadata, mergeInstanceMetadata } from "../../stores/instance-metadata"
 
 const log = getLogger("session")
 const pendingMetadataRequests = new Set<string>()
@@ -17,7 +18,8 @@ export async function loadInstanceMetadata(instance: Instance, options?: { force
     return
   }
 
-  if (!options?.force && hasMetadataLoaded(instance.metadata)) {
+  const currentMetadata = getInstanceMetadata(instance.id) ?? instance.metadata
+  if (!options?.force && hasMetadataLoaded(currentMetadata)) {
     return
   }
 
@@ -38,27 +40,25 @@ export async function loadInstanceMetadata(instance: Instance, options?: { force
     const mcpStatus = mcpResult.status === "fulfilled" ? (mcpResult.value.data as RawMcpStatus) : undefined
     const lspStatus = lspResult.status === "fulfilled" ? lspResult.value ?? [] : undefined
 
-    const nextMetadata: Instance["metadata"] = {
-      ...(instance.metadata ?? {}),
-    }
+    const updates: Instance["metadata"] = { ...(currentMetadata ?? {}) }
 
     if (projectResult.status === "fulfilled") {
-      nextMetadata.project = project ?? undefined
+      updates.project = project ?? null
     }
 
     if (mcpResult.status === "fulfilled") {
-      nextMetadata.mcpStatus = mcpStatus ?? nextMetadata.mcpStatus ?? {}
+      updates.mcpStatus = mcpStatus ?? {}
     }
 
     if (lspResult.status === "fulfilled") {
-      nextMetadata.lspStatus = lspStatus ?? []
+      updates.lspStatus = lspStatus ?? []
     }
 
-    if (!nextMetadata?.version && instance.binaryVersion) {
-      nextMetadata.version = instance.binaryVersion
+    if (!updates?.version && instance.binaryVersion) {
+      updates.version = instance.binaryVersion
     }
 
-    updateInstance(instance.id, { metadata: nextMetadata })
+    mergeInstanceMetadata(instance.id, updates)
   } catch (error) {
     log.error("Failed to load instance metadata", error)
   } finally {
@@ -67,4 +67,5 @@ export async function loadInstanceMetadata(instance: Instance, options?: { force
 }
 
 export { hasMetadataLoaded }
+
 

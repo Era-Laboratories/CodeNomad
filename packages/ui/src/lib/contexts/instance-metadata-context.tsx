@@ -1,6 +1,7 @@
 import { Component, JSX, createContext, createEffect, createMemo, createSignal, useContext, type Accessor } from "solid-js"
 import type { Instance } from "../../types/instance"
 import { instances } from "../../stores/instances"
+import { getInstanceMetadata } from "../../stores/instance-metadata"
 import { loadInstanceMetadata, hasMetadataLoaded } from "../hooks/use-instance-metadata"
 
 interface InstanceMetadataContextValue {
@@ -28,7 +29,8 @@ export const InstanceMetadataProvider: Component<InstanceMetadataProviderProps> 
       return
     }
 
-    if (!force && hasMetadataLoaded(current.metadata)) {
+    const cachedMetadata = getInstanceMetadata(current.id) ?? current.metadata
+    if (!force && hasMetadataLoaded(cachedMetadata)) {
       setIsLoading(false)
       return
     }
@@ -40,15 +42,24 @@ export const InstanceMetadataProvider: Component<InstanceMetadataProviderProps> 
 
   createEffect(() => {
     const current = resolvedInstance()
-    // Ensure metadata becomes a dependency so we re-check when store updates
-    void current?.metadata
-    void ensureMetadata()
+    if (!current) {
+      setIsLoading(false)
+      return
+    }
+
+    const tracked = getInstanceMetadata(current.id) ?? current.metadata
+    if (!tracked || !hasMetadataLoaded(tracked)) {
+      void ensureMetadata()
+      return
+    }
+
+    setIsLoading(false)
   })
 
   const contextValue: InstanceMetadataContextValue = {
     isLoading,
     instance: resolvedInstance,
-    metadata: () => resolvedInstance().metadata,
+    metadata: () => getInstanceMetadata(resolvedInstance().id) ?? resolvedInstance().metadata,
     refreshMetadata: () => ensureMetadata(true),
   }
 

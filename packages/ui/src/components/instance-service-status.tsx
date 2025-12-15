@@ -56,11 +56,12 @@ const InstanceServiceStatus: Component<InstanceServiceStatusProps> = (props) => 
   const includeMcp = createMemo(() => sections().includes("mcp"))
   const showHeadings = () => props.showSectionHeadings !== false
 
-  const metadata = createMemo(() => instance().metadata)
+  const metadataAccessor = metadataContext?.metadata ?? (() => instance().metadata)
+  const metadata = createMemo(() => metadataAccessor())
   const hasLspMetadata = () => metadata()?.lspStatus !== undefined
   const hasMcpMetadata = () => metadata()?.mcpStatus !== undefined
   const lspServers = createMemo(() => metadata()?.lspStatus ?? [])
-  const mcpServers = createMemo(() => parseMcpStatus(metadata()?.mcpStatus))
+  const mcpServers = createMemo(() => parseMcpStatus(metadata()?.mcpStatus ?? undefined))
 
   const isLspLoading = () => isLoading() || !hasLspMetadata()
   const isMcpLoading = () => isLoading() || !hasMcpMetadata()
@@ -166,34 +167,35 @@ const InstanceServiceStatus: Component<InstanceServiceStatusProps> = (props) => 
                 <div class="px-2 py-1.5 rounded border bg-surface-secondary border-base">
                   <div class="flex items-center justify-between gap-2">
                     <span class="text-xs text-primary font-medium truncate">{server.name}</span>
-                    <div class="flex items-center gap-3 flex-shrink-0">
-                      <div class="flex items-center gap-1.5 text-xs text-secondary">
-                        <div class={statusDotClass()} style={statusDotStyle()} />
+                      <div class="flex items-center gap-3 flex-shrink-0">
+                        <div class="flex items-center gap-1.5 text-xs text-secondary">
+                          <Show when={isPending()}>
+                            <svg class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                              <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              />
+                            </svg>
+                          </Show>
+                          <div class={statusDotClass()} style={statusDotStyle()} />
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                          <Switch
+                            checked={isRunning()}
+                            disabled={switchDisabled()}
+                            color="success"
+                            size="small"
+                            inputProps={{ "aria-label": `Toggle ${server.name} MCP server` }}
+                            onChange={(_, checked) => {
+                              if (switchDisabled()) return
+                              void toggleMcpServer(server.name, Boolean(checked))
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div class="flex items-center gap-1.5">
-                        <Switch
-                          checked={isRunning()}
-                          disabled={switchDisabled()}
-                          color="success"
-                          size="small"
-                          inputProps={{ "aria-label": `Toggle ${server.name} MCP server` }}
-                          onChange={(_, checked) => {
-                            if (switchDisabled()) return
-                            void toggleMcpServer(server.name, Boolean(checked))
-                          }}
-                        />
-                        <Show when={isPending()}>
-                          <svg class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                            <path
-                              class="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                          </svg>
-                        </Show>
-                      </div>
-                    </div>
+
                   </div>
                   <Show when={server.error}>
                     {(error) => (

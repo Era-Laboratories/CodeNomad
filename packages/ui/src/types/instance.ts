@@ -22,11 +22,12 @@ export type RawMcpStatus = Record<string, {
 }>
 
 export interface InstanceMetadata {
-  project?: ProjectInfo
-  mcpStatus?: RawMcpStatus
-  lspStatus?: LspStatus[]
+  project?: ProjectInfo | null
+  mcpStatus?: RawMcpStatus | null
+  lspStatus?: LspStatus[] | null
   version?: string
 }
+
 
 export interface Instance {
   id: string

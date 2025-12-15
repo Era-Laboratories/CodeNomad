@@ -20,6 +20,7 @@ import { setHasInstances } from "./ui"
 import { messageStoreBus } from "./message-v2/bus"
 import { clearCacheForInstance } from "../lib/global-cache"
 import { getLogger } from "../lib/logger"
+import { mergeInstanceMetadata, clearInstanceMetadata } from "./instance-metadata"
 
 const log = getLogger("api")
 
@@ -290,6 +291,7 @@ function removeInstance(id: string) {
   removeLogContainer(id)
   clearCommands(id)
   clearPermissionQueue(id)
+  clearInstanceMetadata(id)
 
   if (activeInstanceId() === id) {
     setActiveInstanceId(nextActiveId)
@@ -570,17 +572,7 @@ sseManager.onLspUpdated = async (instanceId) => {
     if (!lspStatus) {
       return
     }
-    const instance = instances().get(instanceId)
-    if (!instance) {
-      log.warn("[LSP] Instance disappeared before metadata update", { instanceId })
-      return
-    }
-    updateInstance(instanceId, {
-      metadata: {
-        ...(instance.metadata ?? {}),
-        lspStatus,
-      },
-    })
+    mergeInstanceMetadata(instanceId, { lspStatus })
   } catch (error) {
     log.error("Failed to refresh LSP status", error)
   }
