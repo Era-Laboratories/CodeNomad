@@ -20,6 +20,7 @@
   border-radius: 0;
   padding: 10px 12px;
   background-color: var(--surface-secondary);
+  min-height: 42px;
 }
 
 .tool-call-todo-item-completed {
@@ -82,8 +83,28 @@
 }
 
 .tool-call-todo-heading {
-  @apply flex items-start justify-between gap-3;
+  @apply flex items-start gap-3;
+  justify-content: space-between;
 }
+
+.tool-call-todo-status {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  background-color: var(--surface-hover);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tool-call-todo-text {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-tight);
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
 
 .tool-call-todo-status {
   font-size: 10px;
