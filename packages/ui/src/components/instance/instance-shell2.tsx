@@ -12,20 +12,24 @@ import {
 } from "solid-js"
 import type { ToolState } from "@opencode-ai/sdk"
 import { Accordion } from "@kobalte/core"
-import { ChevronDown } from "lucide-solid"
+import {
+  ChevronDown,
+  PanelLeftOpen,
+  PanelLeftClose,
+  PanelRightOpen,
+  PanelRightClose,
+  Pin,
+  PinOff,
+  Settings,
+  HelpCircle,
+} from "lucide-solid"
 import AppBar from "@suid/material/AppBar"
 import Box from "@suid/material/Box"
 import Divider from "@suid/material/Divider"
 import Drawer from "@suid/material/Drawer"
-import IconButton from "@suid/material/IconButton"
 import Toolbar from "@suid/material/Toolbar"
 import Typography from "@suid/material/Typography"
 import useMediaQuery from "@suid/material/useMediaQuery"
-import CloseIcon from "@suid/icons-material/Close"
-import MenuIcon from "@suid/icons-material/Menu"
-import MenuOpenIcon from "@suid/icons-material/MenuOpen"
-import PushPinIcon from "@suid/icons-material/PushPin"
-import PushPinOutlinedIcon from "@suid/icons-material/PushPinOutlined"
 import type { Instance } from "../../types/instance"
 import type { Command } from "../../lib/commands"
 import {
@@ -46,12 +50,15 @@ import KeyboardHint from "../keyboard-hint"
 import InstanceWelcomeView from "../instance-welcome-view"
 import InfoView from "../info-view"
 import InstanceServiceStatus from "../instance-service-status"
+import InstanceMcpControl from "../instance-mcp-control"
+import AdvancedSettingsModal from "../advanced-settings-modal"
 import AgentSelector from "../agent-selector"
 import ModelSelector from "../model-selector"
 import CommandPalette from "../command-palette"
+import ShortcutsDialog from "../shortcuts-dialog"
 import Kbd from "../kbd"
 import { TodoListView } from "../tool-call/renderers/todo"
-import ContextUsagePanel from "../session/context-usage-panel"
+import ContextProgressBar from "../context-progress-bar"
 import SessionView from "../session/session-view"
 import { formatTokenTotal } from "../../lib/formatters"
 import { sseManager } from "../../lib/sse-manager"
@@ -61,6 +68,7 @@ import {
   type SessionSidebarRequestAction,
   type SessionSidebarRequestDetail,
 } from "../../lib/session-sidebar-events"
+import { useConfig } from "../../stores/preferences"
 
 const log = getLogger("session")
 
@@ -129,6 +137,18 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
   const [resizeStartX, setResizeStartX] = createSignal(0)
   const [resizeStartWidth, setResizeStartWidth] = createSignal(0)
   const [rightPanelExpandedItems, setRightPanelExpandedItems] = createSignal<string[]>(["lsp", "mcp"])
+  const [advancedSettingsOpen, setAdvancedSettingsOpen] = createSignal(false)
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = createSignal(false)
+
+  const { preferences, updateLastUsedBinary } = useConfig()
+  const [selectedBinary, setSelectedBinary] = createSignal(preferences().lastUsedBinary || "opencode")
+
+  createEffect(() => {
+    const next = preferences().lastUsedBinary
+    if (next && next !== selectedBinary()) {
+      setSelectedBinary(next)
+    }
+  })
 
   const messageStore = createMemo(() => messageStoreBus.getOrCreate(props.instance.id))
 
@@ -287,6 +307,9 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
     return {
       used: usage?.actualUsageTokens ?? info?.actualUsageTokens ?? 0,
       avail: info?.contextAvailableTokens ?? null,
+      inputTokens: info?.inputTokens ?? 0,
+      outputTokens: info?.outputTokens ?? 0,
+      cost: info?.isSubscriptionModel ? 0 : (info?.cost ?? 0),
     }
   })
 
@@ -635,14 +658,14 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
 
   const leftAppBarButtonIcon = () => {
     const state = leftDrawerState()
-    if (state === "floating-closed") return <MenuIcon fontSize="small" />
-    return <MenuOpenIcon fontSize="small" />
+    if (state === "floating-closed") return <PanelLeftOpen class="w-4 h-4" />
+    return <PanelLeftClose class="w-4 h-4" />
   }
 
   const rightAppBarButtonIcon = () => {
     const state = rightDrawerState()
-    if (state === "floating-closed") return <MenuIcon fontSize="small" sx={{ transform: "scaleX(-1)" }} />
-    return <MenuOpenIcon fontSize="small" sx={{ transform: "scaleX(-1)" }} />
+    if (state === "floating-closed") return <PanelRightOpen class="w-4 h-4" />
+    return <PanelRightClose class="w-4 h-4" />
   }
 
 
@@ -758,30 +781,6 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
 
   const LeftDrawerContent = () => (
     <div class="flex flex-col h-full min-h-0" ref={setLeftDrawerContentEl}>
-      <div class="flex items-start justify-between gap-2 px-4 py-3 border-b border-base">
-        <div class="flex flex-col gap-1">
-          <span class="session-sidebar-title text-sm font-semibold uppercase text-primary">Sessions</span>
-          <div class="session-sidebar-shortcuts">
-            <Show when={keyboardShortcuts().length}>
-              <KeyboardHint shortcuts={keyboardShortcuts()} separator=" " showDescription={false} />
-            </Show>
-          </div>
-        </div>
-          <div class="flex items-center gap-2">
-            <Show when={!isPhoneLayout()}>
-              <IconButton
-                size="small"
-                color="inherit"
-                aria-label={leftPinned() ? "Unpin left drawer" : "Pin left drawer"}
-                onClick={() => (leftPinned() ? unpinLeftDrawer() : pinLeftDrawer())}
-              >
-                {leftPinned() ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
-              </IconButton>
-            </Show>
-          </div>
-
-      </div>
-
       <div class="session-sidebar flex flex-col flex-1 min-h-0">
         <SessionList
           instanceId={props.instance.id}
@@ -802,29 +801,22 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
           }}
           showHeader={false}
           showFooter={false}
+          leftPinned={leftPinned()}
+          onTogglePin={() => (leftPinned() ? unpinLeftDrawer() : pinLeftDrawer())}
+          isPhoneLayout={isPhoneLayout()}
         />
 
         <Divider />
         <Show when={activeSessionForInstance()}>
           {(activeSession) => (
             <>
-              <ContextUsagePanel instanceId={props.instance.id} sessionId={activeSession().id} />
-              <div class="session-sidebar-controls px-4 py-4 border-t border-base flex flex-col gap-3">
+              <div class="session-sidebar-controls px-4 py-4 pb-6 border-t border-base flex flex-col gap-3">
                 <AgentSelector
                   instanceId={props.instance.id}
                   sessionId={activeSession().id}
                   currentAgent={activeSession().agent}
                   onAgentChange={(agent) => props.handleSidebarAgentChange(activeSession().id, agent)}
                 />
-
-                <div class="sidebar-selector-hints" aria-hidden="true">
-                  <span class="hint sidebar-selector-hint sidebar-selector-hint--left">
-                    <Kbd shortcut="cmd+shift+a" />
-                  </span>
-                  <span class="hint sidebar-selector-hint sidebar-selector-hint--right">
-                    <Kbd shortcut="cmd+shift+m" />
-                  </span>
-                </div>
 
                 <ModelSelector
                   instanceId={props.instance.id}
@@ -866,18 +858,17 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
           />
         ),
       },
-      {
-        id: "mcp",
-        label: "MCP Servers",
-        render: () => (
-          <InstanceServiceStatus
-            initialInstance={props.instance}
-            sections={["mcp"]}
-            showSectionHeadings={false}
-            class="space-y-2"
-          />
-        ),
-      },
+       {
+         id: "mcp",
+         label: "MCP Servers",
+         render: () => (
+           <InstanceMcpControl
+             instance={props.instance}
+             class="space-y-2"
+             onManage={() => setAdvancedSettingsOpen(true)}
+           />
+         ),
+       },
       {
         id: "plan",
         label: "Plan",
@@ -899,23 +890,31 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
 
     return (
       <div class="flex flex-col h-full" ref={setRightDrawerContentEl}>
-        <div class="flex items-center justify-between px-4 py-2 border-b border-base">
-          <Typography variant="subtitle2" class="uppercase tracking-wide text-xs font-semibold">
-            Status Panel
-          </Typography>
-          <div class="flex items-center gap-2">
-            <Show when={!isPhoneLayout()}>
-              <IconButton
-                size="small"
-                color="inherit"
-                aria-label={rightPinned() ? "Unpin right drawer" : "Pin right drawer"}
-                onClick={() => (rightPinned() ? unpinRightDrawer() : pinRightDrawer())}
+          <div class="control-panel-header">
+            <Typography variant="subtitle2" class="control-panel-title">
+              Status Panel
+            </Typography>
+            <div class="control-panel-actions">
+              <button
+                type="button"
+                class="icon-button icon-button--md icon-button--ghost"
+                aria-label="Open advanced settings"
+                onClick={() => setAdvancedSettingsOpen(true)}
               >
-                {rightPinned() ? <PushPinIcon fontSize="small" /> : <PushPinOutlinedIcon fontSize="small" />}
-              </IconButton>
-            </Show>
+                <Settings class="w-4 h-4" />
+              </button>
+              <Show when={!isPhoneLayout()}>
+                <button
+                  type="button"
+                  class="icon-button icon-button--md icon-button--ghost"
+                  aria-label={rightPinned() ? "Unpin right drawer" : "Pin right drawer"}
+                  onClick={() => (rightPinned() ? unpinRightDrawer() : pinRightDrawer())}
+                >
+                  {rightPinned() ? <Pin class="w-4 h-4" /> : <PinOff class="w-4 h-4" />}
+                </button>
+              </Show>
+            </div>
           </div>
-        </div>
         <div class="flex-1 overflow-y-auto">
           <Accordion.Root
             class="flex flex-col"
@@ -928,17 +927,17 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
               {(section) => (
                 <Accordion.Item
                   value={section.id}
-                  class="w-full border border-base bg-surface-secondary text-primary"
+                  class="control-panel-section"
                 >
                   <Accordion.Header>
-                    <Accordion.Trigger class="w-full flex items-center justify-between gap-3 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
+                    <Accordion.Trigger class="control-panel-trigger">
                       <span>{section.label}</span>
                       <ChevronDown
                         class={`h-4 w-4 transition-transform duration-150 ${isSectionExpanded(section.id) ? "rotate-180" : ""}`}
                       />
                     </Accordion.Trigger>
                   </Accordion.Header>
-                  <Accordion.Content class="w-full px-3 pb-3 text-sm text-primary">
+                  <Accordion.Content class="control-panel-content text-sm text-primary">
                     {section.render()}
                   </Accordion.Content>
                 </Accordion.Item>
@@ -1081,6 +1080,16 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
         measureDrawerHost()
       }}
     >
+      <AdvancedSettingsModal
+        open={advancedSettingsOpen()}
+        onClose={() => setAdvancedSettingsOpen(false)}
+        selectedBinary={selectedBinary()}
+        onBinaryChange={(binary) => {
+          setSelectedBinary(binary)
+          updateLastUsedBinary(binary)
+        }}
+      />
+
       <AppBar position="sticky" color="default" elevation={0} class="border-b border-base">
         <Toolbar variant="dense" class="session-toolbar flex flex-wrap items-center gap-2 py-0 min-h-[40px]">
           <Show
@@ -1088,17 +1097,17 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
             fallback={
               <div class="flex flex-col w-full gap-1.5">
                 <div class="flex flex-wrap items-center justify-between gap-2 w-full">
-                  <IconButton
+                  <button
                     ref={setLeftToggleButtonEl}
-                    color="inherit"
+                    type="button"
+                    class="icon-button icon-button--md icon-button--ghost"
                     onClick={handleLeftAppBarButtonClick}
                     aria-label={leftAppBarButtonLabel()}
-                    size="small"
                     aria-expanded={leftDrawerState() !== "floating-closed"}
                     disabled={leftDrawerState() === "pinned"}
                   >
                     {leftAppBarButtonIcon()}
-                  </IconButton>
+                  </button>
 
                   <div class="flex flex-wrap items-center gap-1 justify-center">
                     <button
@@ -1121,72 +1130,106 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                     </span>
                   </div>
 
-                  <IconButton
+                  <button
                     ref={setRightToggleButtonEl}
-                    color="inherit"
+                    type="button"
+                    class="icon-button icon-button--md icon-button--ghost"
                     onClick={handleRightAppBarButtonClick}
                     aria-label={rightAppBarButtonLabel()}
-                    size="small"
                     aria-expanded={rightDrawerState() !== "floating-closed"}
                     disabled={rightDrawerState() === "pinned"}
                   >
                     {rightAppBarButtonIcon()}
-                  </IconButton>
+                  </button>
                 </div>
 
-                <div class="flex flex-wrap items-center justify-center gap-2 pb-1">
-                  <div class="inline-flex items-center gap-1 rounded-full border border-base px-2 py-0.5 text-xs text-primary">
-                    <span class="uppercase text-[10px] tracking-wide text-primary/70">Used</span>
-                    <span class="font-semibold text-primary">{formattedUsedTokens()}</span>
+                <div class="header-stats-bar header-stats-bar--compact">
+                  <div class="header-stats-pill header-stats-pill--compact">
+                    <span class="header-stats-label">In</span>
+                    <span class="header-stats-value">{formatTokenTotal(tokenStats().inputTokens)}</span>
                   </div>
-                  <div class="inline-flex items-center gap-1 rounded-full border border-base px-2 py-0.5 text-xs text-primary">
-                    <span class="uppercase text-[10px] tracking-wide text-primary/70">Avail</span>
-                    <span class="font-semibold text-primary">{formattedAvailableTokens()}</span>
+                  <div class="header-stats-pill header-stats-pill--compact">
+                    <span class="header-stats-label">Out</span>
+                    <span class="header-stats-value">{formatTokenTotal(tokenStats().outputTokens)}</span>
+                  </div>
+                  <ContextProgressBar
+                    used={tokenStats().used}
+                    available={tokenStats().avail}
+                    size="md"
+                    showLabels={false}
+                    class="header-context-progress"
+                  />
+                  <div class="header-stats-pill header-stats-pill--compact">
+                    <span class="header-stats-label">Cost</span>
+                    <span class="header-stats-value">${tokenStats().cost.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
             }
           >
              <div class="session-toolbar-left flex items-center gap-3 min-w-0">
-               <IconButton
+               <button
                  ref={setLeftToggleButtonEl}
-                 color="inherit"
+                 type="button"
+                 class="icon-button icon-button--md icon-button--ghost"
                  onClick={handleLeftAppBarButtonClick}
                  aria-label={leftAppBarButtonLabel()}
-                 size="small"
                  aria-expanded={leftDrawerState() !== "floating-closed"}
                  disabled={leftDrawerState() === "pinned"}
                >
                  {leftAppBarButtonIcon()}
-               </IconButton>
+               </button>
 
-               <Show when={!showingInfoView()}>
-                 <div class="inline-flex items-center gap-1 rounded-full border border-base px-2 py-0.5 text-xs text-primary">
-                   <span class="uppercase text-[10px] tracking-wide text-primary/70">Used</span>
-                   <span class="font-semibold text-primary">{formattedUsedTokens()}</span>
-                 </div>
-                 <div class="inline-flex items-center gap-1 rounded-full border border-base px-2 py-0.5 text-xs text-primary">
-                   <span class="uppercase text-[10px] tracking-wide text-primary/70">Avail</span>
-                   <span class="font-semibold text-primary">{formattedAvailableTokens()}</span>
-                 </div>
-               </Show>
+               <button
+                 type="button"
+                 class="icon-button icon-button--md icon-button--ghost"
+                 onClick={() => setShortcutsDialogOpen(true)}
+                 aria-label="Keyboard shortcuts"
+                 title="Keyboard shortcuts"
+               >
+                 <HelpCircle class="w-4 h-4" />
+               </button>
              </div>
 
 
-              <div class="session-toolbar-center flex-1 flex items-center justify-center gap-2 min-w-[160px]">
-                <button
-                  type="button"
-                  class="connection-status-button px-2 py-0.5 text-xs"
-                  onClick={handleCommandPaletteClick}
-                  aria-label="Open command palette"
-                  style={{ flex: "0 0 auto", width: "auto" }}
-                >
-                  Command Palette
-                </button>
-                <span class="connection-status-shortcut-hint">
-                  <Kbd shortcut="cmd+shift+p" />
-                </span>
-              </div>
+              <Show
+                when={!showingInfoView()}
+                fallback={
+                  <div class="session-toolbar-center flex-1 flex items-center justify-center gap-2 min-w-[160px]">
+                    <button
+                      type="button"
+                      class="connection-status-button px-2 py-0.5 text-xs"
+                      onClick={handleCommandPaletteClick}
+                      aria-label="Open command palette"
+                    >
+                      Command Palette
+                    </button>
+                    <Kbd shortcut="cmd+shift+p" />
+                  </div>
+                }
+              >
+                <div class="header-stats-bar">
+                  <div class="header-stats-pill">
+                    <span class="header-stats-label">In</span>
+                    <span class="header-stats-value">{formatTokenTotal(tokenStats().inputTokens)}</span>
+                  </div>
+                  <div class="header-stats-pill">
+                    <span class="header-stats-label">Out</span>
+                    <span class="header-stats-value">{formatTokenTotal(tokenStats().outputTokens)}</span>
+                  </div>
+                  <ContextProgressBar
+                    used={tokenStats().used}
+                    available={tokenStats().avail}
+                    size="md"
+                    showLabels={false}
+                    class="header-context-progress"
+                  />
+                  <div class="header-stats-pill">
+                    <span class="header-stats-label">Cost</span>
+                    <span class="header-stats-value">${tokenStats().cost.toFixed(2)}</span>
+                  </div>
+                </div>
+              </Show>
 
 
             <div class="session-toolbar-right flex items-center gap-3">
@@ -1210,17 +1253,17 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                   </span>
                 </Show>
               </div>
-              <IconButton
+              <button
                 ref={setRightToggleButtonEl}
-                color="inherit"
+                type="button"
+                class="icon-button icon-button--md icon-button--ghost"
                 onClick={handleRightAppBarButtonClick}
                 aria-label={rightAppBarButtonLabel()}
-                size="small"
                 aria-expanded={rightDrawerState() !== "floating-closed"}
                 disabled={rightDrawerState() === "pinned"}
               >
                 {rightAppBarButtonIcon()}
-              </IconButton>
+              </button>
             </div>
           </Show>
         </Toolbar>
@@ -1300,6 +1343,11 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
         onClose={() => hideCommandPalette(props.instance.id)}
         commands={instancePaletteCommands()}
         onExecute={props.onExecuteCommand}
+      />
+
+      <ShortcutsDialog
+        open={shortcutsDialogOpen()}
+        onClose={() => setShortcutsDialogOpen(false)}
       />
     </>
   )

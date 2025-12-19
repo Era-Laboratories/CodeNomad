@@ -63,8 +63,11 @@ export default function AgentSelector(props: AgentSelectorProps) {
     }
   }
 
+  const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1)
+
   return (
     <div class="sidebar-selector">
+      <label class="selector-label">Agent</label>
       <Select
         value={availableAgents().find((a) => a.name === props.currentAgent)}
         onChange={handleChange}
@@ -79,16 +82,14 @@ export default function AgentSelector(props: AgentSelectorProps) {
           >
             <div class="flex flex-col flex-1 min-w-0">
               <Select.ItemLabel class="selector-option-label flex items-center gap-2">
-                <span>{itemProps.item.rawValue.name}</span>
+                <span>{capitalize(itemProps.item.rawValue.name)}</span>
                 <Show when={itemProps.item.rawValue.mode === "subagent"}>
                   <span class="neutral-badge">subagent</span>
                 </Show>
               </Select.ItemLabel>
               <Show when={itemProps.item.rawValue.description}>
                 <Select.ItemDescription class="selector-option-description">
-                  {itemProps.item.rawValue.description.length > 50
-                    ? itemProps.item.rawValue.description.slice(0, 50) + "..."
-                    : itemProps.item.rawValue.description}
+                  {itemProps.item.rawValue.description}
                 </Select.ItemDescription>
               </Show>
             </div>
@@ -103,7 +104,7 @@ export default function AgentSelector(props: AgentSelectorProps) {
             {(state) => (
               <div class="selector-trigger-label">
                 <span class="selector-trigger-primary">
-                  Agent: {state.selectedOption()?.name ?? "None"}
+                  {capitalize(state.selectedOption()?.name ?? "None")}
                 </span>
               </div>
             )}

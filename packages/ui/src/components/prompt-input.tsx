@@ -1140,15 +1140,9 @@ export default function PromptInput(props: PromptInputProps) {
                   when={props.escapeInDebounce}
                   fallback={
                     <>
-                      <span class="prompt-overlay-text">
-                        <Kbd>Enter</Kbd> for new line • <Kbd shortcut="cmd+enter" /> to send • <Kbd>@</Kbd> for files/agents • <Kbd>↑↓</Kbd> for history
-                      </span>
                       <Show when={attachments().length > 0}>
-                        <span class="prompt-overlay-text prompt-overlay-muted">• {attachments().length} file(s) attached</span>
+                        <span class="prompt-overlay-text prompt-overlay-muted">{attachments().length} file(s) attached</span>
                       </Show>
-                      <span class="prompt-overlay-text">
-                        • <Kbd>{shellHint().key}</Kbd> {shellHint().text}
-                      </span>
                       <Show when={mode() === "shell"}>
                         <span class="prompt-overlay-shell-active">Shell mode active</span>
                       </Show>
