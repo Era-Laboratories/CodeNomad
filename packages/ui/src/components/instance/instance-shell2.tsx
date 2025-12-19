@@ -1152,13 +1152,16 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                     <span class="header-stats-label">Out</span>
                     <span class="header-stats-value">{formatTokenTotal(tokenStats().outputTokens)}</span>
                   </div>
-                  <ContextProgressBar
-                    used={tokenStats().used}
-                    available={tokenStats().avail}
-                    size="md"
-                    showLabels={false}
-                    class="header-context-progress"
-                  />
+                  <div class="header-context-window">
+                    <span class="header-context-window-label">Context Window</span>
+                    <ContextProgressBar
+                      used={tokenStats().used}
+                      available={tokenStats().avail}
+                      size="lg"
+                      showLabels={false}
+                      class="header-context-progress header-context-progress--thick"
+                    />
+                  </div>
                   <div class="header-stats-pill header-stats-pill--compact">
                     <span class="header-stats-label">Cost</span>
                     <span class="header-stats-value">${tokenStats().cost.toFixed(2)}</span>
@@ -1217,13 +1220,16 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                     <span class="header-stats-label">Out</span>
                     <span class="header-stats-value">{formatTokenTotal(tokenStats().outputTokens)}</span>
                   </div>
-                  <ContextProgressBar
-                    used={tokenStats().used}
-                    available={tokenStats().avail}
-                    size="md"
-                    showLabels={false}
-                    class="header-context-progress"
-                  />
+                  <div class="header-context-window">
+                    <span class="header-context-window-label">Context Window</span>
+                    <ContextProgressBar
+                      used={tokenStats().used}
+                      available={tokenStats().avail}
+                      size="lg"
+                      showLabels={false}
+                      class="header-context-progress header-context-progress--thick"
+                    />
+                  </div>
                   <div class="header-stats-pill">
                     <span class="header-stats-label">Cost</span>
                     <span class="header-stats-value">${tokenStats().cost.toFixed(2)}</span>

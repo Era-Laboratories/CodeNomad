@@ -242,19 +242,16 @@ const SessionList: Component<SessionListProps> = (props) => {
             </DropdownMenu.Root>
           </div>
           <div class="session-item-row session-item-meta">
-            <div class="session-item-context">
-              <span class="session-context-pill">Context Window</span>
-              <div class="session-item-progress session-item-progress--thick">
-                <div class="context-progress-track">
-                  <div
-                    class={`context-progress-fill context-progress-fill--${contextLevel()}`}
-                    style={{ width: `${contextPercentage()}%` }}
-                  />
-                </div>
-                <span class="session-progress-label">
-                  {formatTokenTotal(contextUsed())}/{contextTotal() !== null ? formatTokenTotal(contextTotal()!) : "--"}
-                </span>
+            <div class="session-item-progress">
+              <div class="context-progress-track">
+                <div
+                  class={`context-progress-fill context-progress-fill--${contextLevel()}`}
+                  style={{ width: `${contextPercentage()}%` }}
+                />
               </div>
+              <span class="session-progress-label">
+                {formatTokenTotal(contextUsed())}/{contextTotal() !== null ? formatTokenTotal(contextTotal()!) : "--"}
+              </span>
             </div>
             <span class={`status-indicator session-status session-status-list ${statusClassName()}`}>
               <span class="status-dot" />

@@ -268,6 +268,42 @@
   min-width: 60px !important;
 }
 
+/* Header context window wrapper with pill label */
+.header-context-window {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.header-context-window-label {
+  font-size: 8px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: var(--radius-full, 999px);
+  background-color: var(--surface-muted, rgba(255, 255, 255, 0.08));
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Thicker progress bar for header */
+.header-context-progress--thick .context-progress-track {
+  height: 8px !important;
+  min-width: 100px !important;
+}
+
+.header-stats-bar--compact .header-context-window-label {
+  font-size: 7px;
+  padding: 2px 6px;
+}
+
+.header-stats-bar--compact .header-context-progress--thick .context-progress-track {
+  height: 6px !important;
+  min-width: 80px !important;
+}
+
 .header-stats-divider {
   color: var(--text-muted);
   opacity: 0.3;
