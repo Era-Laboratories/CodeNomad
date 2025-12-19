@@ -1,4 +1,9 @@
 /* Selector component utilities */
+.selector-label {
+  @apply text-xs font-semibold uppercase tracking-wide mb-1.5 block;
+  color: var(--text-muted);
+}
+
 .selector-trigger {
   @apply inline-flex items-center justify-between gap-2 px-2 py-1 border rounded outline-none transition-colors text-xs min-w-[180px];
   background-color: var(--surface-base);

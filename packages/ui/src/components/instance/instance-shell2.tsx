@@ -21,6 +21,7 @@ import {
   Pin,
   PinOff,
   Settings,
+  HelpCircle,
 } from "lucide-solid"
 import AppBar from "@suid/material/AppBar"
 import Box from "@suid/material/Box"
@@ -54,6 +55,7 @@ import AdvancedSettingsModal from "../advanced-settings-modal"
 import AgentSelector from "../agent-selector"
 import ModelSelector from "../model-selector"
 import CommandPalette from "../command-palette"
+import ShortcutsDialog from "../shortcuts-dialog"
 import Kbd from "../kbd"
 import { TodoListView } from "../tool-call/renderers/todo"
 import ContextUsagePanel from "../session/context-usage-panel"
@@ -136,6 +138,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
   const [resizeStartWidth, setResizeStartWidth] = createSignal(0)
   const [rightPanelExpandedItems, setRightPanelExpandedItems] = createSignal<string[]>(["lsp", "mcp"])
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = createSignal(false)
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = createSignal(false)
 
   const { preferences, updateLastUsedBinary } = useConfig()
   const [selectedBinary, setSelectedBinary] = createSignal(preferences().lastUsedBinary || "opencode")
@@ -775,30 +778,6 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
 
   const LeftDrawerContent = () => (
     <div class="flex flex-col h-full min-h-0" ref={setLeftDrawerContentEl}>
-      <div class="flex items-start justify-between gap-2 px-4 py-3 border-b border-base">
-        <div class="flex flex-col gap-1">
-          <span class="session-sidebar-title text-sm font-semibold uppercase text-primary">Sessions</span>
-          <div class="session-sidebar-shortcuts">
-            <Show when={keyboardShortcuts().length}>
-              <KeyboardHint shortcuts={keyboardShortcuts()} separator=" " showDescription={false} />
-            </Show>
-          </div>
-        </div>
-          <div class="flex items-center gap-2">
-            <Show when={!isPhoneLayout()}>
-              <button
-                type="button"
-                class="icon-button icon-button--md icon-button--ghost"
-                aria-label={leftPinned() ? "Unpin left drawer" : "Pin left drawer"}
-                onClick={() => (leftPinned() ? unpinLeftDrawer() : pinLeftDrawer())}
-              >
-                {leftPinned() ? <Pin class="w-4 h-4" /> : <PinOff class="w-4 h-4" />}
-              </button>
-            </Show>
-          </div>
-
-      </div>
-
       <div class="session-sidebar flex flex-col flex-1 min-h-0">
         <SessionList
           instanceId={props.instance.id}
@@ -819,6 +798,9 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
           }}
           showHeader={false}
           showFooter={false}
+          leftPinned={leftPinned()}
+          onTogglePin={() => (leftPinned() ? unpinLeftDrawer() : pinLeftDrawer())}
+          isPhoneLayout={isPhoneLayout()}
         />
 
         <Divider />
@@ -833,15 +815,6 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                   currentAgent={activeSession().agent}
                   onAgentChange={(agent) => props.handleSidebarAgentChange(activeSession().id, agent)}
                 />
-
-                <div class="sidebar-selector-hints" aria-hidden="true">
-                  <span class="hint sidebar-selector-hint sidebar-selector-hint--left">
-                    <Kbd shortcut="cmd+shift+a" />
-                  </span>
-                  <span class="hint sidebar-selector-hint sidebar-selector-hint--right">
-                    <Kbd shortcut="cmd+shift+m" />
-                  </span>
-                </div>
 
                 <ModelSelector
                   instanceId={props.instance.id}
@@ -1194,6 +1167,16 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                  {leftAppBarButtonIcon()}
                </button>
 
+               <button
+                 type="button"
+                 class="icon-button icon-button--md icon-button--ghost"
+                 onClick={() => setShortcutsDialogOpen(true)}
+                 aria-label="Keyboard shortcuts"
+                 title="Keyboard shortcuts"
+               >
+                 <HelpCircle class="w-4 h-4" />
+               </button>
+
                <Show when={!showingInfoView()}>
                  <div class="inline-flex items-center gap-1 rounded-full border border-base px-2 py-0.5 text-xs text-primary">
                    <span class="uppercase text-[10px] tracking-wide text-primary/70">Used</span>
@@ -1334,6 +1317,11 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
         onClose={() => hideCommandPalette(props.instance.id)}
         commands={instancePaletteCommands()}
         onExecute={props.onExecuteCommand}
+      />
+
+      <ShortcutsDialog
+        open={shortcutsDialogOpen()}
+        onClose={() => setShortcutsDialogOpen(false)}
       />
     </>
   )

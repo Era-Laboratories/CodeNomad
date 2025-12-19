@@ -66,6 +66,7 @@ export default function ModelSelector(props: ModelSelectorProps) {
 
   return (
     <div class="sidebar-selector">
+      <label class="selector-label">Model</label>
       <Combobox<FlatModel>
         value={currentModelValue()}
         onChange={handleChange}
@@ -107,7 +108,7 @@ export default function ModelSelector(props: ModelSelectorProps) {
           >
             <div class="selector-trigger-label selector-trigger-label--stacked">
               <span class="selector-trigger-primary selector-trigger-primary--align-left">
-                Model: {currentModelValue()?.name ?? "None"}
+                {currentModelValue()?.name ?? "None"}
               </span>
               {currentModelValue() && (
                 <span class="selector-trigger-secondary">

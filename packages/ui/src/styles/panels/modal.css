@@ -189,3 +189,94 @@
   @apply p-8 text-center;
   color: var(--text-muted);
 }
+
+/* Shortcuts Dialog */
+.shortcuts-dialog-overlay {
+  @apply fixed inset-0 z-50;
+  background-color: var(--overlay-scrim);
+  animation: fadeIn 150ms ease-out;
+}
+
+.shortcuts-dialog-content {
+  @apply fixed z-50 rounded-xl shadow-2xl flex flex-col;
+  background-color: var(--surface-base);
+  color: var(--text-primary);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  animation: slideIn 150ms ease-out;
+}
+
+.shortcuts-dialog-header {
+  @apply flex items-center justify-between px-5 py-4 border-b;
+  border-color: var(--border-base);
+}
+
+.shortcuts-dialog-title {
+  @apply text-base font-semibold;
+  color: var(--text-primary);
+}
+
+.shortcuts-dialog-close {
+  @apply p-1 rounded transition-colors;
+  color: var(--text-secondary);
+}
+
+.shortcuts-dialog-close:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.shortcuts-dialog-body {
+  @apply flex-1 overflow-y-auto p-5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.shortcuts-category {
+  @apply flex flex-col;
+  gap: var(--space-sm);
+}
+
+.shortcuts-category-title {
+  @apply text-xs font-semibold uppercase tracking-wide pb-2 border-b;
+  color: var(--text-muted);
+  border-color: var(--border-base);
+}
+
+.shortcuts-list {
+  @apply flex flex-col;
+  gap: var(--space-xs);
+}
+
+.shortcut-item {
+  @apply flex items-center justify-between py-1.5 px-2 rounded;
+}
+
+.shortcut-item:hover {
+  background-color: var(--surface-hover);
+}
+
+.shortcut-description {
+  @apply text-sm;
+  color: var(--text-primary);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}

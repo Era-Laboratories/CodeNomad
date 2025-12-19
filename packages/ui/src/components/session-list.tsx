@@ -1,8 +1,7 @@
 import { Component, For, Show, createSignal, createMemo, JSX } from "solid-js"
 import type { Session, SessionStatus } from "../types/session"
 import { getSessionStatus } from "../stores/session-status"
-import { MessageSquare, X, Copy, Trash2, Pencil, MoreVertical, Plus, Info } from "lucide-solid"
-import KeyboardHint from "./keyboard-hint"
+import { MessageSquare, X, Copy, Trash2, Pencil, MoreVertical, Plus, Info, Pin, PinOff } from "lucide-solid"
 import Kbd from "./kbd"
 import SessionRenameDialog from "./session-rename-dialog"
 import { keyboardRegistry } from "../lib/keyboard-registry"
@@ -11,6 +10,7 @@ import { showToastNotification } from "../lib/notifications"
 import { deleteSession, loading, renameSession } from "../stores/sessions"
 import { getLogger } from "../lib/logger"
 import { DropdownMenu } from "@kobalte/core"
+import { getActiveInstance } from "../stores/instances"
 const log = getLogger("session")
 
 
@@ -26,6 +26,9 @@ interface SessionListProps {
   showFooter?: boolean
   headerContent?: JSX.Element
   footerContent?: JSX.Element
+  leftPinned?: boolean
+  onTogglePin?: () => void
+  isPhoneLayout?: boolean
 }
 
 function formatSessionStatus(status: SessionStatus): string {
@@ -139,7 +142,7 @@ const SessionList: Component<SessionListProps> = (props) => {
     const pendingPermission = () => Boolean(session()?.pendingPermission)
     const statusClassName = () => (pendingPermission() ? "session-permission" : `session-${status()}`)
     const statusText = () => (pendingPermission() ? "Needs Permission" : statusLabel())
- 
+
     return (
        <div class="session-list-item group">
 
@@ -155,75 +158,69 @@ const SessionList: Component<SessionListProps> = (props) => {
               <MessageSquare class="w-4 h-4 flex-shrink-0" />
               <span class="session-item-title truncate">{title()}</span>
             </div>
-            <Show when={rowProps.canClose}>
-              <span
-                class="session-item-close opacity-80 hover:opacity-100 hover:bg-status-error hover:text-white rounded p-0.5 transition-all"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  props.onClose(rowProps.sessionId)
-                }}
-                role="button"
-                tabIndex={0}
-                aria-label="Close session"
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger
+                class="session-item-menu-trigger opacity-80 hover:opacity-100 rounded p-0.5 transition-all"
+                onClick={(e: MouseEvent) => e.stopPropagation()}
               >
-                <X class="w-3 h-3" />
-              </span>
-            </Show>
+                <MoreVertical class="w-3.5 h-3.5" />
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content class="session-dropdown-menu">
+                  <DropdownMenu.Item
+                    class="session-dropdown-item"
+                    onSelect={() => copySessionId(new MouseEvent("click"), rowProps.sessionId)}
+                  >
+                    <Copy class="w-3.5 h-3.5" />
+                    <span>Copy ID</span>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    class="session-dropdown-item"
+                    onSelect={() => openRenameDialog(rowProps.sessionId)}
+                  >
+                    <Pencil class="w-3.5 h-3.5" />
+                    <span>Rename</span>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    class="session-dropdown-item session-dropdown-item--danger"
+                    onSelect={() => handleDeleteSession(new MouseEvent("click"), rowProps.sessionId)}
+                  >
+                    <Show
+                      when={!isSessionDeleting(rowProps.sessionId)}
+                      fallback={
+                        <svg class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                          <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                      }
+                    >
+                      <Trash2 class="w-3.5 h-3.5" />
+                    </Show>
+                    <span>Delete</span>
+                  </DropdownMenu.Item>
+                  <Show when={rowProps.canClose}>
+                    <DropdownMenu.Separator class="session-dropdown-separator" />
+                    <DropdownMenu.Item
+                      class="session-dropdown-item session-dropdown-item--danger"
+                      onSelect={() => props.onClose(rowProps.sessionId)}
+                    >
+                      <X class="w-3.5 h-3.5" />
+                      <span>Close Session</span>
+                    </DropdownMenu.Item>
+                  </Show>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           </div>
           <div class="session-item-row session-item-meta">
             <span class={`status-indicator session-status session-status-list ${statusClassName()}`}>
               <span class="status-dot" />
               {statusText()}
             </span>
-            <div class="session-item-actions">
-              <span
-                class={`session-item-close opacity-80 hover:opacity-100 ${isActive() ? "hover:bg-white/20" : "hover:bg-surface-hover"}`}
-                onClick={(event) => copySessionId(event, rowProps.sessionId)}
-                role="button"
-                tabIndex={0}
-                aria-label="Copy session ID"
-                title="Copy session ID"
-              >
-                <Copy class="w-3 h-3" />
-              </span>
-              <span
-                class={`session-item-close opacity-80 hover:opacity-100 ${isActive() ? "hover:bg-white/20" : "hover:bg-surface-hover"}`}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  openRenameDialog(rowProps.sessionId)
-                }}
-                role="button"
-                tabIndex={0}
-                aria-label="Rename session"
-                title="Rename session"
-              >
-                <Pencil class="w-3 h-3" />
-              </span>
-              <span
-                class={`session-item-close opacity-80 hover:opacity-100 ${isActive() ? "hover:bg-white/20" : "hover:bg-surface-hover"}`}
-                onClick={(event) => handleDeleteSession(event, rowProps.sessionId)}
-                role="button"
-                tabIndex={0}
-                aria-label="Delete session"
-                title="Delete session"
-              >
-                <Show
-                  when={!isSessionDeleting(rowProps.sessionId)}
-                  fallback={
-                    <svg class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                      <path
-                        class="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                  }
-                >
-                  <Trash2 class="w-3 h-3" />
-                </Show>
-              </span>
-            </div>
           </div>
         </button>
       </div>
@@ -262,52 +259,80 @@ const SessionList: Component<SessionListProps> = (props) => {
     { equals: arraysEqual },
   )
  
+  const instance = () => getActiveInstance()
+  const parentSession = createMemo(() => {
+    for (const session of props.sessions.values()) {
+      if (session.parentId === null && session.title && session.title.trim()) {
+        return session.title
+      }
+    }
+    return null
+  })
+
   return (
     <div
       class="session-list-container bg-surface-secondary border-r border-base flex flex-col w-full"
     >
       <Show when={props.showHeader !== false}>
         <div class="session-list-header p-3 border-b border-base">
-          {props.headerContent ?? (
-            <div class="flex items-center justify-between gap-3">
-              <h3 class="text-sm font-semibold text-primary">Sessions</h3>
-              <KeyboardHint
-                shortcuts={[keyboardRegistry.get("session-prev")!, keyboardRegistry.get("session-next")!].filter(Boolean)}
-              />
-            </div>
-          )}
+          {props.headerContent ?? null}
         </div>
       </Show>
 
       <div class="session-list flex-1 overflow-y-auto">
           <div class="session-section">
-            <div class="session-section-header px-3 py-2 text-xs font-semibold text-primary/70 uppercase tracking-wide">
-              Instance
+            <div class="session-section-header px-3 py-2 text-xs font-semibold text-primary/70 uppercase tracking-wide flex items-center justify-between">
+              <span>Instance</span>
+              <Show when={!props.isPhoneLayout && props.onTogglePin}>
+                <button
+                  type="button"
+                  class="icon-button icon-button--sm icon-button--ghost"
+                  aria-label={props.leftPinned ? "Unpin drawer" : "Pin drawer"}
+                  onClick={props.onTogglePin}
+                >
+                  {props.leftPinned ? <Pin class="w-3.5 h-3.5" /> : <PinOff class="w-3.5 h-3.5" />}
+                </button>
+              </Show>
             </div>
-            <div class="session-list-item group">
-              <button
-                class={`session-item-base ${props.activeSessionId === "info" ? "session-item-active" : "session-item-inactive"}`}
-                onClick={() => selectSession("info")}
-                title="Instance Info"
-                role="button"
-                aria-selected={props.activeSessionId === "info"}
-              >
-                <div class="session-item-row session-item-header">
-                  <div class="session-item-title-row">
-                    <Info class="w-4 h-4 flex-shrink-0" />
-                    <span class="session-item-title truncate">Instance Info</span>
+            <button
+              class={`instance-info-panel instance-info-panel--clickable px-3 py-2 w-full text-left ${props.activeSessionId === "info" ? "instance-info-panel--active" : ""}`}
+              onClick={() => selectSession("info")}
+              title="View instance details"
+              type="button"
+            >
+              <div class="instance-info-grid">
+                <Show when={instance()}>
+                  <div class="instance-info-row">
+                    <span class="instance-info-label">Port</span>
+                    <span class="instance-info-value">{instance()?.port ?? "—"}</span>
                   </div>
-                  {infoShortcut && <Kbd shortcut={formatShortcut(infoShortcut)} class="ml-2 not-italic" />}
+                  <div class="instance-info-row">
+                    <span class="instance-info-label">PID</span>
+                    <span class="instance-info-value">{instance()?.pid ?? "—"}</span>
+                  </div>
+                  <div class="instance-info-row">
+                    <span class="instance-info-label">Status</span>
+                    <span class="instance-info-value instance-info-status">
+                      <span class="status-dot status-dot--connected" />
+                      Running
+                    </span>
+                  </div>
+                </Show>
+                <div class="instance-info-row">
+                  <span class="instance-info-label">Session</span>
+                  <span class="instance-info-value instance-info-session">
+                    {parentSession() ?? "—"}
+                  </span>
                 </div>
-              </button>
-            </div>
+              </div>
+            </button>
           </div>
 
 
         <Show when={userSessionIds().length > 0}>
           <div class="session-section">
             <div class="session-section-header px-3 py-2 text-xs font-semibold text-primary/70 uppercase tracking-wide">
-              User Session
+              Main
             </div>
             <For each={userSessionIds()}>{(id) => <SessionRow sessionId={id} canClose />}</For>
           </div>
