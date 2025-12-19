@@ -288,6 +288,21 @@
   white-space: nowrap;
 }
 
+.header-context-value {
+  font-size: 10px;
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.header-context-value--used {
+  color: var(--text-secondary);
+}
+
+.header-context-value--total {
+  color: var(--text-muted);
+}
+
 /* Thicker progress bar for header */
 .header-context-progress--thick .context-progress-track {
   height: 8px !important;

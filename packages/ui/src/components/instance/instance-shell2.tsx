@@ -1154,6 +1154,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                   </div>
                   <div class="header-context-window">
                     <span class="header-context-window-label">Context Window</span>
+                    <span class="header-context-value header-context-value--used">{formatTokenTotal(tokenStats().used)}</span>
                     <ContextProgressBar
                       used={tokenStats().used}
                       available={tokenStats().avail}
@@ -1161,6 +1162,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                       showLabels={false}
                       class="header-context-progress header-context-progress--thick"
                     />
+                    <span class="header-context-value header-context-value--total">{tokenStats().avail !== null ? formatTokenTotal(tokenStats().used + tokenStats().avail) : '--'}</span>
                   </div>
                   <div class="header-stats-pill header-stats-pill--compact">
                     <span class="header-stats-label">Cost</span>
@@ -1222,6 +1224,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                   </div>
                   <div class="header-context-window">
                     <span class="header-context-window-label">Context Window</span>
+                    <span class="header-context-value header-context-value--used">{formatTokenTotal(tokenStats().used)}</span>
                     <ContextProgressBar
                       used={tokenStats().used}
                       available={tokenStats().avail}
@@ -1229,6 +1232,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                       showLabels={false}
                       class="header-context-progress header-context-progress--thick"
                     />
+                    <span class="header-context-value header-context-value--total">{tokenStats().avail !== null ? formatTokenTotal(tokenStats().used + tokenStats().avail) : '--'}</span>
                   </div>
                   <div class="header-stats-pill">
                     <span class="header-stats-label">Cost</span>
