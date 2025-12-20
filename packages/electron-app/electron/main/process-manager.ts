@@ -2,12 +2,84 @@ import { spawn, type ChildProcess } from "child_process"
 import { app } from "electron"
 import { createRequire } from "module"
 import { EventEmitter } from "events"
-import { existsSync, readFileSync } from "fs"
+import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from "fs"
 import os from "os"
 import path from "path"
 import { buildUserShellCommand, getUserShellEnv, supportsUserShell } from "./user-shell"
 
 const nodeRequire = createRequire(import.meta.url)
+
+// PID file for orphan process detection and cleanup
+const PID_FILE_DIR = path.join(os.homedir(), ".config", "codenomad")
+const PID_FILE_PATH = path.join(PID_FILE_DIR, "server.pid")
+
+function processExists(pid: number): boolean {
+  try {
+    // Sending signal 0 checks if process exists without killing it
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function killOrphanProcess(): void {
+  try {
+    if (!existsSync(PID_FILE_PATH)) {
+      return
+    }
+    const content = readFileSync(PID_FILE_PATH, "utf-8").trim()
+    const oldPid = parseInt(content, 10)
+    if (isNaN(oldPid) || oldPid <= 0) {
+      console.warn("[cli] invalid PID in pid file, removing")
+      unlinkSync(PID_FILE_PATH)
+      return
+    }
+    if (processExists(oldPid)) {
+      console.info(`[cli] killing orphaned CLI process (PID: ${oldPid})`)
+      try {
+        process.kill(oldPid, "SIGTERM")
+        // Give it a moment to die gracefully
+        setTimeout(() => {
+          if (processExists(oldPid)) {
+            console.warn(`[cli] orphan process ${oldPid} didn't respond to SIGTERM, sending SIGKILL`)
+            try {
+              process.kill(oldPid, "SIGKILL")
+            } catch {
+              // Process may have exited between check and kill
+            }
+          }
+        }, 1000)
+      } catch (error) {
+        console.warn("[cli] failed to kill orphan process:", error)
+      }
+    }
+    unlinkSync(PID_FILE_PATH)
+  } catch (error) {
+    console.warn("[cli] error during orphan cleanup:", error)
+  }
+}
+
+function writePidFile(pid: number): void {
+  try {
+    mkdirSync(PID_FILE_DIR, { recursive: true })
+    writeFileSync(PID_FILE_PATH, String(pid), "utf-8")
+    console.info(`[cli] wrote PID file: ${PID_FILE_PATH} (PID: ${pid})`)
+  } catch (error) {
+    console.warn("[cli] failed to write PID file:", error)
+  }
+}
+
+function removePidFile(): void {
+  try {
+    if (existsSync(PID_FILE_PATH)) {
+      unlinkSync(PID_FILE_PATH)
+      console.info("[cli] removed PID file")
+    }
+  } catch (error) {
+    console.warn("[cli] failed to remove PID file:", error)
+  }
+}
 
 
 type CliState = "starting" | "ready" | "error" | "stopped"
@@ -85,6 +157,9 @@ export class CliProcessManager extends EventEmitter {
       await this.stop()
     }
 
+    // Clean up any orphaned process from a previous crash
+    killOrphanProcess()
+
     this.stdoutBuffer = ""
     this.stderrBuffer = ""
     this.updateStatus({ state: "starting", port: undefined, pid: undefined, url: undefined, error: undefined })
@@ -120,6 +195,11 @@ export class CliProcessManager extends EventEmitter {
     this.child = child
     this.updateStatus({ pid: child.pid ?? undefined })
 
+    // Write PID file for orphan detection on next startup
+    if (child.pid) {
+      writePidFile(child.pid)
+    }
+
     child.stdout?.on("data", (data: Buffer) => {
       this.handleStream(data.toString(), "stdout")
     })
@@ -144,6 +224,8 @@ export class CliProcessManager extends EventEmitter {
       }
       this.emit("exit", this.status)
       this.child = undefined
+      // Clean up PID file on exit
+      removePidFile()
     })
 
     return new Promise<CliStatus>((resolve, reject) => {
@@ -168,6 +250,7 @@ export class CliProcessManager extends EventEmitter {
     const child = this.child
     if (!child) {
       this.updateStatus({ state: "stopped" })
+      removePidFile() // Clean up stale PID file if any
       return
     }
 
@@ -181,6 +264,7 @@ export class CliProcessManager extends EventEmitter {
         this.child = undefined
         console.info("[cli] CLI process exited")
         this.updateStatus({ state: "stopped" })
+        removePidFile()
         resolve()
       })
 

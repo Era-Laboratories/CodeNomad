@@ -226,6 +226,9 @@ function createWindow() {
     currentCliUrl = null
     pendingCliUrl = null
     showingLoadingScreen = false
+    // Stop the CLI server when window closes to prevent orphan processes
+    // This matches Tauri behavior and prevents resource leaks on macOS
+    cliManager.stop().catch(() => {})
   })
 
   if (pendingCliUrl) {
