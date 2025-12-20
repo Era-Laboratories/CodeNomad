@@ -40,6 +40,7 @@ const PreferencesSchema = z.object({
   showUsageMetrics: z.boolean().default(true),
   autoCleanupBlankSessions: z.boolean().default(true),
   stopInstanceOnLastSessionDelete: z.boolean().default(false),
+  idleInstanceTimeoutMinutes: z.number().min(0).default(0), // 0 = disabled
   listeningMode: z.enum(["local", "all"]).default("local"),
 
   modelDefaultsByAgent: z.record(ModelPreferenceSchema).default({}),

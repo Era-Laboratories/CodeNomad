@@ -64,6 +64,7 @@ export interface Preferences {
   showUsageMetrics: boolean
   autoCleanupBlankSessions: boolean
   stopInstanceOnLastSessionDelete: boolean
+  idleInstanceTimeoutMinutes: number
   listeningMode: ListeningMode
 
   modelDefaultsByAgent: Record<string, ModelPreference>
@@ -103,6 +104,7 @@ const defaultPreferences: Preferences = {
   showUsageMetrics: true,
   autoCleanupBlankSessions: true,
   stopInstanceOnLastSessionDelete: false,
+  idleInstanceTimeoutMinutes: 0,
   listeningMode: "local",
 
   modelDefaultsByAgent: {},
@@ -153,6 +155,7 @@ function normalizePreferences(pref?: Partial<Preferences> & { agentModelSelectio
     showUsageMetrics: sanitized.showUsageMetrics ?? defaultPreferences.showUsageMetrics,
     autoCleanupBlankSessions: sanitized.autoCleanupBlankSessions ?? defaultPreferences.autoCleanupBlankSessions,
     stopInstanceOnLastSessionDelete: sanitized.stopInstanceOnLastSessionDelete ?? defaultPreferences.stopInstanceOnLastSessionDelete,
+    idleInstanceTimeoutMinutes: sanitized.idleInstanceTimeoutMinutes ?? defaultPreferences.idleInstanceTimeoutMinutes,
     listeningMode: sanitized.listeningMode ?? defaultPreferences.listeningMode,
 
     modelDefaultsByAgent,

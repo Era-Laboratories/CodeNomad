@@ -8,6 +8,13 @@ interface RouteDeps {
 
 export function registerMetaRoutes(app: FastifyInstance, deps: RouteDeps) {
   app.get("/api/meta", async () => buildMetaResponse(deps.serverMeta))
+
+  // Health check endpoint for monitoring
+  app.get("/api/health", async () => ({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  }))
 }
 
 function buildMetaResponse(meta: ServerMeta): ServerMeta {

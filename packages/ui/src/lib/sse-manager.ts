@@ -89,6 +89,9 @@ class SSEManager {
 
     log.info("Received event", { type: event.type, event })
 
+    // Record activity for idle instance tracking
+    this.onInstanceActivity?.(instanceId)
+
     switch (event.type) {
       case "message.updated":
         this.onMessageUpdate?.(instanceId, event as MessageUpdateEvent)
@@ -152,6 +155,7 @@ class SSEManager {
   onPermissionReplied?: (instanceId: string, event: EventPermissionReplied) => void
   onLspUpdated?: (instanceId: string, event: EventLspUpdated) => void
   onConnectionLost?: (instanceId: string, reason: string) => void | Promise<void>
+  onInstanceActivity?: (instanceId: string) => void
 
   getStatus(instanceId: string): ConnectionStatus | null {
     return connectionStatus().get(instanceId) ?? null

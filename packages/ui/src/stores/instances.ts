@@ -44,6 +44,11 @@ interface DisconnectedInstanceInfo {
 }
 const [disconnectedInstance, setDisconnectedInstance] = createSignal<DisconnectedInstanceInfo | null>(null)
 
+// Idle instance tracking
+const instanceLastActivity = new Map<string, number>()
+let idleCheckInterval: NodeJS.Timeout | null = null
+const IDLE_CHECK_INTERVAL_MS = 60000 // Check every minute
+
 const MAX_LOG_ENTRIES = 1000
 
 function workspaceDescriptorToInstance(descriptor: WorkspaceDescriptor): Instance {
@@ -323,6 +328,8 @@ function addInstance(instance: Instance) {
   })
   ensureLogContainer(instance.id)
   ensureLogStreamingState(instance.id)
+  // Initialize activity timestamp
+  recordInstanceActivity(instance.id)
 }
 
 function updateInstance(id: string, updates: Partial<Instance>) {
@@ -366,6 +373,8 @@ function removeInstance(id: string) {
   clearCommands(id)
   clearPermissionQueue(id)
   clearInstanceMetadata(id)
+  // Clean up idle tracking
+  instanceLastActivity.delete(id)
 
   if (activeInstanceId() === id) {
     setActiveInstanceId(nextActiveId)
@@ -674,6 +683,10 @@ sseManager.onLspUpdated = async (instanceId) => {
   }
 }
 
+sseManager.onInstanceActivity = (instanceId) => {
+  recordInstanceActivity(instanceId)
+}
+
 async function acknowledgeDisconnectedInstance(): Promise<void> {
   const pending = disconnectedInstance()
   if (!pending) {
@@ -691,6 +704,67 @@ async function acknowledgeDisconnectedInstance(): Promise<void> {
     }
   }
 }
+
+/**
+ * Record activity for an instance to reset the idle timer
+ */
+function recordInstanceActivity(instanceId: string): void {
+  instanceLastActivity.set(instanceId, Date.now())
+}
+
+/**
+ * Check for idle instances and stop them if they exceed the timeout
+ */
+function checkIdleInstances(): void {
+  const timeoutMinutes = preferences().idleInstanceTimeoutMinutes
+  if (timeoutMinutes <= 0) {
+    return // Idle timeout disabled
+  }
+
+  const timeoutMs = timeoutMinutes * 60 * 1000
+  const now = Date.now()
+
+  for (const instance of instances().values()) {
+    const lastActivity = instanceLastActivity.get(instance.id) ?? now
+    const idleTime = now - lastActivity
+
+    if (idleTime >= timeoutMs) {
+      log.info(`Stopping idle instance ${instance.id} after ${Math.round(idleTime / 60000)} minutes of inactivity`)
+      showToastNotification({
+        message: `Stopped idle instance: ${instance.folder.split("/").pop()}`,
+        variant: "info",
+      })
+      void stopInstance(instance.id).catch((error) => {
+        log.error("Failed to stop idle instance:", error)
+      })
+    }
+  }
+}
+
+/**
+ * Start the idle instance checker
+ */
+function startIdleInstanceChecker(): void {
+  if (idleCheckInterval) {
+    return // Already running
+  }
+  idleCheckInterval = setInterval(checkIdleInstances, IDLE_CHECK_INTERVAL_MS)
+  log.debug("Started idle instance checker")
+}
+
+/**
+ * Stop the idle instance checker
+ */
+function stopIdleInstanceChecker(): void {
+  if (idleCheckInterval) {
+    clearInterval(idleCheckInterval)
+    idleCheckInterval = null
+    log.debug("Stopped idle instance checker")
+  }
+}
+
+// Start the idle checker on module load
+startIdleInstanceChecker()
 
 export {
   instances,
@@ -720,4 +794,6 @@ export {
   disconnectedInstance,
   acknowledgeDisconnectedInstance,
   fetchLspStatus,
+  // Idle tracking
+  recordInstanceActivity,
 }
