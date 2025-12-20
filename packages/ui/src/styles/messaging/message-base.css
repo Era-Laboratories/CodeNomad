@@ -205,7 +205,6 @@
 .message-step-card {
   @apply flex flex-col gap-2 px-3 py-2;
   color: inherit;
-  border-radius: 0;
 }
 
 .message-step-start {
