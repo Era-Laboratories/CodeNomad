@@ -209,6 +209,7 @@ const SessionList: Component<SessionListProps> = (props) => {
                   <DropdownMenu.Item
                     class="session-dropdown-item session-dropdown-item--danger"
                     onSelect={() => handleDeleteSession(new MouseEvent("click"), rowProps.sessionId)}
+                    title="Delete conversation history. The OpenCode process continues running."
                   >
                     <Show
                       when={!isSessionDeleting(rowProps.sessionId)}
@@ -225,18 +226,9 @@ const SessionList: Component<SessionListProps> = (props) => {
                     >
                       <Trash2 class="w-3.5 h-3.5" />
                     </Show>
-                    <span>Delete</span>
+                    <span>Delete Session</span>
                   </DropdownMenu.Item>
-                  <Show when={rowProps.canClose}>
-                    <DropdownMenu.Separator class="session-dropdown-separator" />
-                    <DropdownMenu.Item
-                      class="session-dropdown-item session-dropdown-item--danger"
-                      onSelect={() => props.onClose(rowProps.sessionId)}
-                    >
-                      <X class="w-3.5 h-3.5" />
-                      <span>Close Session</span>
-                    </DropdownMenu.Item>
-                  </Show>
+                  {/* Removed "Close Session" action - it was confusing because it didn't stop the process */}
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
@@ -333,7 +325,7 @@ const SessionList: Component<SessionListProps> = (props) => {
             <button
               class={`instance-info-panel instance-info-panel--clickable px-3 py-2 w-full text-left ${props.activeSessionId === "info" ? "instance-info-panel--active" : ""}`}
               onClick={() => selectSession("info")}
-              title="View instance details"
+              title="OpenCode process running. Close the instance tab to stop it and free resources."
               type="button"
             >
               <div class="instance-info-grid">
@@ -347,7 +339,7 @@ const SessionList: Component<SessionListProps> = (props) => {
                     <span class="instance-info-value">{instance()?.pid ?? "—"}</span>
                   </div>
                   <div class="instance-info-row">
-                    <span class="instance-info-label">Status</span>
+                    <span class="instance-info-label">Process</span>
                     <span class="instance-info-value instance-info-status">
                       <span class="status-dot status-dot--connected" />
                       Running

@@ -62,12 +62,35 @@ export class WorkspaceManager {
     }
   }
 
+  /**
+   * Find an existing workspace by its folder path
+   */
+  findByPath(folderPath: string): WorkspaceDescriptor | undefined {
+    const normalizedPath = path.isAbsolute(folderPath) ? folderPath : path.resolve(this.options.rootDir, folderPath)
+    for (const workspace of this.workspaces.values()) {
+      if (workspace.path === normalizedPath) {
+        return workspace
+      }
+    }
+    return undefined
+  }
+
   async create(folder: string, name?: string): Promise<WorkspaceDescriptor> {
- 
+    const workspacePath = path.isAbsolute(folder) ? folder : path.resolve(this.options.rootDir, folder)
+
+    // Check if workspace for this folder already exists - return existing instead of creating duplicate
+    const existing = this.findByPath(workspacePath)
+    if (existing) {
+      this.options.logger.info(
+        { workspaceId: existing.id, folder: workspacePath },
+        "Workspace already exists for this folder, returning existing"
+      )
+      return existing
+    }
+
     const id = `${Date.now().toString(36)}`
     const binary = this.options.binaryRegistry.resolveDefault()
     const resolvedBinaryPath = this.resolveBinaryPath(binary.path)
-    const workspacePath = path.isAbsolute(folder) ? folder : path.resolve(this.options.rootDir, folder)
     clearWorkspaceSearchCache(workspacePath)
 
     this.options.logger.info({ workspaceId: id, folder: workspacePath, binary: resolvedBinaryPath }, "Creating workspace")

@@ -23,6 +23,7 @@ import { messageStoreBus } from "./message-v2/bus"
 import { clearCacheForInstance } from "../lib/global-cache"
 import { getLogger } from "../lib/logger"
 import { mergeInstanceMetadata, clearInstanceMetadata } from "./instance-metadata"
+import { showToastNotification } from "../lib/notifications"
 
 const log = getLogger("api")
 
@@ -377,10 +378,32 @@ function removeInstance(id: string) {
 }
 
 async function createInstance(folder: string, _binaryPath?: string): Promise<string> {
+  // Check if an instance with this folder path already exists locally
+  const existingInstance = Array.from(instances().values()).find((inst) => inst.folder === folder)
+  if (existingInstance) {
+    log.info("Instance already exists for folder, switching to it", { folder, instanceId: existingInstance.id })
+    setActiveInstanceId(existingInstance.id)
+    showToastNotification({
+      message: "Switched to existing instance for this folder",
+      variant: "info",
+    })
+    return existingInstance.id
+  }
+
   try {
     const workspace = await serverApi.createWorkspace({ path: folder })
+    // Server may return existing workspace if folder was already open (e.g., from another client)
+    const wasExisting = instances().has(workspace.id)
     upsertWorkspace(workspace)
     setActiveInstanceId(workspace.id)
+
+    if (wasExisting) {
+      showToastNotification({
+        message: "Switched to existing instance for this folder",
+        variant: "info",
+      })
+    }
+
     return workspace.id
   } catch (error) {
     log.error("Failed to create workspace", error)
