@@ -7,6 +7,7 @@ import FolderSelectionCards from "./components/folder-selection-cards"
 import { showConfirmDialog } from "./stores/alerts"
 import InstanceTabs from "./components/instance-tabs"
 import SessionTabs from "./components/session-tabs"
+import SessionBreadcrumb from "./components/session-breadcrumb"
 import SettingsPanel from "./components/settings-panel"
 import CommandsSettingsPanel from "./components/commands-settings-panel"
 import CloseTabModal, { type CloseTabType } from "./components/close-tab-modal"
@@ -58,8 +59,10 @@ import {
   updateSessionModel,
   getActiveSession,
   getParentSessions,
+  getChildSessions,
   getSessionInfo,
 } from "./stores/sessions"
+import { setActiveSession } from "./stores/session-state"
 import { isSessionCompactionActive } from "./stores/session-compaction"
 
 const log = getLogger("actions")
@@ -182,6 +185,52 @@ const App: Component = () => {
     const session = getSessions(instance.id).find(s => s.id === sessionId)
     return session?.model ?? { providerId: "", modelId: "" }
   })
+
+  // Check if we're viewing a child session (not the parent)
+  const isViewingChildSession = createMemo(() => {
+    const activeId = activeSessionIdForInstance()
+    const parentId = activeParentSessionIdForInstance()
+    return activeId !== null && parentId !== null && activeId !== parentId
+  })
+
+  // Get the currently viewed session (could be parent or child)
+  const currentViewedSession = createMemo(() => {
+    const instance = activeInstance()
+    const sessionId = activeSessionIdForInstance()
+    if (!instance || !sessionId) return null
+    return getSessions(instance.id).find(s => s.id === sessionId) || null
+  })
+
+  // Get the parent session when viewing a child
+  const parentSessionForBreadcrumb = createMemo(() => {
+    const instance = activeInstance()
+    const parentId = activeParentSessionIdForInstance()
+    if (!instance || !parentId) return null
+    return getSessions(instance.id).find(s => s.id === parentId) || null
+  })
+
+  // Get sibling sessions (other children of the same parent)
+  const siblingSessionsForBreadcrumb = createMemo(() => {
+    const instance = activeInstance()
+    const parentId = activeParentSessionIdForInstance()
+    if (!instance || !parentId) return []
+    return getChildSessions(instance.id, parentId)
+  })
+
+  // Handler for selecting a child session
+  function handleSelectChildSession(instanceId: string, parentId: string, childId: string) {
+    // Keep the parent session context but view the child
+    setActiveSession(instanceId, childId)
+  }
+
+  // Handler for returning to parent session
+  function handleReturnToParent() {
+    const instance = activeInstance()
+    const parentId = activeParentSessionIdForInstance()
+    if (instance && parentId) {
+      setActiveSession(instance.id, parentId)
+    }
+  }
 
   const launchErrorPath = () => {
     const value = launchErrorBinary()
@@ -517,9 +566,23 @@ const App: Component = () => {
                   instanceId={activeInstance()!.id}
                   sessions={activeInstanceParentSessions()}
                   activeSessionId={activeParentSessionIdForInstance()}
+                  activeParentSessionId={activeParentSessionIdForInstance()}
                   onSelect={(sessionId) => setActiveParentSession(activeInstance()!.id, sessionId)}
+                  onSelectChild={(parentId, childId) => handleSelectChildSession(activeInstance()!.id, parentId, childId)}
                   onClose={(sessionId) => handleCloseSessionRequest(sessionId)}
                   onNew={() => handleNewSession(activeInstance()!.id)}
+                />
+              </Show>
+
+              {/* Breadcrumb - shown when viewing a child session */}
+              <Show when={isViewingChildSession() && parentSessionForBreadcrumb() && currentViewedSession()}>
+                <SessionBreadcrumb
+                  instanceId={activeInstance()!.id}
+                  parentSession={parentSessionForBreadcrumb()!}
+                  currentSession={currentViewedSession()!}
+                  siblingsSessions={siblingSessionsForBreadcrumb()}
+                  onReturnToParent={handleReturnToParent}
+                  onSelectSibling={(sessionId) => setActiveSession(activeInstance()!.id, sessionId)}
                 />
               </Show>
 

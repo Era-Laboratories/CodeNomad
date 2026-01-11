@@ -6,7 +6,7 @@ import MessageSection from "../message-section"
 import { messageStoreBus } from "../../stores/message-v2/bus"
 import PromptInput from "../prompt-input"
 import { instances } from "../../stores/instances"
-import { loadMessages, sendMessage, forkSession, isSessionMessagesLoading, setActiveParentSession, setActiveSession, runShellCommand, abortSession } from "../../stores/sessions"
+import { loadMessages, sendMessage, forkSession, isSessionMessagesLoading, setActiveParentSession, setActiveSession, runShellCommand, abortSession, getSessions } from "../../stores/sessions"
 import { isSessionBusy as getSessionBusyStatus } from "../../stores/session-status"
 import { showAlertDialog } from "../../stores/alerts"
 import { getLogger } from "../../lib/logger"
@@ -27,6 +27,9 @@ interface SessionViewProps {
   onSidebarToggle?: () => void
   forceCompactStatusLayout?: boolean
   isActive?: boolean
+  isSubAgentSession?: boolean
+  parentSessionTitle?: string
+  onReturnToParent?: () => void
 }
 
 export const SessionView: Component<SessionViewProps> = (props) => {
@@ -38,6 +41,39 @@ export const SessionView: Component<SessionViewProps> = (props) => {
     if (!currentSession) return false
     return getSessionBusyStatus(props.instanceId, currentSession.id)
   })
+
+  // Compute sub-agent state from session data
+  const isSubAgentSession = createMemo(() => {
+    // Use prop if provided, otherwise compute from session data
+    if (props.isSubAgentSession !== undefined) return props.isSubAgentSession
+    const currentSession = session()
+    return currentSession?.parentId !== null && currentSession?.title?.includes("subagent)")
+  })
+
+  const parentSession = createMemo(() => {
+    const currentSession = session()
+    if (!currentSession?.parentId) return null
+    const allSessions = getSessions(props.instanceId)
+    return allSessions.find(s => s.id === currentSession.parentId) || null
+  })
+
+  const parentSessionTitle = createMemo(() => {
+    if (props.parentSessionTitle) return props.parentSessionTitle
+    const parent = parentSession()
+    return parent?.title || "parent session"
+  })
+
+  const handleReturnToParent = () => {
+    if (props.onReturnToParent) {
+      props.onReturnToParent()
+      return
+    }
+    // Default: return to parent session
+    const parent = parentSession()
+    if (parent) {
+      setActiveSession(props.instanceId, parent.id)
+    }
+  }
   let scrollToBottomHandle: (() => void) | undefined
   function scheduleScrollToBottom() {
     if (!scrollToBottomHandle) return
@@ -229,6 +265,9 @@ export const SessionView: Component<SessionViewProps> = (props) => {
               isSessionBusy={sessionBusy()}
               onAbortSession={handleAbortSession}
               registerQuoteHandler={registerQuoteHandler}
+              isSubAgentSession={isSubAgentSession()}
+              parentSessionTitle={parentSessionTitle()}
+              onReturnToParent={handleReturnToParent}
             />
           </div>
         )

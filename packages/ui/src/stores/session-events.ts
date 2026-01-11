@@ -26,6 +26,7 @@ import { updateSessionInfo } from "./message-v2/session-info"
 const log = getLogger("sse")
 import { loadMessages } from "./session-api"
 import { setSessionCompactionState } from "./session-compaction"
+import { scheduleChildCleanup, updateSessionActivity, cancelScheduledCleanup } from "./session-cleanup"
 import {
   applyPartUpdateV2,
   replaceMessageIdV2,
@@ -236,6 +237,13 @@ function handleSessionUpdate(instanceId: string, event: EventSessionUpdated): vo
         : existingSession.revert,
     }
 
+    // Update activity tracking and cancel any scheduled cleanup
+    updateSessionActivity(instanceId, info.id)
+    if (existingSession.parentId) {
+      // If this is a child session that becomes active, cancel cleanup
+      cancelScheduledCleanup(instanceId, info.id)
+    }
+
     setSessions((prev) => {
       const next = new Map(prev)
       const updated = new Map(prev.get(instanceId))
@@ -247,11 +255,26 @@ function handleSessionUpdate(instanceId: string, event: EventSessionUpdated): vo
   }
 }
 
-function handleSessionIdle(_instanceId: string, event: EventSessionIdle): void {
+function handleSessionIdle(instanceId: string, event: EventSessionIdle): void {
   const sessionId = event.properties?.sessionID
   if (!sessionId) return
 
   log.info(`[SSE] Session idle: ${sessionId}`)
+
+  // Check if this is a child session (has parentId)
+  const instanceSessions = sessions().get(instanceId)
+  const session = instanceSessions?.get(sessionId)
+
+  if (session?.parentId) {
+    // Schedule cleanup for idle child sessions
+    log.info(`Scheduling cleanup for idle child session: ${sessionId}`)
+    scheduleChildCleanup(instanceId, sessionId, session.parentId)
+  }
+
+  // Update session status to idle
+  withSession(instanceId, sessionId, (s) => {
+    s.status = "idle"
+  })
 }
 
 function handleSessionCompacted(instanceId: string, event: EventSessionCompacted): void {

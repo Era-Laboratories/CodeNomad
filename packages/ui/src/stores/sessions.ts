@@ -1,4 +1,4 @@
-import type { SessionInfo } from "./session-state"
+import type { SessionInfo, SessionThread } from "./session-state"
 
 import { sseManager } from "../lib/sse-manager"
 
@@ -17,6 +17,7 @@ import {
   getSessionFamily,
   getSessionInfo,
   getSessions,
+  getSessionThreads,
   isSessionBusy,
   isSessionMessagesLoading,
   loading,
@@ -26,7 +27,8 @@ import {
   setActiveParentSession,
   setActiveSession,
   setSessionDraftPrompt,
- } from "./session-state"
+  setSessionStatus,
+} from "./session-state"
 
 import { getDefaultModel } from "./session-models"
 import {
@@ -98,6 +100,7 @@ export {
   getSessionFamily,
   getSessionInfo,
   getSessions,
+  getSessionThreads,
   isSessionBusy,
   isSessionMessagesLoading,
   loadMessages,
@@ -109,7 +112,8 @@ export {
   setActiveParentSession,
   setActiveSession,
   setSessionDraftPrompt,
+  setSessionStatus,
   updateSessionAgent,
   updateSessionModel,
 }
-export type { SessionInfo }
+export type { SessionInfo, SessionThread }

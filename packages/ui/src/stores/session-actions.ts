@@ -6,6 +6,7 @@ import { sessions, withSession } from "./session-state"
 import { getDefaultModel, isModelValid } from "./session-models"
 import { updateSessionInfo } from "./message-v2/session-info"
 import { messageStoreBus, triggerCollapseAll } from "./message-v2/bus"
+import { cleanupIdleChildren } from "./session-cleanup"
 import { getLogger } from "../lib/logger"
 
 const log = getLogger("actions")
@@ -72,6 +73,14 @@ async function sendMessage(
   const session = instanceSessions?.get(sessionId)
   if (!session) {
     throw new Error("Session not found")
+  }
+
+  // If sending message to a parent session, cleanup idle child sessions
+  // This triggers the merge/cleanup behavior when user continues parent conversation
+  if (session.parentId === null) {
+    cleanupIdleChildren(instanceId, sessionId).catch((error) => {
+      log.error("Failed to cleanup idle children:", error)
+    })
   }
 
   const messageId = createId("msg")

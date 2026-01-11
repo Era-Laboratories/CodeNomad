@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js"
 
-import type { Session, Agent, Provider } from "../types/session"
+import type { Session, Agent, Provider, SessionStatus } from "../types/session"
 import { deleteSession, loadMessages } from "./session-api"
 import { showToastNotification } from "../lib/notifications"
 import { messageStoreBus } from "./message-v2/bus"
@@ -20,6 +20,13 @@ export interface SessionInfo {
   actualUsageTokens: number
   modelOutputLimit: number
   contextAvailableTokens: number | null
+}
+
+// Thread groups a parent session with its children, sorted by most recent activity
+export type SessionThread = {
+  parent: Session
+  children: Session[]
+  latestUpdated: number // Max of parent/children update times
 }
 
 const [sessions, setSessions] = createSignal<Map<string, Map<string, Session>>>(new Map())
@@ -160,6 +167,13 @@ function setSessionCompactionState(instanceId: string, sessionId: string, isComp
   })
 }
 
+function setSessionStatus(instanceId: string, sessionId: string, status: SessionStatus): void {
+  withSession(instanceId, sessionId, (session) => {
+    if (session.status === status) return
+    session.status = status
+  })
+}
+
 function setSessionPendingPermission(instanceId: string, sessionId: string, pending: boolean): void {
   withSession(instanceId, sessionId, (session) => {
     if (session.pendingPermission === pending) return
@@ -236,6 +250,44 @@ function getSessionFamily(instanceId: string, parentId: string): Session[] {
 
   const children = getChildSessions(instanceId, parentId)
   return [parent, ...children]
+}
+
+// Build sorted list of session threads (parent + children grouped together)
+function getSessionThreads(instanceId: string): SessionThread[] {
+  const instanceSessions = sessions().get(instanceId)
+  if (!instanceSessions || instanceSessions.size === 0) return []
+
+  const parents: Session[] = []
+  const childrenByParent = new Map<string, Session[]>()
+
+  for (const session of instanceSessions.values()) {
+    if (session.parentId === null) {
+      parents.push(session)
+    } else if (session.parentId) {
+      const children = childrenByParent.get(session.parentId) || []
+      children.push(session)
+      childrenByParent.set(session.parentId, children)
+    }
+  }
+
+  const threads: SessionThread[] = parents.map((parent) => {
+    const children = childrenByParent.get(parent.id) ?? []
+    // Sort children by most recently updated first
+    children.sort((a, b) => (b.time.updated ?? 0) - (a.time.updated ?? 0))
+
+    const parentUpdated = parent.time.updated ?? 0
+    const latestChild = children[0]?.time.updated ?? 0
+
+    return {
+      parent,
+      children,
+      latestUpdated: Math.max(parentUpdated, latestChild),
+    }
+  })
+
+  // Sort threads by most recently updated first
+  threads.sort((a, b) => b.latestUpdated - a.latestUpdated)
+  return threads
 }
 
 function isSessionBusy(instanceId: string, sessionId: string): boolean {
@@ -379,11 +431,10 @@ export {
   pruneDraftPrompts,
   withSession,
   setSessionCompactionState,
+  setSessionStatus,
   setSessionPendingPermission,
   setActiveSession,
- 
   setActiveParentSession,
-
   clearActiveParentSession,
   getActiveSession,
   getActiveParentSession,
@@ -391,6 +442,7 @@ export {
   getParentSessions,
   getChildSessions,
   getSessionFamily,
+  getSessionThreads,
   isSessionBusy,
   isSessionMessagesLoading,
   getSessionInfo,

@@ -1,4 +1,4 @@
-import type { Session } from "../types/session"
+import type { Session, SessionStatus } from "../types/session"
 import type { Message } from "../types/message"
 
 import { instances, stopInstance } from "./instances"
@@ -101,6 +101,7 @@ async function fetchSessions(instanceId: string): Promise<void> {
               diff: apiSession.revert.diff,
             }
           : undefined,
+        status: existingSession?.status ?? "idle",
       })
     }
 
@@ -195,6 +196,7 @@ async function createSession(instanceId: string, agent?: string): Promise<Sessio
             diff: response.data.revert.diff,
           }
         : undefined,
+      status: "idle",
     }
 
     setSessions((prev) => {
@@ -280,7 +282,8 @@ async function forkSession(
   }
 
   const info = response.data as SessionForkResponse
-  const forkedSession = {
+  const now = Date.now()
+  const forkedSession: Session = {
     id: info.id,
     instanceId,
     title: info.title || "Forked Session",
@@ -291,8 +294,11 @@ async function forkSession(
       modelId: info.model?.modelID || "",
     },
     version: "0",
-    time: info.time ? { ...info.time } : { created: Date.now(), updated: Date.now() },
-    revert: info.revert
+    time: {
+      created: info.time?.created ?? now,
+      updated: info.time?.updated ?? now,
+    },
+    revert: info.revert?.messageID
       ? {
           messageID: info.revert.messageID,
           partID: info.revert.partID,
@@ -300,7 +306,8 @@ async function forkSession(
           diff: info.revert.diff,
         }
       : undefined,
-  } as unknown as Session
+    status: "idle",
+  }
 
   setSessions((prev) => {
     const next = new Map(prev)
@@ -389,12 +396,37 @@ async function deleteSession(instanceId: string, sessionId: string): Promise<voi
       return next
     })
 
+    // If deleted session was active, select a nearby session
     if (activeSessionId().get(instanceId) === sessionId) {
-      setActiveSessionId((prev) => {
-        const next = new Map(prev)
-        next.delete(instanceId)
-        return next
-      })
+      const remainingSessions = sessions().get(instanceId)
+      if (remainingSessions && remainingSessions.size > 0) {
+        // Find parent sessions (sessions without parentId) to select from
+        const parentSessions = Array.from(remainingSessions.values())
+          .filter((s) => s.parentId === null)
+          .sort((a, b) => (b.time?.updated || 0) - (a.time?.updated || 0))
+
+        if (parentSessions.length > 0) {
+          // Select the most recently updated parent session
+          setActiveSessionId((prev) => {
+            const next = new Map(prev)
+            next.set(instanceId, parentSessions[0].id)
+            return next
+          })
+        } else {
+          // No parent sessions, just clear
+          setActiveSessionId((prev) => {
+            const next = new Map(prev)
+            next.delete(instanceId)
+            return next
+          })
+        }
+      } else {
+        setActiveSessionId((prev) => {
+          const next = new Map(prev)
+          next.delete(instanceId)
+          return next
+        })
+      }
     }
 
     // Check if this was the last session and stop instance if preference is enabled

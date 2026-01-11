@@ -1,5 +1,5 @@
 import { createSignal, Show, onMount, For, onCleanup, createEffect, on, untrack } from "solid-js"
-import { ArrowBigUp, ArrowBigDown } from "lucide-solid"
+import { ArrowBigUp, ArrowBigDown, ArrowLeft } from "lucide-solid"
 import UnifiedPicker from "./unified-picker"
 import SlashCommandPicker from "./slash-command-picker"
 import { addToHistory, getHistory } from "../stores/message-history"
@@ -29,6 +29,9 @@ interface PromptInputProps {
   isSessionBusy?: boolean
   onAbortSession?: () => Promise<void>
   registerQuoteHandler?: (handler: (text: string, mode: "quote" | "code") => void) => void | (() => void)
+  isSubAgentSession?: boolean  // If true, show read-only footer instead of input
+  parentSessionTitle?: string  // Title of parent session for "return to" button
+  onReturnToParent?: () => void  // Handler to return to parent session
 }
 
 export default function PromptInput(props: PromptInputProps) {
@@ -1060,6 +1063,32 @@ export default function PromptInput(props: PromptInputProps) {
   const shouldShowOverlay = () => prompt().length === 0
 
   const instance = () => getActiveInstance()
+
+  // Show read-only footer for sub-agent sessions
+  if (props.isSubAgentSession) {
+    return (
+      <div class="prompt-input-container">
+        <div class="sub-agent-footer">
+          <div class="sub-agent-footer-message">
+            <span class="sub-agent-footer-icon">🤖</span>
+            <span class="sub-agent-footer-text">
+              This is a sub-agent session. You cannot send messages to sub-agents directly.
+            </span>
+          </div>
+          <Show when={props.onReturnToParent}>
+            <button
+              class="sub-agent-footer-button"
+              onClick={props.onReturnToParent}
+              title={`Return to ${props.parentSessionTitle || "parent session"}`}
+            >
+              <ArrowLeft class="w-4 h-4" />
+              <span>Return to {props.parentSessionTitle || "parent"}</span>
+            </button>
+          </Show>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div class="prompt-input-container">
