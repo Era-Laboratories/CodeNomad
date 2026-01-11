@@ -4,6 +4,9 @@
 @import "./panels/panel-shell.css";
 @import "./panels/session-layout.css";
 @import "./panels/control-panel.css";
+@import "./panels/bottom-status-bar.css";
+@import "./panels/model-selector.css";
+@import "./panels/commands.css";
 
 
 .tab-bar-instance {

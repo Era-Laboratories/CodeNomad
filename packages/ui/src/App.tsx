@@ -3,8 +3,15 @@ import { Dialog } from "@kobalte/core/dialog"
 import { Toaster } from "solid-toast"
 import AlertDialog from "./components/alert-dialog"
 import FolderSelectionView from "./components/folder-selection-view"
+import FolderSelectionCards from "./components/folder-selection-cards"
 import { showConfirmDialog } from "./stores/alerts"
 import InstanceTabs from "./components/instance-tabs"
+import SessionTabs from "./components/session-tabs"
+import SettingsPanel from "./components/settings-panel"
+import CommandsSettingsPanel from "./components/commands-settings-panel"
+import CloseTabModal, { type CloseTabType } from "./components/close-tab-modal"
+import BottomStatusBar from "./components/bottom-status-bar"
+import ModelSelectorModal from "./components/model-selector-modal"
 import InstanceDisconnectedModal from "./components/instance-disconnected-modal"
 import InstanceShell from "./components/instance/instance-shell2"
 import { RemoteAccessOverlay } from "./components/remote-access-overlay"
@@ -40,15 +47,20 @@ import {
 import {
   getSessions,
   activeSessionId,
+  activeParentSessionId,
   setActiveParentSession,
   clearActiveParentSession,
   createSession,
+  deleteSession,
   forkSession,
   fetchSessions,
   updateSessionAgent,
   updateSessionModel,
   getActiveSession,
+  getParentSessions,
+  getSessionInfo,
 } from "./stores/sessions"
+import { isSessionCompactionActive } from "./stores/session-compaction"
 
 const log = getLogger("actions")
 
@@ -70,7 +82,16 @@ const App: Component = () => {
   const [launchErrorBinary, setLaunchErrorBinary] = createSignal<string | null>(null)
   const [isAdvancedSettingsOpen, setIsAdvancedSettingsOpen] = createSignal(false)
   const [remoteAccessOpen, setRemoteAccessOpen] = createSignal(false)
+  const [settingsPanelOpen, setSettingsPanelOpen] = createSignal(false)
+  const [commandsPanelOpen, setCommandsPanelOpen] = createSignal(false)
   const [instanceTabBarHeight, setInstanceTabBarHeight] = createSignal(0)
+
+  // Close modal state
+  const [closeModalOpen, setCloseModalOpen] = createSignal(false)
+  const [closeModalType, setCloseModalType] = createSignal<CloseTabType>("session")
+  const [closeModalName, setCloseModalName] = createSignal("")
+  const [closeModalSessionCount, setCloseModalSessionCount] = createSignal(0)
+  const [closeModalTargetId, setCloseModalTargetId] = createSignal<string | null>(null)
 
   const updateInstanceTabBarHeight = () => {
     if (typeof document === "undefined") return
@@ -104,6 +125,62 @@ const App: Component = () => {
     const instance = activeInstance()
     if (!instance) return null
     return activeSessionId().get(instance.id) || null
+  })
+
+  // Get parent sessions (user conversations, not agent sub-sessions) as a Map for SessionTabs
+  const activeInstanceParentSessions = createMemo(() => {
+    const instance = activeInstance()
+    if (!instance) return new Map()
+    const parentSessions = getParentSessions(instance.id)
+    return new Map(parentSessions.map(s => [s.id, s]))
+  })
+
+  // Get the active parent session ID for the active instance
+  const activeParentSessionIdForInstance = createMemo(() => {
+    const instance = activeInstance()
+    if (!instance) return null
+    return activeParentSessionId().get(instance.id) || null
+  })
+
+  // Compute server status for the active instance
+  const serverStatus = createMemo((): "healthy" | "warning" | "error" => {
+    const instance = activeInstance()
+    if (!instance) return "healthy"
+    if (instance.status === "ready") return "healthy"
+    if (instance.status === "starting" || instance.status === "connecting") return "warning"
+    return "error"
+  })
+
+  // Model selector modal state
+  const [modelSelectorOpen, setModelSelectorOpen] = createSignal(false)
+
+  // Bottom status bar computed values
+  const projectName = createMemo(() => {
+    const instance = activeInstance()
+    if (!instance) return ""
+    return instance.folder.split("/").pop() || instance.folder
+  })
+
+  const activeSessionInfo = createMemo(() => {
+    const instance = activeInstance()
+    const sessionId = activeParentSessionIdForInstance()
+    if (!instance || !sessionId) return null
+    return getSessionInfo(instance.id, sessionId)
+  })
+
+  const isCompacting = createMemo(() => {
+    const instance = activeInstance()
+    const sessionId = activeParentSessionIdForInstance()
+    if (!instance || !sessionId) return false
+    return isSessionCompactionActive(instance.id, sessionId)
+  })
+
+  const activeSessionModel = createMemo(() => {
+    const instance = activeInstance()
+    const sessionId = activeParentSessionIdForInstance()
+    if (!instance || !sessionId) return { providerId: "", modelId: "" }
+    const session = getSessions(instance.id).find(s => s.id === sessionId)
+    return session?.model ?? { providerId: "", modelId: "" }
   })
 
   const launchErrorPath = () => {
@@ -179,23 +256,75 @@ const App: Component = () => {
     }
   }
 
+  function handleCloseInstanceRequest(instanceId: string) {
+    const instance = instances().get(instanceId)
+    if (!instance) return
+
+    const sessionCount = getParentSessions(instanceId).length
+    const folderName = instance.folder.split("/").pop() || instance.folder
+
+    setCloseModalType("project")
+    setCloseModalName(folderName)
+    setCloseModalSessionCount(sessionCount)
+    setCloseModalTargetId(instanceId)
+    setCloseModalOpen(true)
+  }
+
+  // Direct close instance (for keyboard shortcuts/commands - bypasses modal)
   async function handleCloseInstance(instanceId: string) {
-    const confirmed = await showConfirmDialog(
-      "Stop OpenCode instance? This will stop the server.",
-      {
-        title: "Stop instance",
-        variant: "warning",
-        confirmLabel: "Stop",
-        cancelLabel: "Keep running",
-      },
-    )
-
-    if (!confirmed) return
-
     await stopInstance(instanceId)
     if (instances().size === 0) {
       setHasInstances(false)
     }
+  }
+
+  async function handleCloseModalConfirm(keepInBackground: boolean) {
+    const targetId = closeModalTargetId()
+    const type = closeModalType()
+
+    setCloseModalOpen(false)
+
+    if (!targetId) return
+
+    if (type === "project") {
+      // Close instance/project
+      if (keepInBackground) {
+        // TODO: Implement background mode for quick access later
+        log.info("Keep in background not implemented yet")
+      }
+      await stopInstance(targetId)
+      if (instances().size === 0) {
+        setHasInstances(false)
+      }
+    } else if (type === "session") {
+      // Close session
+      const instance = activeInstance()
+      if (instance) {
+        await handleCloseSession(instance.id, targetId)
+      }
+    }
+  }
+
+  function handleCloseModalCancel() {
+    setCloseModalOpen(false)
+    setCloseModalTargetId(null)
+  }
+
+  function handleCloseSessionRequest(sessionId: string) {
+    const instance = activeInstance()
+    if (!instance) return
+
+    const sessions = getSessions(instance.id)
+    const session = sessions.find((s) => s.id === sessionId)
+    if (!session) return
+
+    const sessionName = session.title || "Untitled Session"
+
+    setCloseModalType("session")
+    setCloseModalName(sessionName)
+    setCloseModalSessionCount(0)
+    setCloseModalTargetId(sessionId)
+    setCloseModalOpen(true)
   }
 
   async function handleNewSession(instanceId: string) {
@@ -215,6 +344,7 @@ const App: Component = () => {
       return
     }
 
+    // Find the parent session (or use the session itself if it's a parent)
     const parentSessionId = session.parentId ?? session.id
     const parentSession = sessions.find((s) => s.id === parentSessionId)
 
@@ -222,13 +352,36 @@ const App: Component = () => {
       return
     }
 
+    // Clear active session before deletion
     clearActiveParentSession(instanceId)
 
     try {
-      await fetchSessions(instanceId)
+      // Actually delete the session via API
+      await deleteSession(instanceId, parentSessionId)
+      log.info("Session deleted successfully", { instanceId, sessionId: parentSessionId })
     } catch (error) {
-      log.error("Failed to refresh sessions after closing", error)
+      log.error("Failed to delete session", error)
+      // Refresh sessions to sync state even if delete failed
+      try {
+        await fetchSessions(instanceId)
+      } catch (fetchError) {
+        log.error("Failed to refresh sessions after delete error", fetchError)
+      }
     }
+  }
+
+  async function handleModelSelect(providerId: string, modelId: string) {
+    const instance = activeInstance()
+    const sessionId = activeParentSessionIdForInstance()
+    if (!instance || !sessionId) return
+
+    try {
+      await updateSessionModel(instance.id, sessionId, { providerId, modelId })
+      log.info("Updated session model", { providerId, modelId })
+    } catch (error) {
+      log.error("Failed to update session model", error)
+    }
+    setModelSelectorOpen(false)
   }
 
   const handleSidebarAgentChange = async (instanceId: string, sessionId: string, agent: string) => {
@@ -273,6 +426,7 @@ const App: Component = () => {
     setShowFolderSelection,
     getActiveInstance: activeInstance,
     getActiveSessionIdForInstance: activeSessionIdForInstance,
+    openModelSelector: () => setModelSelectorOpen(true),
   })
 
   // Listen for Tauri menu events
@@ -345,11 +499,48 @@ const App: Component = () => {
                 instances={instances()}
                 activeInstanceId={activeInstanceId()}
                 onSelect={setActiveInstanceId}
-                onClose={handleCloseInstance}
+                onClose={handleCloseInstanceRequest}
                 onNew={handleNewInstanceRequest}
                 onOpenRemoteAccess={() => setRemoteAccessOpen(true)}
+                onOpenSettings={() => setSettingsPanelOpen(true)}
+                showNewTab={showFolderSelection()}
+                onCloseNewTab={() => {
+                  setShowFolderSelection(false)
+                  setIsAdvancedSettingsOpen(false)
+                }}
+                serverStatus={serverStatus()}
               />
- 
+
+              {/* Session tabs - shown when instance is active and has sessions */}
+              <Show when={activeInstance() && !showFolderSelection() && activeInstanceParentSessions().size > 0}>
+                <SessionTabs
+                  instanceId={activeInstance()!.id}
+                  sessions={activeInstanceParentSessions()}
+                  activeSessionId={activeParentSessionIdForInstance()}
+                  onSelect={(sessionId) => setActiveParentSession(activeInstance()!.id, sessionId)}
+                  onClose={(sessionId) => handleCloseSessionRequest(sessionId)}
+                  onNew={() => handleNewSession(activeInstance()!.id)}
+                />
+              </Show>
+
+              {/* New Tab view - folder selection cards */}
+              <Show when={showFolderSelection()}>
+                <div
+                  class="flex-1 min-h-0 overflow-auto flex items-center justify-center p-6"
+                  style="background-color: var(--surface-secondary)"
+                >
+                  <div class="w-full max-w-3xl">
+                    <FolderSelectionCards
+                      onSelectFolder={handleSelectFolder}
+                      isLoading={isSelectingFolder()}
+                      advancedSettingsOpen={isAdvancedSettingsOpen()}
+                      onAdvancedSettingsOpen={() => setIsAdvancedSettingsOpen(true)}
+                      onAdvancedSettingsClose={() => setIsAdvancedSettingsOpen(false)}
+                    />
+                  </div>
+                </div>
+              </Show>
+
               <For each={Array.from(instances().values())}>
                 {(instance) => {
                   const isActiveInstance = () => activeInstanceId() === instance.id
@@ -388,36 +579,67 @@ const App: Component = () => {
             onOpenRemoteAccess={() => setRemoteAccessOpen(true)}
           />
         </Show>
-
-        <Show when={showFolderSelection()}>
-          <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-            <div class="w-full h-full relative">
-              <button
-                onClick={() => {
-                  setShowFolderSelection(false)
-                  setIsAdvancedSettingsOpen(false)
-                  clearLaunchError()
-                }}
-                class="absolute top-4 right-4 z-10 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                title="Close (Esc)"
-              >
-                <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <FolderSelectionView
-                onSelectFolder={handleSelectFolder}
-                isLoading={isSelectingFolder()}
-                advancedSettingsOpen={isAdvancedSettingsOpen()}
-                onAdvancedSettingsOpen={() => setIsAdvancedSettingsOpen(true)}
-                onAdvancedSettingsClose={() => setIsAdvancedSettingsOpen(false)}
-              />
-            </div>
-          </div>
-        </Show>
  
         <RemoteAccessOverlay open={remoteAccessOpen()} onClose={() => setRemoteAccessOpen(false)} />
- 
+
+        <SettingsPanel
+          open={settingsPanelOpen()}
+          onClose={() => setSettingsPanelOpen(false)}
+          instance={activeInstance() ?? null}
+          serverStatus={serverStatus()}
+          onOpenCommandsSettings={() => {
+            setSettingsPanelOpen(false)
+            setCommandsPanelOpen(true)
+          }}
+          onOpenAdvancedSettings={() => {
+            setSettingsPanelOpen(false)
+            setIsAdvancedSettingsOpen(true)
+          }}
+        />
+
+        <CommandsSettingsPanel
+          open={commandsPanelOpen()}
+          onClose={() => setCommandsPanelOpen(false)}
+          instanceId={activeInstanceId()}
+        />
+
+        <CloseTabModal
+          open={closeModalOpen()}
+          type={closeModalType()}
+          name={closeModalName()}
+          sessionCount={closeModalSessionCount()}
+          onConfirm={handleCloseModalConfirm}
+          onCancel={handleCloseModalCancel}
+        />
+
+        {/* Bottom Status Bar - shown when we have an active instance */}
+        <Show when={activeInstance() && !showFolderSelection()}>
+          <BottomStatusBar
+            projectName={projectName()}
+            usedTokens={activeSessionInfo()?.inputTokens ?? 0}
+            availableTokens={activeSessionInfo()?.contextAvailableTokens ?? null}
+            contextWindow={activeSessionInfo()?.contextWindow ?? 0}
+            isCompacting={isCompacting()}
+            providerId={activeSessionModel().providerId}
+            modelId={activeSessionModel().modelId}
+            cost={activeSessionInfo()?.cost ?? 0}
+            onModelClick={() => setModelSelectorOpen(true)}
+            onContextClick={() => {
+              // TODO: Open session summary modal
+              log.info("Context clicked - session summary coming soon")
+            }}
+          />
+        </Show>
+
+        {/* Model Selector Modal */}
+        <ModelSelectorModal
+          open={modelSelectorOpen()}
+          currentProviderId={activeSessionModel().providerId}
+          currentModelId={activeSessionModel().modelId}
+          onSelect={handleModelSelect}
+          onCancel={() => setModelSelectorOpen(false)}
+        />
+
         <AlertDialog />
 
         <Toaster

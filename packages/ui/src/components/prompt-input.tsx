@@ -1,16 +1,19 @@
 import { createSignal, Show, onMount, For, onCleanup, createEffect, on, untrack } from "solid-js"
 import { ArrowBigUp, ArrowBigDown } from "lucide-solid"
 import UnifiedPicker from "./unified-picker"
+import SlashCommandPicker from "./slash-command-picker"
 import { addToHistory, getHistory } from "../stores/message-history"
 import { getAttachments, addAttachment, clearAttachments, removeAttachment } from "../stores/attachments"
 import { resolvePastedPlaceholders } from "../lib/prompt-placeholders"
 import { createFileAttachment, createTextAttachment, createAgentAttachment } from "../types/attachment"
 import type { Attachment } from "../types/attachment"
 import type { Agent } from "../types/session"
+import type { Command as SDKCommand } from "@opencode-ai/sdk"
 import Kbd from "./kbd"
 import { getActiveInstance } from "../stores/instances"
 import { agents, getSessionDraftPrompt, setSessionDraftPrompt, clearSessionDraftPrompt } from "../stores/sessions"
 import { showAlertDialog } from "../stores/alerts"
+import { executeCustomCommand } from "../stores/session-actions"
 import { getLogger } from "../lib/logger"
 const log = getLogger("actions")
 
@@ -43,6 +46,8 @@ export default function PromptInput(props: PromptInputProps) {
   const [pasteCount, setPasteCount] = createSignal(0)
   const [imageCount, setImageCount] = createSignal(0)
   const [mode, setMode] = createSignal<"normal" | "shell">("normal")
+  const [showSlashPicker, setShowSlashPicker] = createSignal(false)
+  const [slashQuery, setSlashQuery] = createSignal("")
   const SELECTION_INSERT_MAX_LENGTH = 2000
   let textareaRef: HTMLTextAreaElement | undefined
   let containerRef: HTMLDivElement | undefined
@@ -387,6 +392,13 @@ export default function PromptInput(props: PromptInputProps) {
       return
     }
 
+    if (showSlashPicker() && e.key === "Escape") {
+      e.preventDefault()
+      e.stopPropagation()
+      handleSlashPickerClose()
+      return
+    }
+
     if (isShellMode) {
       if (e.key === "Escape") {
         e.preventDefault()
@@ -560,8 +572,29 @@ export default function PromptInput(props: PromptInputProps) {
     const currentAttachments = attachments()
     if (props.disabled || (!text && currentAttachments.length === 0)) return
 
+    // Close any open pickers
+    if (showSlashPicker()) {
+      setShowSlashPicker(false)
+      setSlashQuery("")
+    }
+    if (showPicker()) {
+      handlePickerClose()
+    }
+
     const resolvedPrompt = resolvePastedPlaceholders(text, currentAttachments)
     const isShellMode = mode() === "shell"
+
+    // Check if this is a slash command
+    const isSlashCommand = !isShellMode && text.startsWith("/")
+    let commandName = ""
+    let commandArgs = ""
+
+    if (isSlashCommand) {
+      const firstSpace = text.indexOf(" ")
+      const commandToken = firstSpace === -1 ? text : text.slice(0, firstSpace)
+      commandName = commandToken.slice(1) // Remove leading /
+      commandArgs = firstSpace === -1 ? "" : text.slice(firstSpace + 1).trim()
+    }
 
     const refreshHistory = async () => {
       try {
@@ -580,7 +613,10 @@ export default function PromptInput(props: PromptInputProps) {
     }
 
     clearPrompt()
-    clearAttachments(props.instanceId, props.sessionId)
+    // Don't clear attachments for slash commands - preserve them for next message
+    if (!isSlashCommand) {
+      clearAttachments(props.instanceId, props.sessionId)
+    }
     setIgnoredAtPositions(new Set<number>())
     setPasteCount(0)
     setImageCount(0)
@@ -593,6 +629,10 @@ export default function PromptInput(props: PromptInputProps) {
         } else {
           await props.onSend(resolvedPrompt, [])
         }
+      } else if (isSlashCommand && commandName) {
+        // Execute slash command
+        log.info("Executing slash command", { commandName, commandArgs })
+        await executeCustomCommand(props.instanceId, props.sessionId, commandName, commandArgs)
       } else {
         await props.onSend(resolvedPrompt, currentAttachments)
       }
@@ -676,6 +716,32 @@ export default function PromptInput(props: PromptInputProps) {
     setHistoryIndex(-1)
     setHistoryDraft(null)
 
+    const isShellMode = mode() === "shell"
+
+    // Detect "/" at start for slash commands (not in shell mode)
+    if (!isShellMode && value.startsWith("/")) {
+      const slashMatch = value.match(/^\/(\S*)/)
+      if (slashMatch) {
+        const query = slashMatch[1] || ""
+        // Don't show picker if there's a space after the command (user is typing args)
+        const hasSpaceAfterCommand = value.indexOf(" ") !== -1 && value.indexOf(" ") === slashMatch[0].length
+        if (!hasSpaceAfterCommand || query.length === 0) {
+          setSlashQuery(query)
+          setShowSlashPicker(true)
+          // Don't show @ picker while showing slash picker
+          setShowPicker(false)
+          setAtPosition(null)
+          return
+        }
+      }
+    }
+
+    // Close slash picker if "/" is no longer at start
+    if (showSlashPicker() && !value.startsWith("/")) {
+      setShowSlashPicker(false)
+      setSlashQuery("")
+    }
+
     const cursorPos = target.selectionStart
     const textBeforeCursor = value.substring(0, cursorPos)
     const lastAtIndex = textBeforeCursor.lastIndexOf("@")
@@ -701,6 +767,9 @@ export default function PromptInput(props: PromptInputProps) {
           setAtPosition(lastAtIndex)
           setSearchQuery(textAfterAt)
           setShowPicker(true)
+          // Close slash picker when opening @ picker
+          setShowSlashPicker(false)
+          setSlashQuery("")
         }
         return
       }
@@ -829,6 +898,34 @@ export default function PromptInput(props: PromptInputProps) {
     setAtPosition(null)
     setSearchQuery("")
     setTimeout(() => textareaRef?.focus(), 0)
+  }
+
+  function handleSlashPickerClose() {
+    setShowSlashPicker(false)
+    setSlashQuery("")
+    setTimeout(() => textareaRef?.focus(), 0)
+  }
+
+  async function handleSlashCommandSelect(command: SDKCommand) {
+    const currentText = prompt()
+    // Extract any arguments after the command name
+    const slashMatch = currentText.match(/^\/(\S*)\s*(.*)$/)
+    const args = slashMatch?.[2]?.trim() || ""
+
+    setShowSlashPicker(false)
+    setSlashQuery("")
+
+    // Replace the prompt with just the command (user can add args)
+    const newPrompt = `/${command.name} `
+    setPrompt(newPrompt)
+
+    setTimeout(() => {
+      if (textareaRef) {
+        const pos = newPrompt.length
+        textareaRef.setSelectionRange(pos, pos)
+        textareaRef.focus()
+      }
+    }, 0)
   }
 
   function handleDragOver(e: DragEvent) {
@@ -988,6 +1085,17 @@ export default function PromptInput(props: PromptInputProps) {
             searchQuery={searchQuery()}
             textareaRef={textareaRef}
             workspaceId={props.instanceId}
+          />
+        </Show>
+
+        <Show when={showSlashPicker()}>
+          <SlashCommandPicker
+            open={showSlashPicker()}
+            onClose={handleSlashPickerClose}
+            onSelect={handleSlashCommandSelect}
+            searchQuery={slashQuery()}
+            instanceId={props.instanceId}
+            textareaRef={textareaRef}
           />
         </Show>
 
