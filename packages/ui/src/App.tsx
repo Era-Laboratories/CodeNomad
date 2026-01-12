@@ -10,7 +10,9 @@ import SessionTabs from "./components/session-tabs"
 import SessionBreadcrumb from "./components/session-breadcrumb"
 import SettingsPanel from "./components/settings-panel"
 import CommandsSettingsPanel from "./components/commands-settings-panel"
+import GovernancePanel from "./components/governance-panel"
 import CloseTabModal, { type CloseTabType } from "./components/close-tab-modal"
+import PermissionWarningModal from "./components/permission-warning-modal"
 import BottomStatusBar from "./components/bottom-status-bar"
 import ModelSelectorModal from "./components/model-selector-modal"
 import InstanceDisconnectedModal from "./components/instance-disconnected-modal"
@@ -63,6 +65,7 @@ import {
   getSessionInfo,
 } from "./stores/sessions"
 import { setActiveSession } from "./stores/session-state"
+import { ensureInstanceConfigLoaded, getInstanceConfig, updateInstanceConfig } from "./stores/instance-config"
 import { isSessionCompactionActive } from "./stores/session-compaction"
 import { isSessionBusy as checkSessionBusy } from "./stores/session-status"
 
@@ -88,6 +91,7 @@ const App: Component = () => {
   const [remoteAccessOpen, setRemoteAccessOpen] = createSignal(false)
   const [settingsPanelOpen, setSettingsPanelOpen] = createSignal(false)
   const [commandsPanelOpen, setCommandsPanelOpen] = createSignal(false)
+  const [governancePanelOpen, setGovernancePanelOpen] = createSignal(false)
   const [instanceTabBarHeight, setInstanceTabBarHeight] = createSignal(0)
 
   // Close modal state
@@ -96,6 +100,11 @@ const App: Component = () => {
   const [closeModalName, setCloseModalName] = createSignal("")
   const [closeModalSessionCount, setCloseModalSessionCount] = createSignal(0)
   const [closeModalTargetId, setCloseModalTargetId] = createSignal<string | null>(null)
+
+  // Permission warning modal state
+  const [permissionModalOpen, setPermissionModalOpen] = createSignal(false)
+  const [permissionModalInstanceId, setPermissionModalInstanceId] = createSignal<string | null>(null)
+  const [permissionModalProjectName, setPermissionModalProjectName] = createSignal("")
 
   const updateInstanceTabBarHeight = () => {
     if (typeof document === "undefined") return
@@ -279,6 +288,19 @@ const App: Component = () => {
         instanceId,
         port: instances().get(instanceId)?.port,
       })
+
+      // Check if we should show permission warning modal
+      if (preferences().autoApprovePermissions) {
+        await ensureInstanceConfigLoaded(instanceId)
+        const instanceConfig = getInstanceConfig(instanceId)
+        // Only show if no override is set (first time opening this project with auto-approve on)
+        if (!instanceConfig.permissionOverride) {
+          const projectName = folderPath.split("/").pop() || folderPath
+          setPermissionModalInstanceId(instanceId)
+          setPermissionModalProjectName(projectName)
+          setPermissionModalOpen(true)
+        }
+      }
     } catch (error) {
       clearLaunchError()
       if (isMissingBinaryError(error)) {
@@ -365,6 +387,30 @@ const App: Component = () => {
   function handleCloseModalCancel() {
     setCloseModalOpen(false)
     setCloseModalTargetId(null)
+  }
+
+  async function handlePermissionModalProceed() {
+    const instanceId = permissionModalInstanceId()
+    if (instanceId) {
+      // Set override to "enabled" so we don't show the modal again
+      await updateInstanceConfig(instanceId, (draft) => {
+        draft.permissionOverride = "enabled"
+      })
+    }
+    setPermissionModalOpen(false)
+    setPermissionModalInstanceId(null)
+  }
+
+  async function handlePermissionModalDisable() {
+    const instanceId = permissionModalInstanceId()
+    if (instanceId) {
+      // Set override to "disabled" for this project
+      await updateInstanceConfig(instanceId, (draft) => {
+        draft.permissionOverride = "disabled"
+      })
+    }
+    setPermissionModalOpen(false)
+    setPermissionModalInstanceId(null)
   }
 
   function handleCloseSessionRequest(sessionId: string) {
@@ -666,12 +712,22 @@ const App: Component = () => {
             setSettingsPanelOpen(false)
             setIsAdvancedSettingsOpen(true)
           }}
+          onOpenGovernancePanel={() => {
+            setSettingsPanelOpen(false)
+            setGovernancePanelOpen(true)
+          }}
         />
 
         <CommandsSettingsPanel
           open={commandsPanelOpen()}
           onClose={() => setCommandsPanelOpen(false)}
           instanceId={activeInstanceId()}
+        />
+
+        <GovernancePanel
+          open={governancePanelOpen()}
+          onClose={() => setGovernancePanelOpen(false)}
+          folder={activeInstance()?.folder}
         />
 
         <CloseTabModal
@@ -681,6 +737,13 @@ const App: Component = () => {
           sessionCount={closeModalSessionCount()}
           onConfirm={handleCloseModalConfirm}
           onCancel={handleCloseModalCancel}
+        />
+
+        <PermissionWarningModal
+          open={permissionModalOpen()}
+          projectName={permissionModalProjectName()}
+          onProceed={handlePermissionModalProceed}
+          onDisable={handlePermissionModalDisable}
         />
 
         {/* Bottom Status Bar - shown when we have an active instance */}
@@ -699,6 +762,7 @@ const App: Component = () => {
               // TODO: Open session summary modal
               log.info("Context clicked - session summary coming soon")
             }}
+            onGovernanceClick={() => setGovernancePanelOpen(true)}
           />
         </Show>
 

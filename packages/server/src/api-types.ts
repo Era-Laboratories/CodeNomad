@@ -106,9 +106,12 @@ export interface WorkspaceFileResponse {
 
 export type WorkspaceFileSearchResponse = FileSystemEntry[]
 
+export type PermissionOverride = "inherit" | "enabled" | "disabled"
+
 export interface InstanceData {
   messageHistory: string[]
   agentModelSelections: AgentModelSelection
+  permissionOverride?: PermissionOverride
 }
 
 export type InstanceStreamStatus = "connecting" | "connected" | "error" | "disconnected"

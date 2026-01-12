@@ -54,6 +54,7 @@ import InstanceMcpControl from "../instance-mcp-control"
 import AdvancedSettingsModal from "../advanced-settings-modal"
 import AgentSelector from "../agent-selector"
 import ModelSelector from "../model-selector"
+import PermissionToggle from "../permission-toggle"
 import CommandPalette from "../command-palette"
 import ShortcutsDialog from "../shortcuts-dialog"
 import Kbd from "../kbd"
@@ -823,6 +824,11 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                   sessionId={activeSession().id}
                   currentModel={activeSession().model}
                   onModelChange={(model) => props.handleSidebarModelChange(activeSession().id, model)}
+                />
+
+                <PermissionToggle
+                  instanceId={props.instance.id}
+                  sessionId={activeSession().id}
                 />
               </div>
             </>

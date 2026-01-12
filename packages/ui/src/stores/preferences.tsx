@@ -67,6 +67,9 @@ export interface Preferences {
   idleInstanceTimeoutMinutes: number
   listeningMode: ListeningMode
 
+  // Permissions
+  autoApprovePermissions: boolean
+
   // Chat window settings
   defaultToolCallsCollapsed: boolean
   showVerboseOutput: boolean
@@ -110,6 +113,9 @@ const defaultPreferences: Preferences = {
   stopInstanceOnLastSessionDelete: false,
   idleInstanceTimeoutMinutes: 0,
   listeningMode: "local",
+
+  // Permissions - default to auto-approve (skip permission prompts)
+  autoApprovePermissions: true,
 
   // Chat window settings - default to collapsed tool calls, show verbose output
   defaultToolCallsCollapsed: true,
@@ -165,6 +171,9 @@ function normalizePreferences(pref?: Partial<Preferences> & { agentModelSelectio
     stopInstanceOnLastSessionDelete: sanitized.stopInstanceOnLastSessionDelete ?? defaultPreferences.stopInstanceOnLastSessionDelete,
     idleInstanceTimeoutMinutes: sanitized.idleInstanceTimeoutMinutes ?? defaultPreferences.idleInstanceTimeoutMinutes,
     listeningMode: sanitized.listeningMode ?? defaultPreferences.listeningMode,
+
+    // Permissions
+    autoApprovePermissions: sanitized.autoApprovePermissions ?? defaultPreferences.autoApprovePermissions,
 
     // Chat window settings
     defaultToolCallsCollapsed: sanitized.defaultToolCallsCollapsed ?? defaultPreferences.defaultToolCallsCollapsed,
@@ -414,6 +423,12 @@ function toggleShowVerboseOutput(): void {
   updatePreferences({ showVerboseOutput: nextValue })
 }
 
+function toggleAutoApprovePermissions(): void {
+  const nextValue = !preferences().autoApprovePermissions
+  log.info("toggle auto-approve permissions", { value: nextValue })
+  updatePreferences({ autoApprovePermissions: nextValue })
+}
+
 function addRecentFolder(path: string): void {
   updateConfig((draft) => {
     draft.recentFolders = buildRecentFolderList(path, draft.recentFolders)
@@ -520,6 +535,7 @@ interface ConfigContextValue {
   toggleStopInstanceOnLastSessionDelete: typeof toggleStopInstanceOnLastSessionDelete
   toggleDefaultToolCallsCollapsed: typeof toggleDefaultToolCallsCollapsed
   toggleShowVerboseOutput: typeof toggleShowVerboseOutput
+  toggleAutoApprovePermissions: typeof toggleAutoApprovePermissions
 
   setDiffViewMode: typeof setDiffViewMode
   setToolOutputExpansion: typeof setToolOutputExpansion
@@ -559,6 +575,7 @@ const configContextValue: ConfigContextValue = {
   toggleStopInstanceOnLastSessionDelete,
   toggleDefaultToolCallsCollapsed,
   toggleShowVerboseOutput,
+  toggleAutoApprovePermissions,
   setDiffViewMode,
   setToolOutputExpansion,
   setDiagnosticsExpansion,
@@ -620,6 +637,7 @@ export {
   toggleStopInstanceOnLastSessionDelete,
   toggleDefaultToolCallsCollapsed,
   toggleShowVerboseOutput,
+  toggleAutoApprovePermissions,
   toggleUsageMetrics,
   recentFolders,
   addRecentFolder,

@@ -2,6 +2,7 @@ import { resolvePastedPlaceholders } from "../lib/prompt-placeholders"
 import { instances } from "./instances"
 
 import { addRecentModelPreference, setAgentModelPreference } from "./preferences"
+import { getEffectivePermissionState } from "./session-permissions"
 import { sessions, withSession } from "./session-state"
 import { getDefaultModel, isModelValid } from "./session-models"
 import { updateSessionInfo } from "./message-v2/session-info"
@@ -170,6 +171,9 @@ async function sendMessage(
     /* trigger reactivity for legacy session data */
   })
 
+  // Get effective permission state for this session
+  const autoApprove = getEffectivePermissionState(instanceId, sessionId)
+
   const requestBody = {
     messageID: messageId,
     parts: requestParts,
@@ -181,6 +185,8 @@ async function sendMessage(
           modelID: session.model.modelId,
         },
       }),
+    // Include permission state in request
+    dangerouslySkipPermissions: autoApprove,
   }
 
   log.info("sendMessage", {
@@ -224,16 +230,21 @@ async function executeCustomCommand(
     throw new Error("Session not found")
   }
 
+  // Get effective permission state for this session
+  const autoApprove = getEffectivePermissionState(instanceId, sessionId)
+
   const body: {
     command: string
     arguments: string
     messageID: string
     agent?: string
     model?: string
+    dangerouslySkipPermissions?: boolean
   } = {
     command: commandName,
     arguments: args,
     messageID: createId("msg"),
+    dangerouslySkipPermissions: autoApprove,
   }
 
   if (session.agent) {
@@ -263,12 +274,16 @@ async function runShellCommand(instanceId: string, sessionId: string, command: s
 
   const agent = session.agent || "build"
 
+  // Get effective permission state for this session
+  const autoApprove = getEffectivePermissionState(instanceId, sessionId)
+
   await instance.client.session.shell({
     path: { id: sessionId },
     body: {
       agent,
       command,
-    },
+      dangerouslySkipPermissions: autoApprove,
+    } as { agent: string; command: string; dangerouslySkipPermissions?: boolean },
   })
 }
 

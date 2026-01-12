@@ -509,6 +509,111 @@
   filter: brightness(1.1);
 }
 
+/* Permission Warning Modal */
+.permission-modal-overlay {
+  @apply fixed inset-0 z-40;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.permission-modal {
+  @apply w-full max-w-lg rounded-lg;
+  background-color: var(--surface-base);
+  border: 1px solid var(--border-base);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.permission-modal-header {
+  @apply flex items-start gap-3 p-4;
+  border-bottom: 1px solid var(--border-base);
+}
+
+.permission-modal-icon {
+  @apply flex-shrink-0 p-2 rounded-full;
+  background-color: rgba(234, 179, 8, 0.15);
+  color: var(--status-warning, #eab308);
+}
+
+.permission-modal-title-group {
+  @apply flex-1 min-w-0;
+}
+
+.permission-modal-title {
+  @apply text-base font-semibold;
+  color: var(--text-primary);
+}
+
+.permission-modal-description {
+  @apply text-sm mt-1;
+  color: var(--text-secondary);
+}
+
+.permission-modal-close {
+  @apply flex-shrink-0 p-1 rounded transition-colors;
+  color: var(--text-muted);
+}
+
+.permission-modal-close:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.permission-modal-body {
+  @apply p-4 space-y-3;
+}
+
+.permission-modal-text {
+  @apply text-sm;
+  color: var(--text-secondary);
+}
+
+.permission-modal-text strong {
+  color: var(--status-warning, #eab308);
+}
+
+.permission-modal-list {
+  @apply text-sm pl-4 space-y-1;
+  color: var(--text-muted);
+  list-style-type: disc;
+}
+
+.permission-modal-list li {
+  @apply pl-1;
+}
+
+.permission-modal-hint {
+  @apply text-xs;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.permission-modal-footer {
+  @apply flex flex-col sm:flex-row justify-end gap-2 p-4;
+  border-top: 1px solid var(--border-base);
+}
+
+.permission-modal-button {
+  @apply px-4 py-2 text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-2;
+}
+
+.permission-modal-button-secondary {
+  background-color: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+.permission-modal-button-secondary:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.permission-modal-button-primary {
+  background-color: var(--accent-primary, #22c55e);
+  color: white;
+}
+
+.permission-modal-button-primary:hover {
+  filter: brightness(1.1);
+}
+
 /* Home screen keyboard shortcuts footer */
 .home-shortcuts-footer {
   @apply fixed bottom-0 left-0 right-0 py-3 px-4;

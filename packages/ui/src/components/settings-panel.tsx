@@ -1,8 +1,8 @@
 import { Component, Show, createSignal, createEffect } from "solid-js"
 import { Dialog } from "@kobalte/core/dialog"
-import { X, Server, ChevronDown, ChevronRight, Settings, Plug, Info, Zap, MessageSquare, Shield } from "lucide-solid"
+import { X, Server, ChevronDown, ChevronRight, Settings, Plug, Info, Zap, MessageSquare, Shield, ShieldCheck, ShieldOff } from "lucide-solid"
 import type { Instance } from "../types/instance"
-import { preferences, toggleDefaultToolCallsCollapsed, toggleShowVerboseOutput } from "../stores/preferences"
+import { preferences, toggleDefaultToolCallsCollapsed, toggleShowVerboseOutput, toggleAutoApprovePermissions } from "../stores/preferences"
 import EraStatusBadge from "./era-status-badge"
 import {
   isEraInstalled,
@@ -20,6 +20,7 @@ interface SettingsPanelProps {
   onOpenMcpSettings?: () => void
   onOpenAdvancedSettings?: () => void
   onOpenCommandsSettings?: () => void
+  onOpenGovernancePanel?: () => void
 }
 
 const SettingsPanel: Component<SettingsPanelProps> = (props) => {
@@ -101,6 +102,35 @@ const SettingsPanel: Component<SettingsPanelProps> = (props) => {
                 </div>
               </div>
 
+              {/* Permissions Settings */}
+              <div class="settings-section">
+                <h3 class="settings-section-title">
+                  {preferences().autoApprovePermissions ? (
+                    <ShieldCheck class="w-4 h-4 text-green-500" />
+                  ) : (
+                    <ShieldOff class="w-4 h-4 text-yellow-500" />
+                  )}
+                  <span>Permissions</span>
+                </h3>
+                <div class="settings-toggles">
+                  <label class="settings-toggle-row">
+                    <span class="settings-toggle-label">
+                      <span class="settings-toggle-title">Auto-approve permissions</span>
+                      <span class="settings-toggle-description">Skip permission prompts for file edits and commands (equivalent to --dangerously-skip-permissions)</span>
+                    </span>
+                    <button
+                      type="button"
+                      class={`settings-toggle-switch ${preferences().autoApprovePermissions ? "active" : ""}`}
+                      onClick={toggleAutoApprovePermissions}
+                      role="switch"
+                      aria-checked={preferences().autoApprovePermissions}
+                    >
+                      <span class="settings-toggle-switch-handle" />
+                    </button>
+                  </label>
+                </div>
+              </div>
+
               {/* Chat Window Settings */}
               <div class="settings-section">
                 <h3 class="settings-section-title">
@@ -174,6 +204,15 @@ const SettingsPanel: Component<SettingsPanelProps> = (props) => {
                         </div>
                       </div>
                     </Show>
+                  </Show>
+                  <Show when={isEraInstalled()}>
+                    <button
+                      class="settings-action-button era-governance-button"
+                      onClick={() => props.onOpenGovernancePanel?.()}
+                    >
+                      <Shield class="w-4 h-4" />
+                      <span>View Governance Rules</span>
+                    </button>
                   </Show>
                   <Show when={!isEraInstalled()}>
                     <p class="era-settings-hint">

@@ -568,3 +568,65 @@ session-sidebar-controls .selector-trigger-primary {
   line-height: 1.3;
 }
 
+/* Permission Toggle */
+.permission-toggle {
+  @apply flex items-center gap-1;
+}
+
+.permission-toggle-button {
+  @apply flex-1 flex items-center gap-2 px-3 py-2 rounded-md transition-colors;
+  background-color: var(--surface-base);
+  border: 1px solid var(--border-base);
+}
+
+.permission-toggle-button:hover {
+  background-color: var(--surface-hover);
+}
+
+.permission-toggle-button.enabled {
+  border-color: var(--status-success, #22c55e);
+}
+
+.permission-toggle-button.enabled .permission-toggle-icon {
+  color: var(--status-success, #22c55e);
+}
+
+.permission-toggle-button.disabled {
+  border-color: var(--border-base);
+}
+
+.permission-toggle-button.disabled .permission-toggle-icon {
+  color: var(--text-muted);
+}
+
+.permission-toggle-icon {
+  @apply flex-shrink-0;
+}
+
+.permission-toggle-label {
+  @apply flex items-center gap-1;
+}
+
+.permission-toggle-title {
+  @apply text-sm font-medium;
+  color: var(--text-primary);
+}
+
+.permission-toggle-override {
+  @apply text-xs;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.permission-toggle-reset {
+  @apply p-2 rounded-md transition-colors flex-shrink-0;
+  background-color: var(--surface-base);
+  border: 1px solid var(--border-base);
+  color: var(--text-muted);
+}
+
+.permission-toggle-reset:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+

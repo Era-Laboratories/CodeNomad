@@ -1,6 +1,6 @@
 import debug from "debug"
 
-export type LoggerNamespace = "sse" | "api" | "session" | "actions" | "models-api" | "commands-settings" | "session-cleanup" | "era-status"
+export type LoggerNamespace = "sse" | "api" | "session" | "actions" | "models-api" | "commands-settings" | "session-cleanup" | "era-status" | "era-governance" | "era-directives" | "governance-advanced" | "directives-editor" | "constitution-viewer"
 
 interface Logger {
   log: (...args: unknown[]) => void
@@ -22,7 +22,7 @@ export interface LoggerControls {
   disableAllLoggers: () => void
 }
 
-const KNOWN_NAMESPACES: LoggerNamespace[] = ["sse", "api", "session", "actions", "models-api", "commands-settings", "session-cleanup", "era-status"]
+const KNOWN_NAMESPACES: LoggerNamespace[] = ["sse", "api", "session", "actions", "models-api", "commands-settings", "session-cleanup", "era-status", "era-governance"]
 const STORAGE_KEY = "opencode:logger:namespaces"
 
 const namespaceLoggers = new Map<LoggerNamespace, Logger>()

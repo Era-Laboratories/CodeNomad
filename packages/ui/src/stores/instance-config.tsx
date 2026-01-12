@@ -17,6 +17,7 @@ function cloneInstanceData(data?: InstanceData | null): InstanceData {
     ...source,
     messageHistory: Array.isArray(source.messageHistory) ? [...source.messageHistory] : [],
     agentModelSelections: { ...(source.agentModelSelections ?? {}) },
+    permissionOverride: source.permissionOverride,
   }
 }
 

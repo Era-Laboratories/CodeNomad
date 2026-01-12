@@ -43,6 +43,9 @@ const PreferencesSchema = z.object({
   idleInstanceTimeoutMinutes: z.number().min(0).default(0), // 0 = disabled
   listeningMode: z.enum(["local", "all"]).default("local"),
 
+  // Permissions
+  autoApprovePermissions: z.boolean().default(true), // Skip permission prompts by default
+
   modelDefaultsByAgent: z.record(ModelPreferenceSchema).default({}),
 
   mcpRegistry: z.record(McpServerConfigSchema).default({}),
