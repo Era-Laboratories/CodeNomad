@@ -292,27 +292,25 @@ const GovernancePanel: Component<GovernancePanelProps> = (props) => {
                                   <span class="governance-action-badge governance-action-deny">Deny</span>
                                 </Show>
                                 {/* Toggle Switch */}
-                                <Show when={props.folder}>
-                                  <button
-                                    type="button"
-                                    class={`governance-rule-toggle ${isOverridden() ? "governance-rule-toggle-on" : "governance-rule-toggle-off"}`}
-                                    onClick={() => handleRuleToggle(rule)}
-                                    disabled={isToggling()}
-                                    title={isOverridden() ? "Click to deny (remove override)" : "Click to allow (add override)"}
-                                  >
-                                    <Show when={isToggling()}>
-                                      <div class="governance-rule-toggle-spinner" />
+                                <button
+                                  type="button"
+                                  class={`governance-rule-toggle ${isOverridden() ? "governance-rule-toggle-on" : "governance-rule-toggle-off"}`}
+                                  onClick={() => handleRuleToggle(rule)}
+                                  disabled={isToggling() || !props.folder}
+                                  title={!props.folder ? "Open a project to toggle rules" : isOverridden() ? "Click to deny (remove override)" : "Click to allow (add override)"}
+                                >
+                                  <Show when={isToggling()}>
+                                    <div class="governance-rule-toggle-spinner" />
+                                  </Show>
+                                  <Show when={!isToggling()}>
+                                    <Show when={isOverridden()}>
+                                      <ToggleRight class="w-5 h-5" />
                                     </Show>
-                                    <Show when={!isToggling()}>
-                                      <Show when={isOverridden()}>
-                                        <ToggleRight class="w-5 h-5" />
-                                      </Show>
-                                      <Show when={!isOverridden()}>
-                                        <ToggleLeft class="w-5 h-5" />
-                                      </Show>
+                                    <Show when={!isOverridden()}>
+                                      <ToggleLeft class="w-5 h-5" />
                                     </Show>
-                                  </button>
-                                </Show>
+                                  </Show>
+                                </button>
                               </div>
                               <div class="governance-rule-pattern">
                                 <code>{rule.pattern}</code>
@@ -483,7 +481,7 @@ const GovernancePanel: Component<GovernancePanelProps> = (props) => {
               </Show>
 
               {/* Constitution Section with GitHub Issue Button */}
-              <Show when={!isGovernanceLoading() && props.folder}>
+              <Show when={!isGovernanceLoading()}>
                 <div class="governance-section governance-section-constitution">
                   <div class="governance-constitution-header">
                     <div class="governance-constitution-info">
@@ -494,6 +492,7 @@ const GovernancePanel: Component<GovernancePanelProps> = (props) => {
                       type="button"
                       class="governance-constitution-view-btn"
                       onClick={() => setConstitutionPanelOpen(true)}
+                      disabled={!props.folder}
                     >
                       View
                     </button>
