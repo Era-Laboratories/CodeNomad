@@ -166,7 +166,7 @@ interface MessageItemProps {
 
   const containerClass = () =>
     isUser()
-      ? "message-item-base message-user-bubble bg-[var(--message-user-bg)]"
+      ? "message-item-base message-user-bubble bg-[var(--message-user-bg)] border-r-[3px] border-[var(--message-user-border)]"
       : "message-item-base assistant-message bg-[var(--message-assistant-bg)] border-l-[3px] border-[var(--message-assistant-border)]"
 
   const speakerLabel = () => (isUser() ? "You" : "Assistant")
