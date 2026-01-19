@@ -6,11 +6,14 @@
   transition: background-color 0.15s ease;
 }
 
-/* User message - right-aligned bubble style */
+/* User message - right-aligned with right border */
 .message-item-base.message-user-bubble {
   margin-left: 3rem;
-  border-radius: 1rem 1rem 0.25rem 1rem;
+  margin-right: 0.5rem;
+  padding-right: 1.25rem;
+  border-radius: 0.5rem;
   border-left: none !important;
+  border-right: 3px solid var(--message-user-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
