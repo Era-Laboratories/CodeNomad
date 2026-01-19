@@ -1,10 +1,30 @@
 /* Message item base styles */
 .message-item-base {
-  @apply flex flex-col gap-2 p-3 w-full;
+  @apply flex flex-col gap-2 w-full;
+  padding: 0.875rem 1rem;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+/* User message - right-aligned bubble style */
+.message-item-base.message-user-bubble {
+  margin-left: 3rem;
+  border-radius: 1rem 1rem 0.25rem 1rem;
+  border-left: none !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Assistant message refinements */
+.message-item-base.assistant-message {
+  border-radius: 0.5rem;
 }
 
 .message-item-header {
   @apply flex justify-between items-start gap-2.5;
+}
+
+.message-header-right {
+  @apply flex items-center gap-2;
 }
 
 .message-speaker {
@@ -24,19 +44,42 @@
 }
 
 .message-agent-meta {
-  @apply text-xs text-[var(--message-assistant-border)];
+  @apply text-xs;
+  color: var(--text-muted);
+  background: var(--surface-secondary);
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  display: inline-block;
+  margin-top: 0.25rem;
 }
 
 .message-item-actions {
-  @apply flex items-center gap-2;
+  @apply flex items-center gap-1.5;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Show actions on hover */
+.message-item-base:hover .message-item-actions,
+.message-item-base:focus-within .message-item-actions {
+  opacity: 1;
+}
+
+/* Always show timestamp */
+.message-item-actions .message-timestamp {
+  opacity: 1;
 }
 
 .message-action-group {
-  @apply flex items-center gap-2;
+  @apply flex items-center gap-1.5;
 }
 
 .message-action-button {
-  @apply bg-transparent border border-[var(--border-base)] text-[var(--text-muted)] cursor-pointer px-3 py-0.5 rounded text-xs font-semibold leading-none transition-all duration-200 flex items-center justify-center h-6;
+  @apply bg-transparent border cursor-pointer rounded-md text-xs font-medium leading-none transition-all duration-150 flex items-center justify-center;
+  border-color: var(--border-base);
+  color: var(--text-muted);
+  padding: 0.35rem 0.65rem;
+  height: 1.75rem;
 }
 
 .message-action-button:hover {
@@ -50,7 +93,9 @@
 }
 
 .message-timestamp {
-  @apply text-[11px] text-[var(--text-muted)];
+  @apply text-[11px];
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .assistant-message {
@@ -148,10 +193,18 @@
 
 .message-text {
   font-size: var(--font-size-base);
-  line-height: var(--line-height-normal);
+  line-height: var(--line-height-relaxed);
   word-wrap: break-word;
   overflow-wrap: break-word;
   color: inherit;
+}
+
+.message-text p {
+  margin-bottom: 0.75em;
+}
+
+.message-text p:last-child {
+  margin-bottom: 0;
 }
 
 .message-text-assistant {

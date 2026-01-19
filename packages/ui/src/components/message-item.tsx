@@ -166,8 +166,8 @@ interface MessageItemProps {
 
   const containerClass = () =>
     isUser()
-      ? "message-item-base bg-[var(--message-user-bg)] border-l-4 border-[var(--message-user-border)]"
-      : "message-item-base assistant-message bg-[var(--message-assistant-bg)] border-l-4 border-[var(--message-assistant-border)]"
+      ? "message-item-base message-user-bubble bg-[var(--message-user-bg)]"
+      : "message-item-base assistant-message bg-[var(--message-assistant-bg)] border-l-[3px] border-[var(--message-assistant-border)]"
 
   const speakerLabel = () => (isUser() ? "You" : "Assistant")
 
@@ -205,36 +205,50 @@ interface MessageItemProps {
 
   return (
     <div class={containerClass()}>
-      <header class={`message-item-header ${isUser() ? "pb-0.5" : "pb-0"}`}>
+      <header class="message-item-header">
         <div class="message-speaker">
           <span class="message-speaker-label" data-role={isUser() ? "user" : "assistant"}>
             {speakerLabel()}
           </span>
           <Show when={agentMeta()}>{(meta) => <span class="message-agent-meta">{meta()}</span>}</Show>
         </div>
-        <div class="message-item-actions">
-          <Show when={isUser()}>
-            <div class="message-action-group">
-              <Show when={props.onRevert}>
+        <div class="message-header-right">
+          <div class="message-item-actions">
+            <Show when={isUser()}>
+              <div class="message-action-group">
+                <Show when={props.onRevert}>
+                  <button
+                    class="message-action-button"
+                    onClick={handleRevert}
+                    title="Revert to this message"
+                    aria-label="Revert to this message"
+                  >
+                    Revert
+                  </button>
+                </Show>
+                <Show when={props.onFork}>
+                  <button
+                    class="message-action-button"
+                    onClick={() => props.onFork?.(props.record.id)}
+                    title="Fork from this message"
+                    aria-label="Fork from this message"
+                  >
+                    Fork
+                  </button>
+                </Show>
                 <button
                   class="message-action-button"
-                  onClick={handleRevert}
-                  title="Revert to this message"
-                  aria-label="Revert to this message"
+                  onClick={handleCopy}
+                  title="Copy message"
+                  aria-label="Copy message"
                 >
-                  Revert
+                  <Show when={copied()} fallback="Copy">
+                    Copied!
+                  </Show>
                 </button>
-              </Show>
-              <Show when={props.onFork}>
-                <button
-                  class="message-action-button"
-                  onClick={() => props.onFork?.(props.record.id)}
-                  title="Fork from this message"
-                  aria-label="Fork from this message"
-                >
-                  Fork
-                </button>
-              </Show>
+              </div>
+            </Show>
+            <Show when={!isUser()}>
               <button
                 class="message-action-button"
                 onClick={handleCopy}
@@ -245,23 +259,10 @@ interface MessageItemProps {
                   Copied!
                 </Show>
               </button>
-            </div>
-          </Show>
-          <Show when={!isUser()}>
-            <button
-              class="message-action-button"
-              onClick={handleCopy}
-              title="Copy message"
-              aria-label="Copy message"
-            >
-              <Show when={copied()} fallback="Copy">
-                Copied!
-              </Show>
-            </button>
-          </Show>
+            </Show>
+          </div>
           <time class="message-timestamp" dateTime={timestampIso()}>{timestamp()}</time>
         </div>
-
       </header>
 
       <div class="pt-1 whitespace-pre-wrap break-words leading-[1.1]">

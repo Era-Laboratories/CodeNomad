@@ -565,7 +565,7 @@ export default function MessageBlock(props: MessageBlockProps) {
           {/* Primary message content */}
           <For each={primaryItems()}>{(item) => renderItem(item)}</For>
 
-          {/* Collapse toggle for tool calls */}
+          {/* Collapse toggle for tool calls - Pill style */}
           <Show when={hasCollapsibleContent()}>
             <button
               type="button"
@@ -574,10 +574,11 @@ export default function MessageBlock(props: MessageBlockProps) {
               aria-expanded={!collapsed()}
               aria-label={collapsed() ? "Expand tool calls" : "Collapse tool calls"}
             >
-              <span class="message-block-collapse-icon">{collapsed() ? "▶" : "▼"}</span>
+              <span class="message-block-collapse-icon">▸</span>
               <span class="message-block-collapse-label">
-                {collapsed() ? `Show ${collapsibleItems().length} tool call${collapsibleItems().length === 1 ? "" : "s"}` : "Hide tool calls"}
+                {collapsed() ? "Tools" : "Hide tools"}
               </span>
+              <span class="message-block-collapse-count">{collapsibleItems().length}</span>
             </button>
           </Show>
 
