@@ -141,9 +141,14 @@
 }
 
 .selector-section {
-  @apply px-3 py-2 border-b;
-  border-color: var(--border-base);
-  background-color: var(--surface-secondary);
+  @apply pt-3 first:pt-0;
+}
+
+.selector-section-label {
+  @apply px-3 py-1.5 text-xs font-semibold uppercase tracking-wide sticky top-0;
+  color: var(--text-muted);
+  background-color: var(--surface-base);
+  border-bottom: 1px solid var(--border-base);
 }
 
 .selector-section-title {
@@ -258,4 +263,89 @@
 .selector-loading-spinner {
   @apply w-4 h-4 animate-spin;
   color: var(--accent-primary);
+}
+
+/* Model Selector - Hierarchical Provider/Model View */
+.model-selector-popover {
+  @apply min-w-[320px] max-w-[400px];
+}
+
+.model-selector-groups {
+  @apply max-h-80 overflow-auto p-1;
+}
+
+.model-selector-group {
+  @apply mb-0.5;
+}
+
+.model-selector-provider {
+  @apply w-full flex items-center gap-2 px-2 py-2 text-left rounded cursor-pointer transition-colors;
+  background-color: transparent;
+  color: var(--text-primary);
+}
+
+.model-selector-provider:hover {
+  background-color: var(--surface-hover);
+}
+
+.model-selector-provider--expanded {
+  background-color: var(--surface-secondary);
+}
+
+.model-selector-provider--has-selection {
+  background-color: var(--selection-highlight-bg);
+}
+
+.model-selector-provider-icon {
+  @apply flex-shrink-0 flex items-center justify-center w-4 h-4;
+  color: var(--text-muted);
+}
+
+.model-selector-provider-name {
+  @apply flex-1 font-medium text-sm truncate;
+  color: var(--text-primary);
+}
+
+.model-selector-provider-count {
+  @apply text-xs px-1.5 py-0.5 rounded-full;
+  background-color: var(--surface-muted);
+  color: var(--text-muted);
+}
+
+.model-selector-models {
+  @apply ml-4 pl-2 border-l py-1;
+  border-color: var(--border-muted);
+}
+
+.model-selector-model {
+  @apply w-full flex items-center gap-2 px-2 py-1.5 text-left rounded cursor-pointer transition-colors;
+  background-color: transparent;
+  color: var(--text-primary);
+}
+
+.model-selector-model:hover {
+  background-color: var(--surface-hover);
+}
+
+.model-selector-model--selected {
+  background-color: var(--selection-highlight-strong-bg);
+}
+
+.model-selector-model-content {
+  @apply flex-1 min-w-0 flex flex-col;
+}
+
+.model-selector-model-name {
+  @apply text-sm truncate;
+  color: var(--text-primary);
+}
+
+.model-selector-model-id {
+  @apply text-xs truncate;
+  color: var(--text-muted);
+}
+
+.model-selector-empty {
+  @apply p-4 text-center text-sm;
+  color: var(--text-muted);
 }
