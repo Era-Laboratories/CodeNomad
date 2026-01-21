@@ -904,3 +904,105 @@
     background-color: var(--surface-hover);
   }
 }
+
+/* Subagent Bar - inline child sessions bar */
+.subagent-bar {
+  @apply flex items-center gap-2 h-9 px-3;
+  background-color: var(--surface-base);
+  border-bottom: 1px solid var(--border-base);
+  animation: subagent-bar-slide-in 0.15s ease-out;
+}
+
+@keyframes subagent-bar-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.subagent-parent-button {
+  @apply inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors cursor-pointer;
+  background-color: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+.subagent-parent-button:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.subagent-parent-button.subagent-tab-active {
+  background-color: var(--accent-primary);
+  color: var(--text-inverted);
+}
+
+.subagent-parent-label {
+  @apply truncate max-w-[120px];
+}
+
+.subagent-separator {
+  @apply text-lg flex-shrink-0;
+  color: var(--text-muted);
+}
+
+.subagent-list {
+  @apply flex items-center gap-1 flex-1 min-w-0 overflow-x-auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.subagent-list::-webkit-scrollbar {
+  display: none;
+}
+
+.subagent-tab {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer flex-shrink-0;
+  background-color: var(--surface-secondary);
+  color: var(--text-secondary);
+}
+
+.subagent-tab:hover {
+  background-color: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.subagent-tab-active {
+  background-color: var(--accent-primary);
+  color: var(--text-inverted);
+}
+
+.subagent-tab-label {
+  @apply truncate max-w-[150px];
+}
+
+.subagent-tab-indicator {
+  @apply flex-shrink-0 text-[10px];
+}
+
+.subagent-tab-working .subagent-tab-indicator {
+  color: var(--accent-primary);
+  animation: badge-pulse 1.5s ease-in-out infinite;
+}
+
+.subagent-tab-permission {
+  background-color: var(--warning-bg, #fef3c7);
+  color: var(--warning-text, #92400e);
+}
+
+.subagent-tab-compacting {
+  opacity: 0.8;
+}
+
+/* Badge expanded state */
+.session-tab-badge-expanded {
+  background-color: var(--accent-primary);
+  color: var(--text-inverted);
+}
+
+.session-tab-badge-expanded:hover {
+  background-color: var(--accent-hover, var(--accent-primary));
+}

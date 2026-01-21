@@ -8,11 +8,18 @@ import { showConfirmDialog } from "./stores/alerts"
 import InstanceTabs from "./components/instance-tabs"
 import SessionTabs from "./components/session-tabs"
 import SessionBreadcrumb from "./components/session-breadcrumb"
+import SubagentBar from "./components/subagent-bar"
 import SettingsPanel from "./components/settings-panel"
 import CommandsSettingsPanel from "./components/commands-settings-panel"
+import McpSettingsModal from "./components/mcp-settings-modal"
+import AddMcpServerModal, { type AddMcpServerResult } from "./components/add-mcp-server-modal"
 import GovernancePanel from "./components/governance-panel"
+import DirectivesEditorPanel from "./components/directives-editor-panel"
+import FullSettingsPane from "./components/full-settings-pane"
+import GCloudAuthModal from "./components/gcloud-auth-modal"
 import CloseTabModal, { type CloseTabType } from "./components/close-tab-modal"
 import PermissionWarningModal from "./components/permission-warning-modal"
+import InstanceInfoModal from "./components/instance-info-modal"
 import BottomStatusBar from "./components/bottom-status-bar"
 import ModelSelectorModal from "./components/model-selector-modal"
 import InstanceDisconnectedModal from "./components/instance-disconnected-modal"
@@ -26,6 +33,12 @@ import { useCommands } from "./lib/hooks/use-commands"
 import { useAppLifecycle } from "./lib/hooks/use-app-lifecycle"
 import { getLogger } from "./lib/logger"
 import { initReleaseNotifications } from "./stores/releases"
+import {
+  checkGCloudAuth,
+  isGCloudExpired,
+  setExpiredModalShown,
+  expiredModalShown,
+} from "./stores/gcloud-auth"
 import { runtimeEnv } from "./lib/runtime-env"
 import {
   hasInstances,
@@ -65,6 +78,11 @@ import {
   getSessionInfo,
 } from "./stores/sessions"
 import { setActiveSession } from "./stores/session-state"
+import { getGitStatus } from "./stores/workspace-state"
+import { getActiveMcpServerCount, setProjectMcpServer, fetchProjectMcpConfig } from "./stores/project-mcp"
+import { setSessionMcpOverride } from "./stores/session-mcp"
+import { instanceApi } from "./lib/instance-api"
+import { loadInstanceMetadata } from "./lib/hooks/use-instance-metadata"
 import { ensureInstanceConfigLoaded, getInstanceConfig, updateInstanceConfig } from "./stores/instance-config"
 import { isSessionCompactionActive } from "./stores/session-compaction"
 import { isSessionBusy as checkSessionBusy } from "./stores/session-status"
@@ -91,7 +109,13 @@ const App: Component = () => {
   const [remoteAccessOpen, setRemoteAccessOpen] = createSignal(false)
   const [settingsPanelOpen, setSettingsPanelOpen] = createSignal(false)
   const [commandsPanelOpen, setCommandsPanelOpen] = createSignal(false)
+  const [mcpSettingsOpen, setMcpSettingsOpen] = createSignal(false)
+  const [addMcpServerOpen, setAddMcpServerOpen] = createSignal(false)
   const [governancePanelOpen, setGovernancePanelOpen] = createSignal(false)
+  const [directivesEditorOpen, setDirectivesEditorOpen] = createSignal(false)
+  const [fullSettingsOpen, setFullSettingsOpen] = createSignal(false)
+  const [gcloudModalOpen, setGcloudModalOpen] = createSignal(false)
+  const [gcloudModalMode, setGcloudModalMode] = createSignal<"login" | "expired">("login")
   const [instanceTabBarHeight, setInstanceTabBarHeight] = createSignal(0)
 
   // Close modal state
@@ -105,6 +129,12 @@ const App: Component = () => {
   const [permissionModalOpen, setPermissionModalOpen] = createSignal(false)
   const [permissionModalInstanceId, setPermissionModalInstanceId] = createSignal<string | null>(null)
   const [permissionModalProjectName, setPermissionModalProjectName] = createSignal("")
+
+  // Instance info modal state
+  const [instanceInfoModalOpen, setInstanceInfoModalOpen] = createSignal(false)
+
+  // Subagent bar expansion state - tracks which session has its subagents expanded
+  const [expandedSubagents, setExpandedSubagents] = createSignal<string | null>(null)
 
   const updateInstanceTabBarHeight = () => {
     if (typeof document === "undefined") return
@@ -132,6 +162,17 @@ const App: Component = () => {
     window.addEventListener("resize", handleResize)
     onCleanup(() => window.removeEventListener("resize", handleResize))
   })
+
+  // Check gcloud auth on startup and show expired modal if needed
+  // TODO: Enable once /api/system/exec endpoint is implemented
+  // onMount(async () => {
+  //   const authInfo = await checkGCloudAuth()
+  //   if (authInfo?.isExpired && !expiredModalShown()) {
+  //     setExpiredModalShown(true)
+  //     setGcloudModalMode("expired")
+  //     setGcloudModalOpen(true)
+  //   }
+  // })
 
   const activeInstance = createMemo(() => getActiveInstance())
   const activeSessionIdForInstance = createMemo(() => {
@@ -201,6 +242,31 @@ const App: Component = () => {
     if (!instance || !sessionId) return { providerId: "", modelId: "" }
     const session = getSessions(instance.id).find(s => s.id === sessionId)
     return session?.model ?? { providerId: "", modelId: "" }
+  })
+
+  // LSP status for bottom status bar
+  const lspConnected = createMemo(() => {
+    const lspStatus = activeInstance()?.metadata?.lspStatus
+    if (!lspStatus) return 0
+    return lspStatus.filter(s => s.status === "connected").length
+  })
+
+  const lspTotal = createMemo(() => {
+    return activeInstance()?.metadata?.lspStatus?.length ?? 0
+  })
+
+  // Git status for bottom status bar
+  const gitStatus = createMemo(() => {
+    const instance = activeInstance()
+    if (!instance) return null
+    return getGitStatus(instance.id)
+  })
+
+  // MCP active count for bottom status bar (instance-specific)
+  const mcpActiveCount = createMemo(() => {
+    const instance = activeInstance()
+    if (!instance) return 0
+    return getActiveMcpServerCount(instance.id, instance.folder)
   })
 
   // Check if we're viewing a child session (not the parent)
@@ -501,6 +567,94 @@ const App: Component = () => {
     await updateSessionModel(instanceId, sessionId, model)
   }
 
+  // Add Server modal handlers
+  const handleOpenAddServer = () => {
+    setMcpSettingsOpen(false)  // Close MCP settings modal first
+    setAddMcpServerOpen(true)  // Then open Add Server modal
+  }
+
+  const handleAddServerApply = async (result: AddMcpServerResult) => {
+    const { name, config, scopes } = result
+    const instance = activeInstance()
+    const { updatePreferences } = useConfig()
+
+    // Add to global if selected
+    if (scopes.global) {
+      updatePreferences({
+        mcpRegistry: { ...(preferences().mcpRegistry ?? {}), [name]: config },
+        mcpDesiredState: { ...(preferences().mcpDesiredState ?? {}), [name]: true },
+      })
+    }
+
+    // Add to project if selected
+    if (scopes.project && instance?.folder) {
+      await setProjectMcpServer(instance.folder, name, config)
+      await fetchProjectMcpConfig(instance.folder)
+    }
+
+    // Add to session if selected (only affects current instance)
+    if (scopes.session && instance?.id) {
+      setSessionMcpOverride(instance.id, name, true)
+      // For session-only, we also need the config registered somewhere
+      // If not added to global or project, add to global as disabled
+      if (!scopes.global && !scopes.project) {
+        updatePreferences({
+          mcpRegistry: { ...(preferences().mcpRegistry ?? {}), [name]: { ...config, enabled: false } },
+          mcpDesiredState: { ...(preferences().mcpDesiredState ?? {}), [name]: false },
+        })
+      }
+    }
+
+    setAddMcpServerOpen(false)
+
+    // Apply to current instance
+    if (instance?.status === "ready" && instance.client) {
+      try {
+        await instanceApi.upsertMcp(instance, name, { ...config, enabled: true })
+        await instanceApi.connectMcp(instance, name)
+        await loadInstanceMetadata(instance, { force: true })
+      } catch (error) {
+        log.error("Failed to apply new MCP server", { instanceId: instance.id, name, error })
+      }
+    }
+  }
+
+  const handleAddServerApplyToAll = async (result: AddMcpServerResult) => {
+    const { name, config, scopes } = result
+    const { updatePreferences } = useConfig()
+    const instance = activeInstance()
+
+    // Add to global if selected
+    if (scopes.global) {
+      updatePreferences({
+        mcpRegistry: { ...(preferences().mcpRegistry ?? {}), [name]: config },
+        mcpDesiredState: { ...(preferences().mcpDesiredState ?? {}), [name]: true },
+      })
+    }
+
+    // Add to project if selected
+    if (scopes.project && instance?.folder) {
+      await setProjectMcpServer(instance.folder, name, config)
+      await fetchProjectMcpConfig(instance.folder)
+    }
+
+    setAddMcpServerOpen(false)
+
+    // Apply to all running instances
+    const activeInstances = Array.from(instances().values()).filter(
+      (inst) => inst.status === "ready" && inst.client
+    )
+    for (const inst of activeInstances) {
+      try {
+        await instanceApi.upsertMcp(inst, name, { ...config, enabled: true })
+        await instanceApi.connectMcp(inst, name)
+        await loadInstanceMetadata(inst, { force: true })
+      } catch (error) {
+        log.error("Failed to apply new MCP server", { instanceId: inst.id, name, error })
+      }
+    }
+  }
+
   const { commands: paletteCommands, executeCommand } = useCommands({
     preferences,
     toggleAutoCleanupBlankSessions,
@@ -621,11 +775,40 @@ const App: Component = () => {
                   sessions={activeInstanceParentSessions()}
                   activeSessionId={activeParentSessionIdForInstance()}
                   activeParentSessionId={activeParentSessionIdForInstance()}
+                  expandedSubagents={expandedSubagents()}
                   onSelect={(sessionId) => setActiveParentSession(activeInstance()!.id, sessionId)}
                   onSelectChild={(parentId, childId) => handleSelectChildSession(activeInstance()!.id, parentId, childId)}
+                  onToggleSubagents={(sessionId) => setExpandedSubagents(prev => prev === sessionId ? null : sessionId)}
                   onClose={(sessionId) => handleCloseSessionRequest(sessionId)}
                   onNew={() => handleNewSession(activeInstance()!.id)}
                 />
+              </Show>
+
+              {/* Subagent bar - shown when a session has its subagents expanded */}
+              <Show when={expandedSubagents() && !isViewingChildSession()}>
+                {(() => {
+                  const parentId = expandedSubagents()!
+                  const parentSession = activeInstanceParentSessions().get(parentId)
+                  const childSessions = getChildSessions(activeInstance()!.id, parentId)
+                  return (
+                    <Show when={parentSession && childSessions.length > 0}>
+                      <SubagentBar
+                        instanceId={activeInstance()!.id}
+                        parentSession={parentSession!}
+                        childSessions={childSessions}
+                        activeSessionId={activeSessionIdForInstance()}
+                        onSelectChild={(childId) => {
+                          setExpandedSubagents(null)
+                          handleSelectChildSession(activeInstance()!.id, parentId, childId)
+                        }}
+                        onSelectParent={() => {
+                          setExpandedSubagents(null)
+                          setActiveParentSession(activeInstance()!.id, parentId)
+                        }}
+                      />
+                    </Show>
+                  )
+                })()}
               </Show>
 
               {/* Breadcrumb - shown when viewing a child session */}
@@ -640,8 +823,8 @@ const App: Component = () => {
                 />
               </Show>
 
-              {/* New Tab view - folder selection cards */}
-              <Show when={showFolderSelection()}>
+              {/* New Tab view or no active instance - show folder selection cards */}
+              <Show when={showFolderSelection() || !activeInstance()}>
                 <div
                   class="flex-1 min-h-0 overflow-auto flex items-center justify-center p-6"
                   style="background-color: var(--surface-secondary)"
@@ -694,6 +877,7 @@ const App: Component = () => {
             onAdvancedSettingsOpen={() => setIsAdvancedSettingsOpen(true)}
             onAdvancedSettingsClose={() => setIsAdvancedSettingsOpen(false)}
             onOpenRemoteAccess={() => setRemoteAccessOpen(true)}
+            onOpenFullSettings={() => setFullSettingsOpen(true)}
           />
         </Show>
  
@@ -708,14 +892,40 @@ const App: Component = () => {
             setSettingsPanelOpen(false)
             setCommandsPanelOpen(true)
           }}
+          onOpenMcpSettings={() => {
+            setSettingsPanelOpen(false)
+            setMcpSettingsOpen(true)
+          }}
           onOpenAdvancedSettings={() => {
             setSettingsPanelOpen(false)
-            setIsAdvancedSettingsOpen(true)
+            setFullSettingsOpen(true)
           }}
           onOpenGovernancePanel={() => {
             setSettingsPanelOpen(false)
             setGovernancePanelOpen(true)
           }}
+        />
+
+        <FullSettingsPane
+          open={fullSettingsOpen()}
+          onClose={() => setFullSettingsOpen(false)}
+          instance={activeInstance() ?? null}
+          onOpenGCloudModal={() => {
+            setGcloudModalMode("login")
+            setGcloudModalOpen(true)
+          }}
+        />
+
+        <GCloudAuthModal
+          open={gcloudModalOpen()}
+          onClose={() => {
+            setGcloudModalOpen(false)
+            // If closed from expired mode, open Full Settings to Accounts
+            if (gcloudModalMode() === "expired") {
+              setFullSettingsOpen(true)
+            }
+          }}
+          mode={gcloudModalMode()}
         />
 
         <CommandsSettingsPanel
@@ -724,9 +934,32 @@ const App: Component = () => {
           instanceId={activeInstanceId()}
         />
 
+        <McpSettingsModal
+          open={mcpSettingsOpen()}
+          onClose={() => setMcpSettingsOpen(false)}
+          folder={activeInstance()?.folder}
+          instanceId={activeInstance()?.id}
+          onAddServer={handleOpenAddServer}
+        />
+
+        <AddMcpServerModal
+          open={addMcpServerOpen()}
+          onClose={() => setAddMcpServerOpen(false)}
+          folder={activeInstance()?.folder}
+          instanceId={activeInstance()?.id}
+          onApply={handleAddServerApply}
+          onApplyToAll={handleAddServerApplyToAll}
+        />
+
         <GovernancePanel
           open={governancePanelOpen()}
           onClose={() => setGovernancePanelOpen(false)}
+          folder={activeInstance()?.folder}
+        />
+
+        <DirectivesEditorPanel
+          open={directivesEditorOpen()}
+          onClose={() => setDirectivesEditorOpen(false)}
           folder={activeInstance()?.folder}
         />
 
@@ -746,6 +979,32 @@ const App: Component = () => {
           onDisable={handlePermissionModalDisable}
         />
 
+        {/* Instance Info Modal - shown when clicking the port button */}
+        <InstanceInfoModal
+          open={instanceInfoModalOpen()}
+          onClose={() => setInstanceInfoModalOpen(false)}
+          instance={activeInstance() ?? null}
+          lspConnectedCount={lspConnected()}
+          onRestart={async () => {
+            const instance = activeInstance()
+            if (instance) {
+              setInstanceInfoModalOpen(false)
+              await stopInstance(instance.id)
+              await handleSelectFolder(instance.folder, instance.binaryPath)
+            }
+          }}
+          onStop={async () => {
+            const instance = activeInstance()
+            if (instance) {
+              setInstanceInfoModalOpen(false)
+              await stopInstance(instance.id)
+              if (instances().size === 0) {
+                setHasInstances(false)
+              }
+            }
+          }}
+        />
+
         {/* Bottom Status Bar - shown when we have an active instance */}
         <Show when={activeInstance() && !showFolderSelection()}>
           <BottomStatusBar
@@ -757,12 +1016,23 @@ const App: Component = () => {
             providerId={activeSessionModel().providerId}
             modelId={activeSessionModel().modelId}
             cost={activeSessionInfo()?.cost ?? 0}
+            mcpActiveCount={mcpActiveCount()}
+            lspConnected={lspConnected()}
+            lspTotal={lspTotal()}
+            instancePort={activeInstance()?.port}
+            gitBranch={gitStatus()?.branch}
+            gitAhead={gitStatus()?.ahead}
+            gitBehind={gitStatus()?.behind}
             onModelClick={() => setModelSelectorOpen(true)}
             onContextClick={() => {
               // TODO: Open session summary modal
               log.info("Context clicked - session summary coming soon")
             }}
             onGovernanceClick={() => setGovernancePanelOpen(true)}
+            onDirectivesClick={() => setDirectivesEditorOpen(true)}
+            onMcpClick={() => setMcpSettingsOpen(true)}
+            onInstanceClick={() => setInstanceInfoModalOpen(true)}
+            onSettingsClick={() => setSettingsPanelOpen(true)}
           />
         </Show>
 

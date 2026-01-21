@@ -15,6 +15,8 @@
   border-left: none !important;
   border-right: 3px solid var(--message-user-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  /* Override w-full to account for margins - prevents horizontal overflow */
+  width: calc(100% - 3rem);
 }
 
 /* Assistant message refinements */
@@ -120,21 +122,25 @@
 }
 
 .message-step-finish {
-  background-color: var(--message-assistant-bg);
+  background-color: var(--surface-base);
   border-left: 4px solid var(--message-assistant-border);
   margin: 0;
+  border-radius: 0 8px 8px 0;
+  padding: 0.75rem 1rem;
 }
 
 .message-step-finish-flush {
-  margin-top: -0.125rem;
+  margin-top: 0.25rem;
 }
 
 .message-step-usage {
-  @apply flex flex-wrap items-center gap-1 text-[10px] text-[var(--text-muted)];
+  @apply flex flex-wrap items-center gap-1.5 text-[10px] text-[var(--text-muted)];
 }
 
 .message-step-usage-chip {
-  @apply inline-flex items-center rounded-full border border-[var(--border-base)] px-2 py-0.5 text-[10px];
+  @apply inline-flex items-center rounded-full border px-2 py-0.5 text-[10px];
+  background-color: var(--surface-secondary);
+  border-color: var(--border-muted);
   color: var(--text-primary);
   font-weight: var(--font-weight-semibold);
 }
@@ -147,6 +153,24 @@
   color: var(--text-muted);
   font-weight: var(--font-weight-medium);
   margin-right: 0.35rem;
+}
+
+/* Ready indicator in completion card */
+.message-step-ready {
+  @apply ml-auto inline-flex items-center gap-1.5 text-xs;
+  color: rgba(34, 197, 94, 0.8);
+  font-weight: 500;
+}
+
+.message-step-ready-dot {
+  @apply w-1.5 h-1.5 rounded-full;
+  background-color: rgba(34, 197, 94, 0.8);
+  animation: ready-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ready-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 .message-step-heading {

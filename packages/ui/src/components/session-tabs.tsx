@@ -9,8 +9,10 @@ interface SessionTabsProps {
   sessions: Map<string, Session>
   activeSessionId: string | null
   activeParentSessionId?: string | null  // The parent session ID (for breadcrumb context)
+  expandedSubagents?: string | null  // Which session has its subagents expanded inline
   onSelect: (sessionId: string) => void
   onSelectChild?: (parentId: string, childId: string) => void  // Select a child session
+  onToggleSubagents?: (sessionId: string) => void  // Toggle subagent bar visibility
   onClose: (sessionId: string) => void
   onNew: () => void
 }
@@ -37,23 +39,14 @@ const SessionTabs: Component<SessionTabsProps> = (props) => {
     scrollContainerRef.scrollBy({ left: 200, behavior: "smooth" })
   }
 
-  // Close dropdown when clicking outside
-  const handleClickOutside = (e: MouseEvent) => {
-    if (openDropdown() && !(e.target as HTMLElement).closest('.session-tab-dropdown-container')) {
-      setOpenDropdown(null)
-    }
-  }
-
   onMount(() => {
     checkScrollArrows()
     const resizeObserver = new ResizeObserver(checkScrollArrows)
     if (scrollContainerRef) {
       resizeObserver.observe(scrollContainerRef)
     }
-    document.addEventListener('click', handleClickOutside)
     onCleanup(() => {
       resizeObserver.disconnect()
-      document.removeEventListener('click', handleClickOutside)
     })
   })
 
@@ -119,20 +112,18 @@ const SessionTabs: Component<SessionTabsProps> = (props) => {
     return { count: statusCount > 0 ? statusCount : children.length, status }
   }
 
-  // Track which dropdown is open
-  const [openDropdown, setOpenDropdown] = createSignal<string | null>(null)
-
-  const toggleDropdown = (sessionId: string, e: MouseEvent) => {
+  // Toggle subagent bar visibility for a session
+  const toggleSubagents = (sessionId: string, e: MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     e.stopImmediatePropagation()
-    console.log('[SessionTabs] toggleDropdown called for:', sessionId, 'current:', openDropdown())
-    setOpenDropdown(prev => {
-      const next = prev === sessionId ? null : sessionId
-      console.log('[SessionTabs] openDropdown changing from', prev, 'to', next)
-      return next
-    })
+    if (props.onToggleSubagents) {
+      props.onToggleSubagents(sessionId)
+    }
   }
+
+  // Check if subagents are expanded for a session
+  const isSubagentsExpanded = (sessionId: string) => props.expandedSubagents === sessionId
 
   return (
     <div class="session-tab-bar">
@@ -161,7 +152,7 @@ const SessionTabs: Component<SessionTabsProps> = (props) => {
               const statusClass = () => getStatusClass(id)
               const badge = () => getBadgeInfo(id)
               const children = () => getChildren(id)
-              const isDropdownOpen = () => openDropdown() === id
+              const isExpanded = () => isSubagentsExpanded(id)
 
               // Get status indicator for badge
               const getStatusIndicator = (status: SessionStatus | "permission") => {
@@ -212,19 +203,19 @@ const SessionTabs: Component<SessionTabsProps> = (props) => {
                     </span>
                     <span class="session-tab-label">{getShortTitle(session.title)}</span>
 
-                    {/* Badge for sessions with children - use native button for reliable click handling */}
+                    {/* Badge for sessions with children - toggles subagent bar */}
                     <Show when={badge()}>
                       {(badgeInfo) => (
                         <button
                           type="button"
-                          class={`session-tab-badge session-tab-badge-${badgeInfo().status}`}
-                          onClick={(e) => toggleDropdown(id, e)}
+                          class={`session-tab-badge session-tab-badge-${badgeInfo().status} ${isExpanded() ? 'session-tab-badge-expanded' : ''}`}
+                          onClick={(e) => toggleSubagents(id, e)}
                           onMouseDown={(e) => e.stopPropagation()}
-                          title={`${badgeInfo().count} child session${badgeInfo().count > 1 ? 's' : ''}`}
+                          title={`${badgeInfo().count} child session${badgeInfo().count > 1 ? 's' : ''} - click to ${isExpanded() ? 'hide' : 'show'}`}
                         >
                           <span class="session-tab-badge-indicator">{getStatusIndicator(badgeInfo().status)}</span>
                           <span class="session-tab-badge-count">{badgeInfo().count}</span>
-                          <ChevronDown class={`w-3 h-3 transition-transform ${isDropdownOpen() ? 'rotate-180' : ''}`} />
+                          <ChevronDown class={`w-3 h-3 transition-transform ${isExpanded() ? 'rotate-180' : ''}`} />
                         </button>
                       )}
                     </Show>
@@ -243,59 +234,7 @@ const SessionTabs: Component<SessionTabsProps> = (props) => {
                     </span>
                   </button>
 
-                  {/* Dropdown for child sessions */}
-                  <Show when={isDropdownOpen() && children().length > 0}>
-                    <div class="session-tab-dropdown">
-                      <div class="session-dropdown-header">
-                        <span class="session-dropdown-title">{getShortTitle(session.title)}</span>
-                      </div>
-                      <div class="session-dropdown-divider" />
-                      <div class="session-dropdown-list">
-                        <For each={children()}>
-                          {(child) => (
-                            <button
-                              class={`session-dropdown-item ${getChildStatusClass(child)}`}
-                              onClick={() => {
-                                setOpenDropdown(null)
-                                // Use onSelectChild if available, otherwise fall back to onSelect
-                                if (props.onSelectChild) {
-                                  props.onSelectChild(id, child.id)
-                                } else {
-                                  props.onSelect(child.id)
-                                }
-                              }}
-                            >
-                              <span class="session-dropdown-item-status">
-                                {child.pendingPermission ? "🛡️" : child.status === "working" ? "●" : child.status === "compacting" ? "◐" : "○"}
-                              </span>
-                              {getChildIcon(child)}
-                              <span class="session-dropdown-item-label">{getShortTitle(child.title) || "Sub-agent"}</span>
-                              <span class="session-dropdown-item-state">
-                                {child.pendingPermission ? "Permission" : child.status === "working" ? "Working" : child.status === "compacting" ? "Compacting" : "Idle"}
-                              </span>
-                            </button>
-                          )}
-                        </For>
-                      </div>
-                      <div class="session-dropdown-divider" />
-                      <button
-                        class="session-dropdown-item session-dropdown-item-parent"
-                        onClick={() => {
-                          setOpenDropdown(null)
-                          props.onSelect(id)
-                        }}
-                      >
-                        <span class="session-dropdown-item-status">
-                          {isActive() ? "✓" : "○"}
-                        </span>
-                        <MessageSquare class="w-3 h-3 flex-shrink-0" />
-                        <span class="session-dropdown-item-label">Main conversation</span>
-                        <span class="session-dropdown-item-state">
-                          {isActive() ? "Viewing" : ""}
-                        </span>
-                      </button>
-                    </div>
-                  </Show>
+                  {/* Subagent bar is shown outside SessionTabs when expanded */}
                 </div>
               )
             }}

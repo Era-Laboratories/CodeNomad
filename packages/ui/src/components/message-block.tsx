@@ -213,6 +213,8 @@ interface MessageBlockProps {
   showThinking: () => boolean
   thinkingDefaultExpanded: () => boolean
   showUsageMetrics: () => boolean
+  isSessionReady?: boolean
+  isLastMessage?: boolean
   onRevert?: (messageId: string) => void
   onFork?: (messageId?: string) => void
   onContentRendered?: () => void
@@ -576,6 +578,7 @@ export default function MessageBlock(props: MessageBlockProps) {
           messageInfo={(item as StepDisplayItem).messageInfo}
           showUsage={props.showUsageMetrics()}
           borderColor={(item as StepDisplayItem).accentColor}
+          isSessionReady={props.isSessionReady && props.isLastMessage}
         />
       </Match>
       <Match when={item.type === "reasoning"}>
@@ -632,6 +635,7 @@ interface StepCardProps {
   showAgentMeta?: boolean
   showUsage?: boolean
   borderColor?: string
+  isSessionReady?: boolean
 }
 
 function StepCard(props: StepCardProps) {
@@ -710,6 +714,12 @@ function StepCard(props: StepCardProps) {
     return (
       <div class={`message-step-card message-step-finish message-step-finish-flush`} style={finishStyle()}>
         {renderUsageChips(usage)}
+        <Show when={props.isSessionReady}>
+          <span class="message-step-ready">
+            <span class="message-step-ready-dot" />
+            Ready
+          </span>
+        </Show>
       </div>
     )
   }
