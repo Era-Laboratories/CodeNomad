@@ -7,7 +7,14 @@
 @import "./panels/bottom-status-bar.css";
 @import "./panels/model-selector.css";
 @import "./panels/commands.css";
+@import "./panels/mcp-modal.css";
 @import "./panels/era-status.css";
+@import "./panels/governance.css";
+@import "./panels/unified-governance.css";
+@import "./panels/full-settings.css";
+@import "./panels/workspace-panel.css";
+@import "./panels/directive-cards.css";
+@import "./panels/model-catalog.css";
 
 
 .tab-bar-instance {

@@ -56,6 +56,9 @@ type ConnectionStatus = InstanceStreamStatus
 
 const [connectionStatus, setConnectionStatus] = createSignal<Map<string, ConnectionStatus>>(new Map())
 
+// Track previous status to detect reconnections
+const previousStatus = new Map<string, ConnectionStatus>()
+
 class SSEManager {
   constructor() {
     serverEvents.on("instance.eventStatus", (event) => {
@@ -135,6 +138,20 @@ class SSEManager {
   }
 
   private updateConnectionStatus(instanceId: string, status: ConnectionStatus): void {
+    const prevStatus = previousStatus.get(instanceId)
+
+    // Detect reconnection: was disconnected/error/connecting, now connected
+    const wasDisconnected = prevStatus === "disconnected" || prevStatus === "error" || prevStatus === "connecting"
+    const isNowConnected = status === "connected"
+
+    if (wasDisconnected && isNowConnected) {
+      // Trigger session reload after reconnection to sync UI state
+      log.info("Connection restored, triggering session reload", { instanceId })
+      void this.onConnectionRestored?.(instanceId)
+    }
+
+    previousStatus.set(instanceId, status)
+
     setConnectionStatus((prev) => {
       const next = new Map(prev)
       next.set(instanceId, status)
@@ -155,6 +172,7 @@ class SSEManager {
   onPermissionReplied?: (instanceId: string, event: EventPermissionReplied) => void
   onLspUpdated?: (instanceId: string, event: EventLspUpdated) => void
   onConnectionLost?: (instanceId: string, reason: string) => void | Promise<void>
+  onConnectionRestored?: (instanceId: string) => void | Promise<void>
   onInstanceActivity?: (instanceId: string) => void
 
   getStatus(instanceId: string): ConnectionStatus | null {

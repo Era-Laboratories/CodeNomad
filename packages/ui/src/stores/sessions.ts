@@ -74,6 +74,24 @@ sseManager.onTuiToast = handleTuiToast
 sseManager.onPermissionUpdated = handlePermissionUpdated
 sseManager.onPermissionReplied = handlePermissionReplied
 
+// When connection is restored after disconnect, reload messages for all sessions
+// to sync UI state with actual OpenCode state (fixes "stuck in working" issue)
+sseManager.onConnectionRestored = async (instanceId: string) => {
+  const instanceSessions = sessions().get(instanceId)
+  if (!instanceSessions) return
+
+  // Reload messages for all sessions to sync state
+  const reloadPromises: Promise<void>[] = []
+  for (const [sessionId] of instanceSessions) {
+    reloadPromises.push(
+      loadMessages(instanceId, sessionId, true).catch((error) => {
+        console.error(`Failed to reload messages for session ${sessionId} after reconnect:`, error)
+      })
+    )
+  }
+  await Promise.all(reloadPromises)
+}
+
 export {
   abortSession,
   activeParentSessionId,

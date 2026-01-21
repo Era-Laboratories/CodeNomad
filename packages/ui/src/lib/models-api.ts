@@ -58,7 +58,17 @@ export type ModelsDevData = Record<string, ModelsDevProvider>
 const [modelsData, setModelsData] = createSignal<ModelsDevData | null>(null)
 const [lastFetchTime, setLastFetchTime] = createSignal<number>(0)
 const [isLoading, setIsLoading] = createSignal(false)
+const [isSyncing, setIsSyncing] = createSignal(false)
 const [fetchError, setFetchError] = createSignal<string | null>(null)
+
+// Sync status
+export interface ModelsSyncResult {
+  success: boolean
+  lastUpdated?: number
+  providerCount?: number
+  modelCount?: number
+  error?: string
+}
 
 export function getModelsData() {
   return modelsData()
@@ -70,6 +80,69 @@ export function isModelsLoading() {
 
 export function getModelsFetchError() {
   return fetchError()
+}
+
+export function getModelsLastFetchTime() {
+  return lastFetchTime()
+}
+
+export function isModelsSyncing() {
+  return isSyncing()
+}
+
+// Force sync models from models.dev (clears server cache and refetches)
+export async function syncModelsData(): Promise<ModelsSyncResult> {
+  if (isSyncing()) {
+    return { success: false, error: "Sync already in progress" }
+  }
+
+  setIsSyncing(true)
+  setFetchError(null)
+
+  try {
+    const response = await fetch(`${ERA_CODE_API_BASE}/api/models/sync`, {
+      method: "POST",
+    })
+
+    if (!response.ok) {
+      throw new Error(`Sync failed: ${response.status}`)
+    }
+
+    const result: ModelsSyncResult = await response.json()
+
+    if (result.success && result.lastUpdated) {
+      // Refetch data to update local state
+      await fetchModelsData(true)
+      setLastFetchTime(result.lastUpdated)
+      log.info(`Synced models: ${result.providerCount} providers, ${result.modelCount} models`)
+    }
+
+    return result
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error"
+    log.error("Failed to sync models.dev data", error)
+    setFetchError(message)
+    return { success: false, error: message }
+  } finally {
+    setIsSyncing(false)
+  }
+}
+
+// Fetch cache status from server
+export async function getModelsCacheStatus(): Promise<{ lastUpdated: number | null; cached: boolean }> {
+  try {
+    const response = await fetch(`${ERA_CODE_API_BASE}/api/models/cache-status`)
+    if (!response.ok) {
+      return { lastUpdated: null, cached: false }
+    }
+    const data = await response.json()
+    return {
+      lastUpdated: data.modelsCache?.lastUpdated ?? null,
+      cached: data.modelsCache?.cached ?? false,
+    }
+  } catch {
+    return { lastUpdated: null, cached: false }
+  }
 }
 
 export async function fetchModelsData(force = false): Promise<ModelsDevData | null> {
