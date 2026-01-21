@@ -148,42 +148,45 @@
 }
 
 .stop-button {
-  @apply w-10 h-10 rounded-md border-none cursor-pointer flex items-center justify-center transition-all flex-shrink-0;
-  background-color: rgba(239, 68, 68, 0.85);
-  color: var(--text-inverted);
+  @apply w-9 h-9 rounded-lg cursor-pointer flex items-center justify-center transition-all flex-shrink-0;
+  background-color: var(--surface-secondary);
+  color: var(--status-error);
+  border: 1px solid var(--border-base);
 }
 
 .stop-button:hover:not(:disabled) {
-  background-color: rgba(239, 68, 68, 0.9);
-  @apply opacity-95 scale-105;
+  background-color: var(--danger-soft-bg);
+  border-color: var(--status-error);
 }
 
 .stop-button:active:not(:disabled) {
-  background-color: rgba(239, 68, 68, 1);
   @apply scale-95;
 }
 
 .stop-button:disabled {
-  @apply opacity-60 cursor-not-allowed;
+  @apply opacity-30 cursor-not-allowed;
+  color: var(--text-muted);
 }
 
 .stop-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 .send-button {
-  @apply w-10 h-10 rounded-md border-none cursor-pointer flex items-center justify-center transition-all flex-shrink-0;
+  @apply w-9 h-9 rounded-lg cursor-pointer flex items-center justify-center transition-all flex-shrink-0;
   background-color: var(--accent-primary);
   color: var(--text-inverted);
+  border: 1px solid var(--accent-primary);
 }
 
 .send-button.shell-mode {
   background-color: var(--status-success);
+  border-color: var(--status-success);
 }
 
 .send-button.shell-mode:hover:not(:disabled) {
-  filter: brightness(1.05);
+  filter: brightness(1.1);
 }
 
 .send-button.shell-mode:active:not(:disabled) {
@@ -191,7 +194,7 @@
 }
 
 .send-button:hover:not(:disabled) {
-  @apply opacity-90 scale-105;
+  filter: brightness(1.1);
 }
 
 .send-button:active:not(:disabled) {
@@ -199,16 +202,19 @@
 }
 
 .send-button:disabled {
-  @apply opacity-40 cursor-not-allowed;
+  @apply opacity-30 cursor-not-allowed;
+  background-color: var(--surface-secondary);
+  border-color: var(--border-base);
+  color: var(--text-muted);
 }
 
 .send-icon {
-  @apply text-base;
+  @apply text-sm;
 }
 
 .shell-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 0.875rem;
+  height: 0.875rem;
 }
 
 

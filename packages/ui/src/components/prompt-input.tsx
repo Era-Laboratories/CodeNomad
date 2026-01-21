@@ -544,10 +544,15 @@ export default function PromptInput(props: PromptInputProps) {
       }
     }
 
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+    // Enter submits, Shift+Enter adds newline
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       if (showPicker()) {
         handlePickerClose()
+      }
+      if (showSlashPicker()) {
+        // Let slash picker handle Enter
+        return
       }
       handleSend()
       return
@@ -662,11 +667,14 @@ export default function PromptInput(props: PromptInputProps) {
     }, 0)
   }
  
-  function canUseHistory(force = false) {
+  function canUseHistory(force = false, direction: "up" | "down" = "up") {
     if (force) return true
     if (showPicker()) return false
     const textarea = textareaRef
     if (!textarea) return false
+    // For up arrow, require cursor at start
+    // For down arrow, allow if we're already navigating history (historyIndex >= 0)
+    if (direction === "down" && historyIndex() >= 0) return true
     return textarea.selectionStart === 0 && textarea.selectionEnd === 0
   }
  
@@ -689,7 +697,7 @@ export default function PromptInput(props: PromptInputProps) {
   function selectNextHistory(force = false) {
     const entries = history()
     if (entries.length === 0) return false
-    if (!canUseHistory(force)) return false
+    if (!canUseHistory(force, "down")) return false
     if (historyIndex() === -1) return false
  
     const newIndex = historyIndex() - 1
