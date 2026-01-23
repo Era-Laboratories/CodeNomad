@@ -89,8 +89,41 @@ export function createHttpServer(deps: HttpServerDeps) {
     done()
   })
 
+  const allowedDevOrigins = new Set(["http://localhost:3000", "http://127.0.0.1:3000"])
+  const isLoopbackHost = (host: string) => host === "127.0.0.1" || host === "::1" || host.startsWith("127.")
+
   app.register(cors, {
-    origin: true,
+    origin: (origin, cb) => {
+      if (!origin) {
+        cb(null, true)
+        return
+      }
+
+      let selfOrigin: string | null = null
+      try {
+        selfOrigin = new URL(deps.serverMeta.httpBaseUrl).origin
+      } catch {
+        selfOrigin = null
+      }
+
+      if (selfOrigin && origin === selfOrigin) {
+        cb(null, true)
+        return
+      }
+
+       if (allowedDevOrigins.has(origin)) {
+         cb(null, true)
+         return
+       }
+
+       // When we bind to a non-loopback host (e.g., 0.0.0.0 or LAN IP), allow cross-origin UI access.
+       if (deps.host === "0.0.0.0" || !isLoopbackHost(deps.host)) {
+         cb(null, true)
+         return
+       }
+
+      cb(null, false)
+    },
     credentials: true,
   })
 
@@ -178,13 +211,13 @@ export function createHttpServer(deps: HttpServerDeps) {
         }
       }
 
-      const displayHost = deps.host === "0.0.0.0" ? "127.0.0.1" : deps.host === "127.0.0.1" ? "localhost" : deps.host
+      const displayHost = deps.host === "127.0.0.1" ? "localhost" : deps.host
       const serverUrl = `http://${displayHost}:${actualPort}`
 
       deps.serverMeta.httpBaseUrl = serverUrl
       deps.serverMeta.host = deps.host
       deps.serverMeta.port = actualPort
-      deps.serverMeta.listeningMode = deps.host === "0.0.0.0" ? "all" : "local"
+      deps.serverMeta.listeningMode = deps.host === "0.0.0.0" || !isLoopbackHost(deps.host) ? "all" : "local"
       deps.logger.info({ port: actualPort, host: deps.host }, "HTTP server listening")
       console.log(`Era Code Server is ready at ${serverUrl}`)
 
