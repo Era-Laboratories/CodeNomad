@@ -1,6 +1,7 @@
-import { ChildProcess, spawn, execSync } from "child_process"
+import { ChildProcess, spawn, execSync, spawnSync } from "child_process"
 import { existsSync, statSync } from "fs"
 import path from "path"
+import os from "os"
 import { EventBus } from "../events/bus"
 import { LogLevel, WorkspaceLogEntry } from "../api-types"
 import { Logger } from "../logger"
@@ -113,6 +114,23 @@ interface ManagedProcess {
   requestedStop: boolean
 }
 
+/**
+ * Check if a binary path is era-code
+ */
+function isEraCodeBinary(binaryPath: string): boolean {
+  const basename = path.basename(binaryPath).toLowerCase()
+  return basename.startsWith("era-code") || basename === "era-code.js"
+}
+
+/**
+ * Check if folder is user's home directory (era-code init should not run there)
+ */
+function isHomeDirectory(folder: string): boolean {
+  const home = os.homedir()
+  const resolved = path.resolve(folder)
+  return resolved === home
+}
+
 export class WorkspaceRuntime {
   private processes = new Map<string, ManagedProcess>()
   private eraConfigService: EraConfigService | null = null
@@ -129,7 +147,8 @@ export class WorkspaceRuntime {
   async launch(options: LaunchOptions): Promise<{ pid: number; port: number }> {
     this.validateFolder(options.folder)
 
-    const args = ["serve", "--port", "0", "--print-logs", "--log-level", "DEBUG"]
+    const useEraCode = isEraCodeBinary(options.binaryPath)
+    const isHome = isHomeDirectory(options.folder)
 
     // Build environment with optional era config
     let env = { ...process.env, ...(options.environment ?? {}) }
@@ -149,6 +168,55 @@ export class WorkspaceRuntime {
       )
     }
 
+    // For era-code: run init first (unless in home directory)
+    if (useEraCode && !isHome) {
+      this.logger.info(
+        { workspaceId: options.workspaceId, folder: options.folder },
+        "Running era-code init --quiet"
+      )
+      try {
+        const initSpec = buildSpawnSpec(options.binaryPath, ["init", "--quiet"])
+        const initResult = spawnSync(initSpec.command, initSpec.args, {
+          cwd: options.folder,
+          env,
+          encoding: "utf-8",
+          timeout: 30000, // 30 second timeout for init
+          ...initSpec.options,
+        })
+        if (initResult.error) {
+          this.logger.warn(
+            { workspaceId: options.workspaceId, error: initResult.error.message },
+            "era-code init failed, continuing anyway"
+          )
+        } else if (initResult.status !== 0) {
+          this.logger.warn(
+            { workspaceId: options.workspaceId, status: initResult.status, stderr: initResult.stderr },
+            "era-code init exited with non-zero status, continuing anyway"
+          )
+        } else {
+          this.logger.info(
+            { workspaceId: options.workspaceId },
+            "era-code init completed successfully"
+          )
+        }
+      } catch (error) {
+        this.logger.warn(
+          { workspaceId: options.workspaceId, error },
+          "era-code init threw exception, continuing anyway"
+        )
+      }
+    }
+
+    // Build the command args based on binary type
+    let args: string[]
+    if (useEraCode) {
+      // era-code start --quiet -- serve --port 0 --print-logs --log-level DEBUG
+      args = ["start", "--quiet", "--", "serve", "--port", "0", "--print-logs", "--log-level", "DEBUG"]
+    } else {
+      // opencode serve --port 0 --print-logs --log-level DEBUG
+      args = ["serve", "--port", "0", "--print-logs", "--log-level", "DEBUG"]
+    }
+
     return new Promise((resolve, reject) => {
       const spec = buildSpawnSpec(options.binaryPath, args)
       const commandLine = [spec.command, ...spec.args].join(" ")
@@ -157,6 +225,7 @@ export class WorkspaceRuntime {
           workspaceId: options.workspaceId,
           folder: options.folder,
           binary: options.binaryPath,
+          useEraCode,
           eraEnabled: options.eraConfig?.enabled ?? false,
           spawnCommand: spec.command,
           spawnArgs: spec.args,
