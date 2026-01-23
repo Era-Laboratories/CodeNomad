@@ -43,10 +43,10 @@ function killProcessTree(pid: number, signal: NodeJS.Signals = "SIGTERM", logger
   }
 }
 
-const WINDOWS_CMD_EXTENSIONS = new Set([".cmd", ".bat"])
-const WINDOWS_POWERSHELL_EXTENSIONS = new Set([".ps1"])
+export const WINDOWS_CMD_EXTENSIONS = new Set([".cmd", ".bat"])
+export const WINDOWS_POWERSHELL_EXTENSIONS = new Set([".ps1"])
 
-function buildSpawnSpec(binaryPath: string, args: string[]) {
+export function buildSpawnSpec(binaryPath: string, args: string[]) {
   if (process.platform !== "win32") {
     return { command: binaryPath, args, options: {} as const }
   }
