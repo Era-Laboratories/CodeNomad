@@ -23,6 +23,7 @@ import { registerEraRoutes } from "./routes/era"
 import { ServerMeta } from "../api-types"
 import { InstanceStore } from "../storage/instance-store"
 import { EraDetectionService } from "../era/detection"
+import { EraGovernanceService } from "../era/governance"
 
 interface HttpServerDeps {
   host: string
@@ -139,6 +140,7 @@ export function createHttpServer(deps: HttpServerDeps) {
 
   // Create era detection service (use provided or create default)
   const eraDetection = deps.eraDetection ?? new EraDetectionService(deps.logger)
+  const eraGovernance = new EraGovernanceService(eraDetection, deps.logger)
 
   registerWorkspaceRoutes(app, { workspaceManager: deps.workspaceManager, eraDetection })
   registerConfigRoutes(app, { configStore: deps.configStore, binaryRegistry: deps.binaryRegistry })
@@ -154,7 +156,7 @@ export function createHttpServer(deps: HttpServerDeps) {
   registerInstanceProxyRoutes(app, { workspaceManager: deps.workspaceManager, logger: proxyLogger })
 
   // Register Era routes
-  registerEraRoutes(app, { eraDetection, logger: deps.logger })
+  registerEraRoutes(app, { eraDetection, eraGovernance, logger: deps.logger })
 
 
   if (deps.uiDevServerUrl) {
