@@ -46,9 +46,17 @@ export function registerEraRoutes(app: FastifyInstance, deps: RouteDeps) {
     // Add project-specific status if folder provided
     if (folder && response.projectInitialized) {
       const projectStatus = eraDetection.getProjectStatus(folder)
-      response.project = {
-        hasConstitution: projectStatus.hasConstitution,
-        hasDirectives: projectStatus.hasDirectives,
+      if (projectStatus) {
+        response.project = {
+          hasConstitution: (projectStatus.directives?.categoryCount ?? 0) > 0,
+          hasDirectives: (projectStatus.directives?.directiveCount ?? 0) > 0,
+        }
+        // Add manifest version info for outdated detection
+        if (projectStatus.manifest) {
+          response.manifestVersion = projectStatus.manifest.version
+          response.latestVersion = projectStatus.manifest.latestVersion
+          response.isManifestOutdated = projectStatus.manifest.version !== projectStatus.manifest.latestVersion
+        }
       }
     }
 
@@ -95,6 +103,42 @@ export function registerEraRoutes(app: FastifyInstance, deps: RouteDeps) {
       skills: assets.skills.map((p) => extractSkillName(p)),
       plugins: assets.plugins.map((p) => extractAssetName(p, "plugin")),
     }
+  })
+
+  /**
+   * GET /api/era/upgrade/check
+   * Check if an era-code upgrade is available
+   */
+  app.get("/api/era/upgrade/check", async () => {
+    logger.debug("Checking for era-code upgrade")
+    return eraDetection.checkUpgrade()
+  })
+
+  /**
+   * POST /api/era/upgrade
+   * Run era-code upgrade
+   */
+  app.post("/api/era/upgrade", async () => {
+    logger.info("Running era-code upgrade via API")
+    return eraDetection.runUpgrade()
+  })
+
+  /**
+   * POST /api/era/project/update
+   * Update project manifest to current era-code version (runs era-code init)
+   */
+  app.post<{
+    Body: { folder: string }
+  }>("/api/era/project/update", async (request, reply) => {
+    const { folder } = request.body ?? {}
+    
+    if (!folder) {
+      reply.code(400)
+      return { error: "folder is required" }
+    }
+
+    logger.info({ folder }, "Updating era project manifest via API")
+    return eraDetection.ensureProjectUpToDate(folder)
   })
 }
 

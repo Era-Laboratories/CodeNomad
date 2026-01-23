@@ -346,9 +346,10 @@ const App: Component = () => {
       recordWorkspaceLaunch(folderPath, selectedBinary)
       clearLaunchError()
       const instanceId = await createInstance(folderPath, selectedBinary)
-      setHasInstances(true)
+      // Set folder selection to false BEFORE hasInstances to avoid flash
       setShowFolderSelection(false)
       setIsAdvancedSettingsOpen(false)
+      setHasInstances(true)
 
       log.info("Created instance", {
         instanceId,

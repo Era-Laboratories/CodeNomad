@@ -137,7 +137,10 @@ export function createHttpServer(deps: HttpServerDeps) {
     },
   })
 
-  registerWorkspaceRoutes(app, { workspaceManager: deps.workspaceManager })
+  // Create era detection service (use provided or create default)
+  const eraDetection = deps.eraDetection ?? new EraDetectionService(deps.logger)
+
+  registerWorkspaceRoutes(app, { workspaceManager: deps.workspaceManager, eraDetection })
   registerConfigRoutes(app, { configStore: deps.configStore, binaryRegistry: deps.binaryRegistry })
   registerFilesystemRoutes(app, { fileSystemBrowser: deps.fileSystemBrowser })
   registerMetaRoutes(app, { serverMeta: deps.serverMeta })
@@ -150,14 +153,8 @@ export function createHttpServer(deps: HttpServerDeps) {
   registerModelsProxyRoutes(app)
   registerInstanceProxyRoutes(app, { workspaceManager: deps.workspaceManager, logger: proxyLogger })
 
-  // Register Era routes if detection service is available
-  if (deps.eraDetection) {
-    registerEraRoutes(app, { eraDetection: deps.eraDetection, logger: deps.logger })
-  } else {
-    // Create a default era detection service if not provided
-    const eraDetection = new EraDetectionService(deps.logger)
-    registerEraRoutes(app, { eraDetection, logger: deps.logger })
-  }
+  // Register Era routes
+  registerEraRoutes(app, { eraDetection, logger: deps.logger })
 
 
   if (deps.uiDevServerUrl) {
