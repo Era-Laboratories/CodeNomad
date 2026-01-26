@@ -3,6 +3,10 @@
   "version": "0.4.0",
   "private": true,
   "description": "CodeNomad monorepo workspace",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "workspaces": {
     "packages": [
       "packages/*"
@@ -18,14 +22,15 @@
     "build:mac-x64": "npm run build:mac-x64 --workspace @neuralnomads/codenomad-electron-app",
     "build:binaries": "npm run build:binaries --workspace @neuralnomads/codenomad-electron-app",
     "typecheck": "npm run typecheck --workspace @codenomad/ui && npm run typecheck --workspace @neuralnomads/codenomad-electron-app",
-    "bumpVersion": "npm version --workspaces --include-workspace-root --no-git-tag-version"
+    "bumpVersion": "npm version --workspaces --include-workspace-root --no-git-tag-version",
+    "clean": "rm -rf node_modules packages/*/node_modules packages/*/dist packages/ui/src/renderer/dist",
+    "preinstall": "node -e \"if(process.versions.node.split('.')[0] < 18) { console.error('Node.js 18+ required'); process.exit(1); }\""
   },
   "dependencies": {
     "7zip-bin": "^5.2.0",
     "google-auth-library": "^10.5.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0",
-    "@rollup/rollup-darwin-arm64": "^4.53.3"
+    "@playwright/test": "^1.57.0"
   }
 }
