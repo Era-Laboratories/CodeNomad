@@ -43,17 +43,27 @@ export async function supportsNativeDialogsAsync(): Promise<boolean> {
 let serverLocalModeCache: boolean | null = null
 
 /**
- * Returns true when the server is running locally and supports native OS dialogs.
- * This is an async check that caches the result.
+ * Returns true when connected to the server locally (localhost/127.0.0.1).
+ * Native OS dialogs work when the UI is on the same machine as the server.
  */
 export async function checkServerLocalDialogSupport(): Promise<boolean> {
   if (serverLocalModeCache !== null) {
     return serverLocalModeCache
   }
   try {
-    const meta = await getServerMeta()
-    serverLocalModeCache = meta.listeningMode === "local"
-    return serverLocalModeCache
+    // Check if we're accessing the server from localhost
+    const hostname = typeof window !== "undefined" ? window.location.hostname : ""
+    const isLocalConnection = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1"
+
+    if (!isLocalConnection) {
+      serverLocalModeCache = false
+      return false
+    }
+
+    // Verify server is reachable
+    await getServerMeta()
+    serverLocalModeCache = true
+    return true
   } catch {
     serverLocalModeCache = false
     return false

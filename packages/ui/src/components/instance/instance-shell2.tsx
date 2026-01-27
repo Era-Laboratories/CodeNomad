@@ -68,6 +68,7 @@ import InstanceServiceStatus from "../instance-service-status"
 import InstanceMcpControl from "../instance-mcp-control"
 import AgentSelector from "../agent-selector"
 import ModelSelector from "../model-selector"
+import ThinkingSelector from "../thinking-selector"
 import PermissionToggle from "../permission-toggle"
 import CommandPalette from "../command-palette"
 import ShortcutsDialog from "../shortcuts-dialog"
@@ -870,6 +871,10 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
                   sessionId={activeSession().id}
                   currentModel={activeSession().model}
                   onModelChange={(model) => props.handleSidebarModelChange(activeSession().id, model)}
+                />
+
+                <ThinkingSelector
+                  currentModelId={`${activeSession().model.providerId}/${activeSession().model.modelId}`}
                 />
 
                 <PermissionToggle

@@ -30,6 +30,11 @@ interface BottomStatusBarProps {
   gitBranch?: string
   gitAhead?: number
   gitBehind?: number
+  // Working/busy state
+  isSessionBusy?: boolean
+  elapsedSeconds?: number
+  streamingTokens?: number
+  onInterrupt?: () => void
 }
 
 const BottomStatusBar: Component<BottomStatusBarProps> = (props) => {
@@ -241,6 +246,30 @@ const BottomStatusBar: Component<BottomStatusBarProps> = (props) => {
           <Server class="bottom-status-icon" />
           <span class="bottom-status-text">
             :{props.instancePort}
+          </span>
+        </button>
+      </Show>
+
+      {/* Working indicator - shown when session is busy */}
+      <Show when={props.isSessionBusy}>
+        <div class="bottom-status-divider" />
+        <button
+          type="button"
+          class="bottom-status-item bottom-status-working"
+          onClick={() => props.onInterrupt?.()}
+          title="Click to interrupt (⌘.)"
+        >
+          <Loader2 class="bottom-status-icon bottom-status-spinner" />
+          <span class="bottom-status-text">Working...</span>
+          <span class="bottom-status-interrupt-hint">
+            <span class="bottom-status-muted">(⌘. to interrupt</span>
+            <Show when={props.elapsedSeconds !== undefined && props.elapsedSeconds > 0}>
+              <span class="bottom-status-muted"> · {props.elapsedSeconds}s</span>
+            </Show>
+            <Show when={props.streamingTokens !== undefined && props.streamingTokens > 0}>
+              <span class="bottom-status-muted"> · ↓{formatTokenTotal(props.streamingTokens!)}</span>
+            </Show>
+            <span class="bottom-status-muted">)</span>
           </span>
         </button>
       </Show>

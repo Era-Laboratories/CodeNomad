@@ -45,12 +45,23 @@ const PreferencesSchema = z.object({
   autoCleanupBlankSessions: z.boolean().default(true),
   stopInstanceOnLastSessionDelete: z.boolean().default(false),
   idleInstanceTimeoutMinutes: z.number().min(0).default(0), // 0 = disabled
+  autoStopOnDisconnect: z.boolean().default(true), // Auto-stop disconnected instances
   listeningMode: z.enum(["local", "all"]).default("local"),
 
   // Permissions
   autoApprovePermissions: z.boolean().default(true), // Skip permission prompts by default
 
+  // Chat window settings
+  defaultToolCallsCollapsed: z.boolean().default(true),
+  showVerboseOutput: z.boolean().default(true),
+
   modelDefaultsByAgent: z.record(ModelPreferenceSchema).default({}),
+
+  // Per-model thinking mode selections
+  modelThinkingSelections: z.record(z.enum(["auto", "enabled", "disabled"])).default({}),
+
+  // Favorite model identifiers
+  modelFavorites: z.array(z.string()).default([]),
 
   mcpRegistry: z.record(McpServerConfigSchema).default({}),
   mcpDesiredState: z.record(z.boolean()).default({}),

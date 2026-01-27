@@ -161,6 +161,7 @@ export default function MessageSection(props: MessageSectionProps) {
   const [topSentinelVisible, setTopSentinelVisible] = createSignal(true)
   const [bottomSentinelVisible, setBottomSentinelVisible] = createSignal(true)
   const [quoteSelection, setQuoteSelection] = createSignal<{ text: string; top: number; left: number } | null>(null)
+  const [hasNewActivity, setHasNewActivity] = createSignal(false)
 
   let containerRef: HTMLDivElement | undefined
   let shellRef: HTMLDivElement | undefined
@@ -258,6 +259,7 @@ export default function MessageSection(props: MessageSectionProps) {
     }
     sentinel?.scrollIntoView({ block: "end", inline: "nearest", behavior })
     setAutoScroll(true)
+    setHasNewActivity(false)
     scheduleScrollPersist()
   }
 
@@ -636,6 +638,9 @@ export default function MessageSection(props: MessageSectionProps) {
     }
     if (autoScroll()) {
       scheduleAnchorScroll(true)
+    } else {
+      // User is scrolled up - show new activity indicator
+      setHasNewActivity(true)
     }
   })
 
@@ -845,11 +850,16 @@ export default function MessageSection(props: MessageSectionProps) {
               <Show when={showScrollBottomButton()}>
                 <button
                   type="button"
-                  class="message-scroll-button"
+                  class={`message-scroll-button ${hasNewActivity() ? "has-new-activity" : ""}`}
                   onClick={() => scrollToBottom(false, { suppressAutoAnchor: false })}
-                  aria-label="Scroll to latest message"
+                  aria-label={hasNewActivity() ? "New activity - scroll to latest" : "Scroll to latest message"}
                 >
-                  <span class="message-scroll-icon" aria-hidden="true">↓</span>
+                  <Show when={hasNewActivity()} fallback={<span class="message-scroll-icon" aria-hidden="true">↓</span>}>
+                    <span class="message-scroll-new-activity">
+                      <span class="message-scroll-icon" aria-hidden="true">↓</span>
+                      <span class="message-scroll-label">New activity</span>
+                    </span>
+                  </Show>
                 </button>
               </Show>
             </div>

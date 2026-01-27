@@ -17,6 +17,7 @@
 @import "./panels/model-catalog.css";
 @import "./panels/conflict-modal.css";
 @import "./panels/file-conflicts.css";
+@import "./panels/session-manager.css";
 
 
 .tab-bar-instance {

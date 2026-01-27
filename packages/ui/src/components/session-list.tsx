@@ -1,7 +1,7 @@
 import { Component, For, Show, createSignal, createMemo, JSX } from "solid-js"
 import type { Session, SessionStatus } from "../types/session"
 import { getSessionStatus } from "../stores/session-status"
-import { MessageSquare, X, Copy, Trash2, Pencil, MoreVertical, Plus, Info, Pin, PinOff } from "lucide-solid"
+import { MessageSquare, X, Copy, Trash2, Pencil, MoreVertical, Plus, Pin, PinOff } from "lucide-solid"
 import Kbd from "./kbd"
 import SessionRenameDialog from "./session-rename-dialog"
 import { keyboardRegistry } from "../lib/keyboard-registry"
@@ -11,7 +11,6 @@ import { deleteSession, loading, renameSession, getSessionInfo } from "../stores
 import { formatTokenTotal } from "../lib/formatters"
 import { getLogger } from "../lib/logger"
 import { DropdownMenu } from "@kobalte/core"
-import { getActiveInstance } from "../stores/instances"
 import { copyToClipboard } from "../lib/clipboard"
 const log = getLogger("session")
 
@@ -288,16 +287,6 @@ const SessionList: Component<SessionListProps> = (props) => {
     { equals: arraysEqual },
   )
  
-  const instance = () => getActiveInstance()
-  const parentSession = createMemo(() => {
-    for (const session of props.sessions.values()) {
-      if (session.parentId === null && session.title && session.title.trim()) {
-        return session.title
-      }
-    }
-    return null
-  })
-
   return (
     <div
       class="session-list-container bg-surface-secondary border-r border-base flex flex-col w-full"
@@ -309,54 +298,19 @@ const SessionList: Component<SessionListProps> = (props) => {
       </Show>
 
       <div class="session-list flex-1 overflow-y-auto">
-          <div class="session-section">
-            <div class="session-section-header px-3 py-2 text-xs font-semibold text-primary/70 uppercase tracking-wide flex items-center justify-between">
-              <span>Instance</span>
-              <Show when={!props.isPhoneLayout && props.onTogglePin}>
-                <button
-                  type="button"
-                  class="icon-button icon-button--sm icon-button--ghost"
-                  aria-label={props.leftPinned ? "Unpin drawer" : "Pin drawer"}
-                  onClick={props.onTogglePin}
-                >
-                  {props.leftPinned ? <Pin class="w-3.5 h-3.5" /> : <PinOff class="w-3.5 h-3.5" />}
-                </button>
-              </Show>
-            </div>
+        {/* Pin button header */}
+        <Show when={!props.isPhoneLayout && props.onTogglePin}>
+          <div class="session-list-pin-header px-3 py-2 flex items-center justify-end border-b border-base">
             <button
-              class={`instance-info-panel instance-info-panel--clickable px-3 py-2 w-full text-left ${props.activeSessionId === "info" ? "instance-info-panel--active" : ""}`}
-              onClick={() => selectSession("info")}
-              title="OpenCode process running. Close the instance tab to stop it and free resources."
               type="button"
+              class="icon-button icon-button--sm icon-button--ghost"
+              aria-label={props.leftPinned ? "Unpin drawer" : "Pin drawer"}
+              onClick={props.onTogglePin}
             >
-              <div class="instance-info-grid">
-                <Show when={instance()}>
-                  <div class="instance-info-row">
-                    <span class="instance-info-label">Port</span>
-                    <span class="instance-info-value">{instance()?.port ?? "—"}</span>
-                  </div>
-                  <div class="instance-info-row">
-                    <span class="instance-info-label">PID</span>
-                    <span class="instance-info-value">{instance()?.pid ?? "—"}</span>
-                  </div>
-                  <div class="instance-info-row">
-                    <span class="instance-info-label">Process</span>
-                    <span class="instance-info-value instance-info-status">
-                      <span class="status-dot status-dot--connected" />
-                      Running
-                    </span>
-                  </div>
-                </Show>
-              </div>
-              <div class="session-name-section">
-                <span class="session-name-label">Session</span>
-                <span class="session-name-value">
-                  {parentSession() ?? "—"}
-                </span>
-              </div>
+              {props.leftPinned ? <Pin class="w-3.5 h-3.5" /> : <PinOff class="w-3.5 h-3.5" />}
             </button>
           </div>
-
+        </Show>
 
         <Show when={userSessionIds().length > 0}>
           <div class="session-section">

@@ -1,0 +1,75 @@
+# Era Tool Governance Configuration
+# 
+# This file controls which CLI commands the AI agent can execute.
+# Edit this file to override default governance rules for your project.
+#
+# Config hierarchy (later overrides earlier):
+#   1. Plugin hardcoded rules (non-overridable safety rules)
+#   2. ~/.era/governance.yaml (your global preferences)
+#   3. .era/governance.yaml (this file, committed with project)
+#   4. .era/governance.local.yaml (your local overrides, gitignored)
+#
+# For more information, see: https://era.computer/docs/governance
+
+schema_version: 1
+
+settings:
+  # Log all governance decisions, not just denials
+  # Useful for debugging rules or compliance auditing
+  audit_mode: false
+
+# Override default deny rules
+# 
+# Available rules (all denied by default):
+#
+# Kubernetes:
+#   kubectl-apply, kubectl-create, kubectl-delete, kubectl-patch,
+#   kubectl-replace, kubectl-set, kubectl-drain, kubectl-cordon,
+#   kubectl-exec, kubectl-run, kubectl-edit, kubectl-scale, kubectl-rollout
+#
+# Helm:
+#   helm-install, helm-upgrade, helm-delete, helm-rollback
+#
+# Google Cloud:
+#   gcloud-compute-create, gcloud-compute-delete,
+#   gcloud-clusters-create, gcloud-clusters-delete,
+#   gcloud-sql-create, gcloud-sql-delete
+#
+# Docker:
+#   docker-push, docker-run-privileged, docker-system-prune,
+#   docker-rm, docker-stop
+#
+# GitHub CLI:
+#   gh-pr-merge, gh-pr-close, gh-release-delete,
+#   gh-workflow-disable, gh-workflow-run, gh-repo-delete
+#
+# Git:
+#   git-force-push, git-reset-hard, git-clean-force, git-rebase
+#
+# Example override:
+#
+# rules:
+#   kubectl-apply:
+#     action: allow
+#     justification: "Development cluster with ephemeral namespaces"
+#
+#   helm-install:
+#     action: allow
+#     justification: "Local development environment"
+
+rules: {}
+
+# Add custom rules for project-specific governance
+#
+# Example custom rules:
+#
+# custom:
+#   - pattern: "npm run deploy:prod"
+#     action: deny
+#     reason: "Production deploys must go through CI/CD"
+#
+#   - pattern: "--env=production"
+#     action: deny
+#     reason: "Production environment changes require review"
+
+custom: []

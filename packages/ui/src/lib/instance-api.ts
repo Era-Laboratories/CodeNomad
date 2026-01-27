@@ -2,6 +2,16 @@ import type { Instance } from "../types/instance"
 import type { McpServerConfig } from "../stores/preferences"
 import { ERA_CODE_API_BASE } from "./api-client"
 
+/**
+ * Structured error from instance API with additional context
+ */
+export interface InstanceApiError extends Error {
+  code?: string
+  hint?: string
+  status?: number
+  originalStatus?: number
+}
+
 function normalizeProxyPath(proxyPath: string): string {
   const withLeading = proxyPath.startsWith("/") ? proxyPath : `/${proxyPath}`
   return withLeading.replace(/\/+/g, "/").replace(/\/+$/, "")
@@ -11,6 +21,41 @@ function buildInstanceBaseUrl(proxyPath: string): string {
   const normalized = normalizeProxyPath(proxyPath)
   const base = ERA_CODE_API_BASE.replace(/\/+$/, "")
   return `${base}${normalized}`
+}
+
+/**
+ * Create a structured error from an API response
+ */
+function createInstanceError(status: number, body: unknown): InstanceApiError {
+  let message = `Instance request failed (${status})`
+  let code: string | undefined
+  let hint: string | undefined
+  let originalStatus: number | undefined
+
+  if (typeof body === "object" && body !== null) {
+    const errorBody = body as Record<string, unknown>
+    if (typeof errorBody.error === "string") {
+      message = errorBody.error
+    }
+    if (typeof errorBody.code === "string") {
+      code = errorBody.code
+    }
+    if (typeof errorBody.hint === "string") {
+      hint = errorBody.hint
+    }
+    if (typeof errorBody.originalStatus === "number") {
+      originalStatus = errorBody.originalStatus
+    }
+  } else if (typeof body === "string" && body.length > 0) {
+    message = body
+  }
+
+  const error = new Error(message) as InstanceApiError
+  error.code = code
+  error.hint = hint
+  error.status = status
+  error.originalStatus = originalStatus
+  return error
 }
 
 async function requestInstance<T>(instance: Instance, path: string, init?: RequestInit): Promise<T> {
@@ -24,8 +69,18 @@ async function requestInstance<T>(instance: Instance, path: string, init?: Reque
   })
 
   if (!response.ok) {
-    const message = await response.text()
-    throw new Error(message || `Instance request failed (${response.status})`)
+    let body: unknown
+    const contentType = response.headers.get("content-type") ?? ""
+    if (contentType.includes("application/json")) {
+      try {
+        body = await response.json()
+      } catch {
+        body = await response.text()
+      }
+    } else {
+      body = await response.text()
+    }
+    throw createInstanceError(response.status, body)
   }
 
   if (response.status === 204) {

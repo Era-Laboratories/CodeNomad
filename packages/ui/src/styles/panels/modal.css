@@ -280,3 +280,135 @@
     transform: translate(-50%, -50%);
   }
 }
+
+/* Instance Modal Tabs */
+.instance-modal {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.instance-modal-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.instance-modal-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.instance-modal-tab:hover {
+  color: var(--text-primary);
+}
+
+.instance-modal-tab.active {
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+.instance-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Instance Logs Panel */
+.instance-logs-panel {
+  display: flex;
+  flex-direction: column;
+  height: 400px;
+  gap: var(--space-2);
+}
+
+.instance-logs-header {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.instance-logs-content {
+  flex: 1;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--surface-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.instance-logs-paused,
+.instance-logs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-3);
+  color: var(--text-muted);
+}
+
+.instance-logs-scroll-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.instance-logs-scroll-button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Log entry styling */
+.log-entry {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  line-height: 1.4;
+}
+
+.log-timestamp {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.log-message {
+  flex: 1;
+  word-break: break-word;
+}
+
+.log-level-error {
+  color: var(--status-error);
+}
+
+.log-level-warn {
+  color: var(--status-warning);
+}
+
+.log-level-debug {
+  color: var(--text-muted);
+}
+
+.log-level-default {
+  color: var(--text-primary);
+}

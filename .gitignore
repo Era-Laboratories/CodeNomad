@@ -7,3 +7,15 @@ release/
 .electron-vite/
 out/
 .dir-locals.el
+
+# Era - Generated files (do not edit this section)
+.era/memory/DIRECTIVES.md
+.era/memory/.directives-build-hash
+.era/.toolconfig
+.era/config.local.yaml
+.era/governance.local.yaml
+.opencode/agent
+.opencode/command
+.opencode/skill
+.opencode/plugin
+# Era - End

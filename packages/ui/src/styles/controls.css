@@ -7,3 +7,6 @@
 @import "./components/directory-browser.css";
 @import "./components/remote-access.css";
 @import "./components/context-progress.css";
+@import "./components/grouped-tools-summary.css";
+@import "./components/inline-tool-call.css";
+@import "./components/tool-call-modal.css";

@@ -229,6 +229,45 @@
   color: var(--accent-primary);
 }
 
+/* New activity indicator styles */
+.message-scroll-button.has-new-activity {
+  width: auto;
+  padding: 0.5rem 1rem;
+  background-color: var(--accent-primary);
+  color: var(--text-on-accent, white);
+  border-color: var(--accent-primary);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.message-scroll-button.has-new-activity:hover {
+  background-color: var(--accent-primary-hover, var(--accent-primary));
+}
+
+.message-scroll-button.has-new-activity .message-scroll-icon {
+  color: inherit;
+}
+
+.message-scroll-new-activity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.message-scroll-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--accent-primary-transparent, rgba(59, 130, 246, 0.4));
+  }
+  50% {
+    box-shadow: 0 0 0 8px var(--accent-primary-transparent, rgba(59, 130, 246, 0));
+  }
+}
+
 .message-quote-popover {
   position: absolute;
   z-index: 5;

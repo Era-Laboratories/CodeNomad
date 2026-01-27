@@ -222,3 +222,281 @@ export function getDefaultToolAction(toolName: string) {
       return "Working..."
   }
 }
+
+/**
+ * Get compact arguments string for inline tool display
+ * Returns: "(src/App.tsx)" or "(npm run build)" or "(*.tsx)"
+ */
+export function getToolArgsSummary(toolName: string, state?: ToolState): string {
+  if (!state) return ""
+
+  const { input, metadata } = readToolStatePayload(state)
+
+  // Extract the primary argument based on tool type
+  let arg: string | undefined
+
+  switch (toolName) {
+    case "read":
+    case "write":
+    case "edit":
+    case "patch":
+      arg = input.file_path || input.filePath || metadata.filePath || input.path
+      break
+    case "bash":
+      arg = input.command
+      // Truncate long commands
+      if (arg && arg.length > 50) {
+        arg = arg.slice(0, 47) + "..."
+      }
+      break
+    case "glob":
+      arg = input.pattern
+      break
+    case "grep":
+      arg = input.pattern
+      break
+    case "webfetch":
+      arg = input.url
+      // Extract domain from URL
+      if (arg) {
+        try {
+          const url = new URL(arg)
+          arg = url.hostname + (url.pathname !== "/" ? url.pathname : "")
+          if (arg.length > 40) {
+            arg = arg.slice(0, 37) + "..."
+          }
+        } catch {
+          // Keep original if URL parsing fails
+        }
+      }
+      break
+    case "list":
+      arg = input.path || input.directory
+      break
+    case "task":
+      arg = input.description || metadata.description
+      if (arg && arg.length > 40) {
+        arg = arg.slice(0, 37) + "..."
+      }
+      break
+    default:
+      // Try common field names
+      arg = input.file_path || input.filePath || input.path || input.pattern
+  }
+
+  if (!arg) return ""
+
+  // For file paths, show just the filename
+  if (arg.includes("/") && !arg.includes(" ")) {
+    arg = getRelativePath(arg)
+  }
+
+  return `(${arg})`
+}
+
+/**
+ * Calculate diff statistics from diff text
+ */
+export function calculateDiffStats(diffText: string): { added: number; removed: number } | null {
+  if (!diffText) return null
+
+  let added = 0
+  let removed = 0
+
+  const lines = diffText.split("\n")
+  for (const line of lines) {
+    // Skip diff headers
+    if (line.startsWith("@@") || line.startsWith("---") || line.startsWith("+++") || line.startsWith("diff ")) {
+      continue
+    }
+    if (line.startsWith("+") && !line.startsWith("+++")) {
+      added++
+    } else if (line.startsWith("-") && !line.startsWith("---")) {
+      removed++
+    }
+  }
+
+  if (added === 0 && removed === 0) return null
+
+  return { added, removed }
+}
+
+/**
+ * Calculate tool execution duration from state timestamps
+ */
+export function calculateToolDuration(state?: ToolState): number | null {
+  if (!state) return null
+
+  const { metadata } = readToolStatePayload(state)
+
+  // Check for explicit duration
+  if (typeof metadata.duration === "number") {
+    return metadata.duration
+  }
+
+  // Check for start/end timestamps
+  if (metadata.startTime && metadata.endTime) {
+    return metadata.endTime - metadata.startTime
+  }
+
+  // Check for time object
+  if (state.time) {
+    const time = state.time as { start?: number; end?: number }
+    if (time.start && time.end) {
+      return time.end - time.start
+    }
+  }
+
+  return null
+}
+
+/**
+ * Format duration in human-readable form
+ */
+export function formatDuration(ms: number | null): string {
+  if (ms === null) return ""
+
+  if (ms < 1000) {
+    return `${ms}ms`
+  }
+
+  const seconds = ms / 1000
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)}s`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = Math.floor(seconds % 60)
+  return `${minutes}m ${remainingSeconds}s`
+}
+
+/**
+ * Get brief result summary for inline tool display
+ * Returns: "+45, -12 lines" or "2.3s" or "89 lines" or "12 matches"
+ */
+export function getToolSummary(toolName: string, state?: ToolState): string {
+  if (!state) return ""
+
+  const status = state.status
+
+  // Show status-based messages for non-completed states
+  if (status === "running") {
+    return "Running..."
+  }
+
+  if (status === "error") {
+    const { metadata } = readToolStatePayload(state)
+    const errorMsg = metadata.error || (state as ToolStateError).error || "Error"
+    if (typeof errorMsg === "string" && errorMsg.length > 50) {
+      return errorMsg.slice(0, 47) + "..."
+    }
+    return typeof errorMsg === "string" ? errorMsg : "Error"
+  }
+
+  if (status !== "completed") {
+    return ""
+  }
+
+  const { input, metadata, output } = readToolStatePayload(state)
+
+  switch (toolName) {
+    case "edit":
+    case "patch": {
+      // Calculate diff stats
+      const diffPayload = extractDiffPayload(toolName, state)
+      if (diffPayload?.diffText) {
+        const stats = calculateDiffStats(diffPayload.diffText)
+        if (stats) {
+          return `+${stats.added}, -${stats.removed} lines`
+        }
+      }
+      return "Modified"
+    }
+
+    case "write": {
+      // Count lines written
+      const content = input.content || metadata.content || output
+      if (typeof content === "string") {
+        const lines = content.split("\n").length
+        return `${lines} lines written`
+      }
+      return "Written"
+    }
+
+    case "read": {
+      // Count lines read
+      const preview = metadata.preview || output
+      if (typeof preview === "string") {
+        const lines = preview.split("\n").length
+        return `${lines} lines`
+      }
+      return "Read"
+    }
+
+    case "bash": {
+      // Show duration if available
+      const duration = calculateToolDuration(state)
+      if (duration !== null) {
+        return formatDuration(duration)
+      }
+      // Check exit code
+      const exitCode = metadata.exitCode
+      if (typeof exitCode === "number") {
+        return exitCode === 0 ? "Success" : `Exit code ${exitCode}`
+      }
+      return "Completed"
+    }
+
+    case "glob": {
+      // Show match count
+      if (Array.isArray(output)) {
+        return `${output.length} files`
+      }
+      if (typeof output === "string") {
+        const lines = output.trim().split("\n").filter(Boolean)
+        return `${lines.length} files`
+      }
+      return "Found"
+    }
+
+    case "grep": {
+      // Show match count
+      if (Array.isArray(output)) {
+        return `${output.length} matches`
+      }
+      if (typeof output === "string") {
+        const lines = output.trim().split("\n").filter(Boolean)
+        return `${lines.length} matches`
+      }
+      return "Searched"
+    }
+
+    case "webfetch": {
+      return "Fetched"
+    }
+
+    case "task": {
+      // Sub-agent status
+      const summary = metadata.summary
+      if (Array.isArray(summary)) {
+        return `${summary.length} steps`
+      }
+      return "Delegated"
+    }
+
+    case "todowrite":
+    case "todoread": {
+      return "Updated"
+    }
+
+    case "list": {
+      if (Array.isArray(output)) {
+        return `${output.length} items`
+      }
+      return "Listed"
+    }
+
+    default:
+      return "Completed"
+  }
+}

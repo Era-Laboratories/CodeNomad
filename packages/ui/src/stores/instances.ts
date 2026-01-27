@@ -657,17 +657,43 @@ async function sendPermissionResponse(
   }
 }
 
-sseManager.onConnectionLost = (instanceId, reason) => {
+sseManager.onConnectionLost = async (instanceId, reason) => {
   const instance = instances().get(instanceId)
   if (!instance) {
     return
   }
 
-  setDisconnectedInstance({
-    id: instanceId,
-    folder: instance.folder,
-    reason,
-  })
+  log.warn("Connection lost to instance", { instanceId, reason, folder: instance.folder })
+
+  // Auto-stop disconnected instances to prevent orphans
+  // This is safer than requiring user acknowledgment
+  const autoStopOnDisconnect = preferences().autoStopOnDisconnect ?? true
+
+  if (autoStopOnDisconnect) {
+    log.info("Auto-stopping disconnected instance", { instanceId })
+    try {
+      await stopInstance(instanceId)
+      showToastNotification({
+        message: `Instance disconnected and stopped: ${instance.folder.split("/").pop()}`,
+        variant: "warning",
+      })
+    } catch (error) {
+      log.error("Failed to auto-stop disconnected instance", { instanceId, error })
+      // Fall back to showing the modal for manual handling
+      setDisconnectedInstance({
+        id: instanceId,
+        folder: instance.folder,
+        reason,
+      })
+    }
+  } else {
+    // User opted out of auto-stop, show the acknowledgment modal
+    setDisconnectedInstance({
+      id: instanceId,
+      folder: instance.folder,
+      reason,
+    })
+  }
 }
 
 sseManager.onLspUpdated = async (instanceId) => {

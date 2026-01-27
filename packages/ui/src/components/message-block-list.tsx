@@ -1,4 +1,4 @@
-import { Index, Show, type Accessor } from "solid-js"
+import { Index, Show, createMemo, type Accessor } from "solid-js"
 import VirtualItem from "./virtual-item"
 import MessageBlock from "./message-block"
 import ThinkingCard from "./thinking-card"
@@ -31,12 +31,71 @@ interface MessageBlockListProps {
 }
 
 export default function MessageBlockList(props: MessageBlockListProps) {
+  // Compute which messages are the "last in their assistant turn"
+  // Tools should be consolidated and shown only at the end of each assistant turn
+  const assistantTurnInfo = createMemo(() => {
+    const ids = props.messageIds()
+    const store = props.store()
+    const info = new Map<string, { isLastInTurn: boolean; turnStartIndex: number }>()
+
+    let turnStartIndex = 0
+    for (let i = 0; i < ids.length; i++) {
+      const record = store.getMessage(ids[i])
+      const role = record?.role || "user"
+
+      if (role === "user") {
+        // User message - mark previous assistant messages
+        turnStartIndex = i + 1
+      } else if (role === "assistant") {
+        // Check if next message is NOT assistant (or this is last message)
+        const nextRecord = i + 1 < ids.length ? store.getMessage(ids[i + 1]) : null
+        const nextRole = nextRecord?.role || "user"
+        const isLastInTurn = nextRole !== "assistant"
+
+        info.set(ids[i], { isLastInTurn, turnStartIndex })
+      }
+    }
+
+    return info
+  })
+
+  // Get all message IDs in the same assistant turn (for tool consolidation)
+  const getAssistantTurnIds = (messageId: string, index: number) => {
+    const info = assistantTurnInfo().get(messageId)
+    if (!info?.isLastInTurn) return []
+
+    const ids = props.messageIds()
+    const store = props.store()
+    const turnIds: string[] = []
+
+    // Collect all assistant message IDs from turnStartIndex to current index
+    for (let i = info.turnStartIndex; i <= index; i++) {
+      const record = store.getMessage(ids[i])
+      if (record?.role === "assistant") {
+        turnIds.push(ids[i])
+      }
+    }
+
+    return turnIds
+  }
+
   return (
     <>
       <Index each={props.messageIds()}>
         {(messageId, index) => {
           const isLastMessage = () => index === props.messageIds().length - 1
           const isSessionReady = () => !props.isSessionBusy && !props.loading && isLastMessage()
+
+          // Only show tools on the last message of each assistant turn
+          const turnInfo = () => assistantTurnInfo().get(messageId())
+          const isLastInAssistantTurn = () => turnInfo()?.isLastInTurn ?? false
+
+          // Get all message IDs in this turn for tool consolidation
+          const turnMessageIds = () => isLastInAssistantTurn() ? getAssistantTurnIds(messageId(), index) : []
+
+          // Only show step-finish (summary pill) when session is ready for user input
+          const showStepFinish = () => isSessionReady() && isLastMessage()
+
           return (
             <VirtualItem
               id={getMessageAnchorId(messageId())}
@@ -59,6 +118,9 @@ export default function MessageBlockList(props: MessageBlockListProps) {
                 showUsageMetrics={props.showUsageMetrics}
                 isSessionReady={isSessionReady()}
                 isLastMessage={isLastMessage()}
+                isLastInAssistantTurn={isLastInAssistantTurn()}
+                turnMessageIds={turnMessageIds()}
+                showStepFinish={showStepFinish()}
                 onRevert={props.onRevert}
                 onFork={props.onFork}
                 onContentRendered={props.onContentRendered}

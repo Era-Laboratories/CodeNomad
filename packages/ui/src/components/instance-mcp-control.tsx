@@ -6,7 +6,7 @@ import type { Instance, RawMcpStatus } from "../types/instance"
 import type { McpServerConfig } from "../stores/preferences"
 import { instances } from "../stores/instances"
 import { useConfig } from "../stores/preferences"
-import { instanceApi } from "../lib/instance-api"
+import { instanceApi, type InstanceApiError } from "../lib/instance-api"
 import { loadInstanceMetadata } from "../lib/hooks/use-instance-metadata"
 import { getLogger } from "../lib/logger"
 import { useOptionalInstanceMetadataContext } from "../lib/contexts/instance-metadata-context"
@@ -103,8 +103,10 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
       return { success: true }
     } catch (error) {
       log.error("Failed to apply MCP server toggle", { instanceId: currentInstance.id, name, desiredEnabled, error })
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      return { success: false, error: errorMessage }
+      const apiError = error as InstanceApiError
+      const errorMessage = apiError?.message ?? String(error)
+      const hint = apiError?.hint
+      return { success: false, error: errorMessage, hint }
     } finally {
       setPending((prev) => ({ ...prev, [name]: false }))
     }
@@ -131,12 +133,15 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
           [name]: previousState ?? !enabled,
         },
       })
-      
-      // Show error toast
+
+      // Show error toast with hint if available
+      const errorMessage = result.error ?? `Failed to ${enabled ? "connect" : "disconnect"}`
+      const displayMessage = result.hint ? `${errorMessage} — ${result.hint}` : errorMessage
       showToastNotification({
         title: `MCP Server: ${name}`,
-        message: result.error ?? `Failed to ${enabled ? "connect" : "disconnect"}`,
+        message: displayMessage,
         variant: "error",
+        duration: 10000, // Longer duration for errors with hints
       })
     }
   }

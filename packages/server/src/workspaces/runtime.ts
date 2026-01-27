@@ -131,6 +131,7 @@ function isHomeDirectory(folder: string): boolean {
   return resolved === home
 }
 
+
 export class WorkspaceRuntime {
   private processes = new Map<string, ManagedProcess>()
   private eraConfigService: EraConfigService | null = null
@@ -209,8 +210,10 @@ export class WorkspaceRuntime {
 
     // Build the command args based on binary type
     let args: string[]
+
     if (useEraCode) {
       // era-code start --quiet -- serve --port 0 --print-logs --log-level DEBUG
+      // The passthrough args after -- are passed to opencode
       args = ["start", "--quiet", "--", "serve", "--port", "0", "--print-logs", "--log-level", "DEBUG"]
     } else {
       // opencode serve --port 0 --print-logs --log-level DEBUG
@@ -340,65 +343,118 @@ export class WorkspaceRuntime {
     })
   }
 
-  async stop(workspaceId: string): Promise<void> {
+  /**
+   * Check if a process is still running
+   */
+  private processExists(pid: number): boolean {
+    try {
+      process.kill(pid, 0)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Stop a workspace process with proper verification
+   * Returns true if process was successfully stopped, false if it's still running
+   */
+  async stop(workspaceId: string): Promise<{ stopped: boolean; error?: string }> {
     const managed = this.processes.get(workspaceId)
-    if (!managed) return
+    if (!managed) {
+      return { stopped: true } // Already gone
+    }
 
     managed.requestedStop = true
     const child = managed.child
-    this.logger.info({ workspaceId }, "Stopping OpenCode process")
+    const pid = child.pid
+    this.logger.info({ workspaceId, pid }, "Stopping OpenCode process")
 
-    await new Promise<void>((resolve, reject) => {
-      const cleanup = () => {
-        child.removeListener("exit", onExit)
-        child.removeListener("error", onError)
+    // If already exited, we're done
+    if (child.exitCode !== null || child.signalCode !== null) {
+      this.logger.debug({ workspaceId, exitCode: child.exitCode, signal: child.signalCode }, "Process already exited")
+      return { stopped: true }
+    }
+
+    if (!pid) {
+      this.logger.warn({ workspaceId }, "No PID available for process, using child.kill()")
+      child.kill("SIGTERM")
+      // Wait briefly and check
+      await this.sleep(500)
+      if (child.exitCode !== null || child.signalCode !== null) {
+        return { stopped: true }
       }
+      child.kill("SIGKILL")
+      await this.sleep(500)
+      return {
+        stopped: child.exitCode !== null || child.signalCode !== null,
+        error: "Process had no PID, kill may have failed"
+      }
+    }
+
+    // Phase 1: SIGTERM with timeout
+    this.logger.debug({ workspaceId, pid }, "Sending SIGTERM to workspace process tree")
+    killProcessTree(pid, "SIGTERM", this.logger)
+
+    // Wait up to 3 seconds for graceful shutdown
+    const terminated = await this.waitForExit(child, 3000)
+    if (terminated) {
+      this.logger.info({ workspaceId, pid }, "Process stopped gracefully with SIGTERM")
+      return { stopped: true }
+    }
+
+    // Phase 2: SIGKILL
+    this.logger.warn({ workspaceId, pid }, "Process did not stop after SIGTERM, sending SIGKILL")
+    killProcessTree(pid, "SIGKILL", this.logger)
+
+    // Wait up to 2 more seconds for forced kill
+    const killed = await this.waitForExit(child, 2000)
+    if (killed) {
+      this.logger.info({ workspaceId, pid }, "Process stopped with SIGKILL")
+      return { stopped: true }
+    }
+
+    // Phase 3: Verify with OS-level check
+    const stillRunning = this.processExists(pid)
+    if (stillRunning) {
+      this.logger.error({ workspaceId, pid }, "CRITICAL: Process survived SIGKILL, may be unkillable")
+      return {
+        stopped: false,
+        error: `Process ${pid} survived SIGKILL and is still running`
+      }
+    }
+
+    // Process is gone even though child didn't report exit
+    this.logger.warn({ workspaceId, pid }, "Process appears dead but child object didn't report exit")
+    return { stopped: true }
+  }
+
+  /**
+   * Wait for a child process to exit with timeout
+   */
+  private waitForExit(child: ChildProcess, timeoutMs: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        resolve(true)
+        return
+      }
+
+      const timeout = setTimeout(() => {
+        child.removeListener("exit", onExit)
+        resolve(false)
+      }, timeoutMs)
 
       const onExit = () => {
-        cleanup()
-        resolve()
-      }
-      const onError = (error: Error) => {
-        cleanup()
-        reject(error)
-      }
-
-      const resolveIfAlreadyExited = () => {
-        if (child.exitCode !== null || child.signalCode !== null) {
-          this.logger.debug({ workspaceId, exitCode: child.exitCode, signal: child.signalCode }, "Process already exited")
-          cleanup()
-          resolve()
-          return true
-        }
-        return false
+        clearTimeout(timeout)
+        resolve(true)
       }
 
       child.once("exit", onExit)
-      child.once("error", onError)
-
-      if (resolveIfAlreadyExited()) {
-        return
-      }
-
-      const pid = child.pid
-      if (!pid) {
-        this.logger.warn({ workspaceId }, "No PID available for process, using child.kill()")
-        child.kill("SIGTERM")
-        return
-      }
-
-      this.logger.debug({ workspaceId, pid }, "Sending SIGTERM to workspace process tree")
-      killProcessTree(pid, "SIGTERM", this.logger)
-
-      setTimeout(() => {
-        if (child.exitCode === null && child.signalCode === null) {
-          this.logger.warn({ workspaceId, pid }, "Process tree did not stop after SIGTERM, force killing")
-          killProcessTree(pid, "SIGKILL", this.logger)
-        } else {
-          this.logger.debug({ workspaceId }, "Workspace process stopped gracefully before SIGKILL timeout")
-        }
-      }, 2000)
     })
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
   private emitLog(workspaceId: string, level: LogLevel, message: string) {

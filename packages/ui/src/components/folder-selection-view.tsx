@@ -4,7 +4,7 @@ import { useConfig } from "../stores/preferences"
 import AdvancedSettingsModal from "./advanced-settings-modal"
 import DirectoryBrowserDialog from "./directory-browser-dialog"
 import Kbd from "./kbd"
-import { openNativeFolderDialog, supportsNativeDialogs } from "../lib/native/native-functions"
+import { openNativeFolderDialog } from "../lib/native/native-functions"
 import EraUpgradeBanner from "./era-upgrade-banner"
 
 const codeNomadLogo = new URL("../images/EraCode-Icon.png", import.meta.url).href
@@ -17,6 +17,7 @@ interface FolderSelectionViewProps {
   onAdvancedSettingsOpen?: () => void
   onAdvancedSettingsClose?: () => void
   onOpenRemoteAccess?: () => void
+  onOpenFullSettings?: () => void
 }
 
 const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
@@ -28,7 +29,6 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
   const [manualPath, setManualPath] = createSignal("")
   const [manualPathError, setManualPathError] = createSignal<string | null>(null)
 
-  const nativeDialogsAvailable = supportsNativeDialogs()
   let recentListRef: HTMLDivElement | undefined
  
   const folders = () => recentFolders()
@@ -183,17 +183,20 @@ const FolderSelectionView: Component<FolderSelectionViewProps> = (props) => {
   async function handleBrowse() {
     if (isLoading()) return
     setFocusMode("new")
-    if (nativeDialogsAvailable) {
-      const fallbackPath = folders()[0]?.path
-      const selected = await openNativeFolderDialog({
-        title: "Select Workspace",
-        defaultPath: fallbackPath,
-      })
-      if (selected) {
-        handleFolderSelect(selected)
-      }
+
+    // Always try native OS dialog first (works for Electron, Tauri, and local web server)
+    const fallbackPath = folders()[0]?.path
+    const selected = await openNativeFolderDialog({
+      title: "Select Workspace",
+      defaultPath: fallbackPath,
+    })
+
+    if (selected) {
+      handleFolderSelect(selected)
       return
     }
+
+    // Fall back to custom browser only if native dialog is unavailable
     setIsFolderBrowserOpen(true)
   }
  

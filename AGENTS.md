@@ -1,3 +1,8 @@
+<!-- ERA:MANAGED:START -->
+Always make sure that the /docs folder stays up to date (and the README.md) you can find the structure for the docs in the skills folder when you need it.
+Always ask for explicit permission before pushing any changes.
+<!-- ERA:MANAGED:END -->
+
 # AGENT NOTES
 
 ## Styling Guidelines

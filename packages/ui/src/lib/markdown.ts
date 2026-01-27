@@ -241,9 +241,19 @@ async function runLanguageLoadQueue() {
 }
 
 function setupRenderer(isDark: boolean) {
-  if (!highlighter || rendererSetup) return
+  if (!highlighter) return
 
-  currentTheme = isDark ? "dark" : "light"
+  const newTheme = isDark ? "dark" : "light"
+
+  // If renderer is already set up but theme changed, just update the theme
+  if (rendererSetup) {
+    if (currentTheme !== newTheme) {
+      currentTheme = newTheme
+    }
+    return
+  }
+
+  currentTheme = newTheme
 
   marked.setOptions({
     breaks: true,

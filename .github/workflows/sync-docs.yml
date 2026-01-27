@@ -1,0 +1,20 @@
+name: Sync Docs to Notion
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (preview only)'
+        type: boolean
+        default: false
+
+jobs:
+  sync:
+    uses: Era-Laboratories/docs2docs/.github/workflows/sync-docs-reusable.yml@main
+    with:
+      docs_path: 'docs'
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit

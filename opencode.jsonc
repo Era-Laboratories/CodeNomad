@@ -1,0 +1,144 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    ".era/memory/constitution.md",
+    ".era/memory/DIRECTIVES.md"
+  ],
+  // ============================================================
+  // AGENTS - Loaded from .opencode/agent/ directory
+  // ============================================================
+  // Available agents (defined in .opencode/agent/*.md):
+  //
+  // Primary agents (cycle with Tab key):
+  //   - plan           → Strategic planning, creates docs/plans/ documents
+  //   - orchestration  → Main coding agent for implementation
+  //
+  // Subagents (invoked via Task tool or @ mentions):
+  //   - explore        → Fast codebase exploration
+  //   - researcher     → Documentation and web research
+  //   - docs-generator → Generate /docs folder
+  //   - readme-generator → Generate README.md
+  //   - debugger       → Systematic root cause analysis
+  //
+  // Disable the built-in build agent (we use orchestration instead)
+  "agent": {
+    "build": {
+      "disable": true
+    }
+  },
+  // ============================================================
+  // COMMANDS - Loaded from .opencode/command/ directory
+  // ============================================================
+  // Available commands (defined in .opencode/command/*.md):
+  //
+  // Era governance commands:
+  //   /era-audit              → Run constitution compliance audit
+  //   /era-directives         → Create or update project directives
+  //   /era-bootstrap-directives → Bootstrap directives from codebase
+  //   /era-sync-directives    → Sync directives from main branch
+  //   /era-constitution-fix   → Fix constitution violations
+  //
+  // General commands:
+  //   /era-project-status → Get project status overview
+  //   /era-research       → Research using internal docs, external docs, or web
+  //   /era-readme         → Generate/update README.md
+  //   /era-plan           → Start collaborative planning session
+  //   /era-explore        → Explore codebase structure
+  //   /era-debug          → Apply systematic debugging methodology
+  //
+  // ============================================================
+  // MCP SERVERS - Documentation and External Sources
+  
+    "mcp": {
+      "notion-docs-reader": {
+        "type": "local",
+        "command": [
+          "npx",
+          "@era-laboratories/notion-documentation-mcp"
+        ],
+        "enabled": true,
+        "environment": {
+          "NOTION_TOKEN": "{env:NOTION_TOKEN}"
+        }
+      },
+      "context7": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "@upstash/context7-mcp"
+        ],
+        "enabled": true,
+        "environment": {
+          "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+        }
+      },
+      "linear": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "github:iceener/linear-streamable-mcp-server"
+        ],
+        "enabled": false,
+        "environment": {
+          "LINEAR_API_KEY": "{env:LINEAR_API_KEY}",
+          "AUTH_STRATEGY": "bearer",
+          "BEARER_TOKEN": "{env:LINEAR_API_KEY}"
+        }
+      }
+    }
+  ,
+  // ============================================================
+
+  // ============================================================
+  // PERMISSIONS - Default behavior across all agents
+  // ============================================================
+  "permission": {
+    "read": {
+      "*": "allow",
+      // Block reading sensitive files
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.local": "deny",
+      ".env.example": "allow",
+      "*.pem": "deny",
+      "*.key": "deny"
+    },
+    "edit": "ask",
+    "glob": "allow",
+    "grep": "allow",
+    "task": "allow",
+    "external_directory": "ask",
+    "todowrite": "allow",
+    "todoread": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "lsp": "allow",
+    "doom_loop": "ask",
+    // ============================================================
+    // BASH PERMISSIONS
+    // ============================================================
+    // Governance (deny rules) is handled by the era-governance plugin.
+    // This section only defines which commands are pre-approved.
+    // Commands not listed here will be allowed but subject to plugin governance.
+    //
+    // To override governance rules, edit .era/governance.yaml
+    "bash": "allow",
+    // Skill permissions - all skills allowed by default
+    "skill": {
+      "*": "allow"
+    }
+  },
+  // ============================================================
+  // OTHER CONFIGURATIONS
+  // ============================================================
+  "default_agent": "plan",
+  "compaction": {
+    "auto": true,
+    "prune": true
+  },
+  "logLevel": "INFO",
+  "autoupdate": true
+}

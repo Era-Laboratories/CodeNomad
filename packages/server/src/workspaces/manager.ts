@@ -32,6 +32,13 @@ export class WorkspaceManager {
     return Array.from(this.workspaces.values())
   }
 
+  /**
+   * Get the set of active workspace IDs
+   */
+  getActiveWorkspaceIds(): Set<string> {
+    return new Set(this.workspaces.keys())
+  }
+
   get(id: string): WorkspaceDescriptor | undefined {
     return this.workspaces.get(id)
   }
@@ -148,24 +155,52 @@ export class WorkspaceManager {
     }
   }
 
-  async delete(id: string): Promise<WorkspaceDescriptor | undefined> {
+  async delete(id: string, options?: { force?: boolean }): Promise<WorkspaceDescriptor | undefined> {
     const workspace = this.workspaces.get(id)
     if (!workspace) return undefined
 
     this.options.logger.info({ workspaceId: id }, "Stopping workspace")
     const wasRunning = Boolean(workspace.pid)
+
     if (wasRunning) {
-      await this.runtime.stop(id).catch((error) => {
-        this.options.logger.warn({ workspaceId: id, err: error }, "Failed to stop workspace process cleanly")
-      })
+      const result = await this.runtime.stop(id)
+
+      if (!result.stopped) {
+        if (options?.force) {
+          this.options.logger.error(
+            { workspaceId: id, error: result.error },
+            "Process failed to stop but force=true, proceeding with workspace deletion"
+          )
+        } else {
+          this.options.logger.error(
+            { workspaceId: id, error: result.error },
+            "Failed to stop workspace process - workspace deletion aborted"
+          )
+          // Update workspace status to reflect the error state
+          workspace.status = "error"
+          workspace.error = result.error || "Process failed to stop"
+          workspace.updatedAt = new Date().toISOString()
+          this.options.eventBus.publish({ type: "workspace.error", workspace })
+          throw new Error(result.error || "Failed to stop workspace process")
+        }
+      }
     }
 
     this.workspaces.delete(id)
     clearWorkspaceSearchCache(workspace.path)
-    if (!wasRunning) {
-      this.options.eventBus.publish({ type: "workspace.stopped", workspaceId: id })
-    }
+
+    // Always publish stopped event after successful deletion
+    this.options.eventBus.publish({ type: "workspace.stopped", workspaceId: id })
+
     return workspace
+  }
+
+  /**
+   * Force delete a workspace even if the process won't stop
+   * Use this for cleanup of orphaned/stuck workspaces
+   */
+  async forceDelete(id: string): Promise<WorkspaceDescriptor | undefined> {
+    return this.delete(id, { force: true })
   }
 
   async shutdown() {

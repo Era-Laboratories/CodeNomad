@@ -1,48 +1,21 @@
-import { For, Match, Show, Switch, createEffect, createMemo, createSignal, on } from "solid-js"
+import { For, Match, Show, Switch, createEffect, createMemo, createSignal } from "solid-js"
 import MessageItem from "./message-item"
-import ToolCall from "./tool-call"
+import ToolCallGroup from "./tool-call-group"
+import SubAgentGroup from "./subagent-group"
+import type { ToolDisplayItem } from "./inline-tool-call"
 import type { InstanceMessageStore } from "../stores/message-v2/instance-store"
 import type { ClientPart, MessageInfo } from "../types/message"
 import { partHasRenderableText } from "../types/message"
 import { buildRecordDisplayData, clearRecordDisplayCacheForInstance } from "../stores/message-v2/record-display-cache"
 import type { MessageRecord } from "../stores/message-v2/types"
-import { messageStoreBus, collapseGeneration } from "../stores/message-v2/bus"
+import { messageStoreBus } from "../stores/message-v2/bus"
 import { formatTokenTotal } from "../lib/formatters"
-import { sessions, setActiveParentSession, setActiveSession } from "../stores/sessions"
-import { setActiveInstanceId } from "../stores/instances"
-import { preferences } from "../stores/preferences"
 
-const TOOL_ICON = "🔧"
 const USER_BORDER_COLOR = "var(--message-user-border)"
 const ASSISTANT_BORDER_COLOR = "var(--message-assistant-border)"
 const TOOL_BORDER_COLOR = "var(--message-tool-border)"
 
 type ToolCallPart = Extract<ClientPart, { type: "tool" }>
-
-
-type ToolState = import("@opencode-ai/sdk").ToolState
-type ToolStateRunning = import("@opencode-ai/sdk").ToolStateRunning
-type ToolStateCompleted = import("@opencode-ai/sdk").ToolStateCompleted
-type ToolStateError = import("@opencode-ai/sdk").ToolStateError
-
-function isToolStateRunning(state: ToolState | undefined): state is ToolStateRunning {
-  return Boolean(state && state.status === "running")
-}
-
-function isToolStateCompleted(state: ToolState | undefined): state is ToolStateCompleted {
-  return Boolean(state && state.status === "completed")
-}
-
-function isToolStateError(state: ToolState | undefined): state is ToolStateError {
-  return Boolean(state && state.status === "error")
-}
-
-function extractTaskSessionId(state: ToolState | undefined): string {
-  if (!state) return ""
-  const metadata = (state as unknown as { metadata?: Record<string, unknown> }).metadata ?? {}
-  const directId = metadata?.sessionId ?? metadata?.sessionID
-  return typeof directId === "string" ? directId : ""
-}
 
 function reasoningHasRenderableContent(part: ClientPart): boolean {
   if (!part || part.type !== "reasoning") {
@@ -74,40 +47,6 @@ function reasoningHasRenderableContent(part: ClientPart): boolean {
     return (part as any).content.some((entry: unknown) => checkSegment(entry))
   }
   return false
-}
-
-interface TaskSessionLocation {
-  sessionId: string
-  instanceId: string
-  parentId: string | null
-}
-
-function findTaskSessionLocation(sessionId: string): TaskSessionLocation | null {
-  if (!sessionId) return null
-  const allSessions = sessions()
-  for (const [instanceId, sessionMap] of allSessions) {
-    const session = sessionMap?.get(sessionId)
-    if (session) {
-      return {
-        sessionId: session.id,
-        instanceId,
-        parentId: session.parentId ?? null,
-      }
-    }
-  }
-  return null
-}
-
-function navigateToTaskSession(location: TaskSessionLocation) {
-  console.log('[message-block] navigateToTaskSession:', location)
-  setActiveInstanceId(location.instanceId)
-  const parentToActivate = location.parentId ?? location.sessionId
-  console.log('[message-block] Setting active parent session to:', parentToActivate)
-  setActiveParentSession(location.instanceId, parentToActivate)
-  if (location.parentId) {
-    console.log('[message-block] Setting active session to:', location.sessionId)
-    setActiveSession(location.instanceId, location.sessionId)
-  }
 }
 
 interface CachedBlockEntry {
@@ -169,15 +108,7 @@ interface ContentDisplayItem {
   showAgentMeta?: boolean
 }
 
-interface ToolDisplayItem {
-  type: "tool"
-  key: string
-  toolPart: ToolCallPart
-  messageInfo?: MessageInfo
-  messageId: string
-  messageVersion: number
-  partVersion: number
-}
+// ToolDisplayItem is imported from inline-tool-call.tsx
 
 interface StepDisplayItem {
   type: "step-start" | "step-finish"
@@ -215,6 +146,9 @@ interface MessageBlockProps {
   showUsageMetrics: () => boolean
   isSessionReady?: boolean
   isLastMessage?: boolean
+  isLastInAssistantTurn?: boolean
+  turnMessageIds?: string[]
+  showStepFinish?: boolean
   onRevert?: (messageId: string) => void
   onFork?: (messageId?: string) => void
   onContentRendered?: () => void
@@ -224,18 +158,6 @@ export default function MessageBlock(props: MessageBlockProps) {
   const record = createMemo(() => props.store().getMessage(props.messageId))
   const messageInfo = createMemo(() => props.store().getMessageInfo(props.messageId))
   const sessionCache = getSessionRenderCache(props.instanceId, props.sessionId)
-  // Initialize collapsed state based on user preference
-  const [collapsed, setCollapsed] = createSignal(preferences().defaultToolCallsCollapsed)
-
-  // Auto-collapse when user submits a new message (collapseGeneration changes)
-  createEffect(
-    on(collapseGeneration, (gen, prevGen) => {
-      // Skip initial run (when prevGen is undefined)
-      if (prevGen !== undefined && gen !== prevGen) {
-        setCollapsed(true)
-      }
-    })
-  )
 
   const block = createMemo<MessageDisplayBlock | null>(() => {
     const current = record()
@@ -413,72 +335,82 @@ export default function MessageBlock(props: MessageBlockProps) {
     return resultBlock
   })
 
-  // Split items into primary (first content/reasoning) and collapsible children (tools, etc.)
-  const primaryItems = createMemo(() => {
+  // Extract step-finish item separately - it's NOT a tool and should always show at the bottom
+  const stepFinishItem = createMemo(() => {
     const items = block()?.items ?? []
-    const result: MessageBlockItem[] = []
-    for (const item of items) {
-      if (item.type === "content" || item.type === "reasoning") {
-        result.push(item)
-        break
-      }
-    }
-    return result
+    return items.find((item) => item.type === "step-finish") as StepDisplayItem | undefined
   })
 
-  const collapsibleItems = createMemo(() => {
+  // Get all tool items for sibling navigation in the modal
+  const allToolItems = createMemo(() => {
     const items = block()?.items ?? []
-    let foundPrimary = false
-    const result: MessageBlockItem[] = []
+    return items.filter((item) => item.type === "tool") as ToolDisplayItem[]
+  })
+
+  // Group items into sections: regular items stay individual, consecutive regular tools are batched
+  // Consecutive sub-agent tasks (tool name "task") are also batched together
+  type RenderSection =
+    | { type: "item"; item: MessageBlockItem }
+    | { type: "tool-group"; tools: ToolDisplayItem[] }
+    | { type: "subagent-group"; tools: ToolDisplayItem[] }
+
+  const renderSections = createMemo<RenderSection[]>(() => {
+    const items = block()?.items ?? []
+    const sections: RenderSection[] = []
+    let pendingTools: ToolDisplayItem[] = []
+    let pendingSubAgents: ToolDisplayItem[] = []
+
+    const flushTools = () => {
+      if (pendingTools.length > 0) {
+        sections.push({ type: "tool-group", tools: [...pendingTools] })
+        pendingTools = []
+      }
+    }
+
+    const flushSubAgents = () => {
+      if (pendingSubAgents.length > 0) {
+        sections.push({ type: "subagent-group", tools: [...pendingSubAgents] })
+        pendingSubAgents = []
+      }
+    }
+
     for (const item of items) {
-      if (!foundPrimary && (item.type === "content" || item.type === "reasoning")) {
-        foundPrimary = true
+      if (item.type === "step-finish") {
+        // Skip step-finish - rendered separately
         continue
       }
-      if (foundPrimary || item.type === "tool" || item.type === "step-finish") {
-        result.push(item)
-      }
-    }
-    return result
-  })
 
-  const hasCollapsibleContent = createMemo(() => collapsibleItems().length > 0)
-
-  // Compute collapse label based on content types (agents vs tools)
-  const collapseLabel = createMemo(() => {
-    const items = collapsibleItems()
-    let agentCount = 0
-    let toolCount = 0
-
-    for (const item of items) {
       if (item.type === "tool") {
         const toolItem = item as ToolDisplayItem
-        if (toolItem.toolPart.tool === "task") {
-          agentCount++
+        const toolName = toolItem.toolPart.tool || "unknown"
+        const isSubAgentTask = toolName === "task"
+
+        if (isSubAgentTask) {
+          // Sub-agent tasks: flush pending regular tools, then batch sub-agents
+          flushTools()
+          pendingSubAgents.push(toolItem)
         } else {
-          toolCount++
+          // Regular tools: flush pending sub-agents, then batch regular tools
+          flushSubAgents()
+          pendingTools.push(toolItem)
         }
       } else {
-        // Other collapsible items (steps, etc.) count as misc
-        toolCount++
+        // Non-tool items: flush all pending tools first, then add the item
+        flushTools()
+        flushSubAgents()
+        sections.push({ type: "item", item })
       }
     }
 
-    // Generate appropriate label
-    if (agentCount > 0 && toolCount === 0) {
-      return agentCount === 1 ? "Agent" : "Agents"
-    } else if (agentCount === 0 && toolCount > 0) {
-      return toolCount === 1 ? "Tool" : "Tools"
-    } else if (agentCount > 0 && toolCount > 0) {
-      // Mixed: show both
-      const agentLabel = agentCount === 1 ? "Agent" : "Agents"
-      return `${agentLabel} + ${toolCount}`
-    }
-    return "Tools" // fallback
+    // Flush any remaining tools
+    flushTools()
+    flushSubAgents()
+
+    return sections
   })
 
-  const toggleCollapsed = () => setCollapsed((prev) => !prev)
 
+  // Render a single non-tool item
   const renderItem = (item: MessageBlockItem) => (
     <Switch>
       <Match when={item.type === "content"}>
@@ -494,79 +426,6 @@ export default function MessageBlock(props: MessageBlockProps) {
           onFork={props.onFork}
           onContentRendered={props.onContentRendered}
         />
-      </Match>
-      <Match when={item.type === "tool"}>
-        {(() => {
-          const toolItem = item as ToolDisplayItem
-          const toolState = toolItem.toolPart.state as ToolState | undefined
-          const hasToolState =
-            Boolean(toolState) && (isToolStateRunning(toolState) || isToolStateCompleted(toolState) || isToolStateError(toolState))
-          const taskSessionId = hasToolState ? extractTaskSessionId(toolState) : ""
-          const taskLocation = taskSessionId ? findTaskSessionLocation(taskSessionId) : null
-
-          // Debug logging for Go to Session button
-          if (toolItem.toolPart.tool === "task") {
-            console.log('[message-block] Task tool state:', {
-              toolState,
-              hasToolState,
-              taskSessionId,
-              taskLocation,
-              metadata: (toolState as any)?.metadata
-            })
-          }
-
-          const handleGoToTaskSession = (event: MouseEvent) => {
-            event.preventDefault()
-            event.stopPropagation()
-            console.log('[message-block] handleGoToTaskSession clicked:', { taskLocation, taskSessionId })
-            if (!taskLocation) {
-              console.log('[message-block] No task location, returning early')
-              return
-            }
-            navigateToTaskSession(taskLocation)
-          }
-
-          // Determine if this is a sub-agent task vs a regular tool call
-          const toolName = toolItem.toolPart.tool || "unknown"
-          const isSubAgentTask = toolName === "task"
-          const headerLabel = isSubAgentTask ? "Sub-Agent" : "Tool Call"
-          const headerIcon = isSubAgentTask ? "🤖" : TOOL_ICON
-
-          return (
-            <div class={`tool-call-message ${isSubAgentTask ? "tool-call-subagent" : ""}`} data-key={toolItem.key}>
-              <div class="tool-call-header-label">
-                <div class="tool-call-header-meta">
-                  <span class="tool-call-icon">{headerIcon}</span>
-                  <span>{headerLabel}</span>
-                  <Show when={!isSubAgentTask}>
-                    <span class="tool-name">{toolName}</span>
-                  </Show>
-                </div>
-                <Show when={taskSessionId}>
-                  <button
-                    class="tool-call-header-button"
-                    type="button"
-                    disabled={!taskLocation}
-                    onClick={handleGoToTaskSession}
-                    title={!taskLocation ? "Session not available yet" : "Go to session"}
-                  >
-                    Go to Session
-                  </button>
-                </Show>
-              </div>
-              <ToolCall
-                toolCall={toolItem.toolPart}
-                toolCallId={toolItem.key}
-                messageId={toolItem.messageId}
-                messageVersion={toolItem.messageVersion}
-                partVersion={toolItem.partVersion}
-                instanceId={props.instanceId}
-                sessionId={props.sessionId}
-                onContentRendered={props.onContentRendered}
-              />
-            </div>
-          )
-        })()}
       </Match>
       <Match when={item.type === "step-start"}>
         <StepCard kind="start" part={(item as StepDisplayItem).part} messageInfo={(item as StepDisplayItem).messageInfo} showAgentMeta />
@@ -594,33 +453,51 @@ export default function MessageBlock(props: MessageBlockProps) {
     </Switch>
   )
 
+  // Render a section (either individual item, grouped tools, or grouped sub-agents)
+  const renderSection = (section: RenderSection) => {
+    if (section.type === "item") {
+      return renderItem(section.item)
+    }
+    if (section.type === "subagent-group") {
+      // Sub-agent group - render via SubAgentGroup with accordion behavior
+      return (
+        <SubAgentGroup
+          tools={section.tools}
+          instanceId={props.instanceId}
+          sessionId={props.sessionId}
+        />
+      )
+    }
+    // Tool group - render via ToolCallGroup with all message tools for navigation
+    return (
+      <ToolCallGroup
+        tools={section.tools}
+        allToolsInMessage={allToolItems()}
+        instanceId={props.instanceId}
+        sessionId={props.sessionId}
+      />
+    )
+  }
+
   return (
     <Show when={block()} keyed>
       {(resolvedBlock) => (
         <div class="message-stream-block" data-message-id={resolvedBlock.record.id}>
-          {/* Primary message content */}
-          <For each={primaryItems()}>{(item) => renderItem(item)}</For>
+          {/* Render sections: content, reasoning, and grouped tools in their original order */}
+          <For each={renderSections()}>{(section) => renderSection(section)}</For>
 
-          {/* Collapse toggle for tool calls - Pill style */}
-          <Show when={hasCollapsibleContent()}>
-            <button
-              type="button"
-              class="message-block-collapse-toggle"
-              onClick={toggleCollapsed}
-              aria-expanded={!collapsed()}
-              aria-label={collapsed() ? `Expand ${collapseLabel().toLowerCase()}` : `Collapse ${collapseLabel().toLowerCase()}`}
-            >
-              <span class="message-block-collapse-icon">▸</span>
-              <span class="message-block-collapse-label">
-                {collapsed() ? collapseLabel() : `Hide ${collapseLabel().toLowerCase()}`}
-              </span>
-              <span class="message-block-collapse-count">{collapsibleItems().length}</span>
-            </button>
-          </Show>
-
-          {/* Collapsible tool calls and secondary items */}
-          <Show when={!collapsed()}>
-            <For each={collapsibleItems()}>{(item) => renderItem(item)}</For>
+          {/* Step-finish (usage/summary bar) - only shown when session is ready for user input */}
+          <Show when={props.showStepFinish && stepFinishItem()}>
+            {(item) => (
+              <StepCard
+                kind="finish"
+                part={item().part}
+                messageInfo={item().messageInfo}
+                showUsage={props.showUsageMetrics()}
+                borderColor={item().accentColor}
+                isSessionReady={props.isSessionReady && props.isLastMessage}
+              />
+            )}
           </Show>
         </div>
       )}

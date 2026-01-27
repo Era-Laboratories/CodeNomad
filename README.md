@@ -57,8 +57,13 @@ This command starts the server and opens the web client in your default browser.
 - **Multi-Instance**: Juggle several OpenCode sessions side-by-side with tabs.
 - **Long-Session Native**: Scroll through massive transcripts without hitches.
 - **Command Palette**: A single global palette to jump tabs, launch tools, and control everything.
-- **Deep Task Awareness**: Monitor background tasks and child sessions without losing flow.
-- **Concurrent Modification Protection**: Safe file operations with mutex-based locking and content hash tracking prevent data loss when multiple sessions edit the same files.
+- **Deep Task Awareness**: Monitor background tasks and child sessions without losing flow. Inline task output panes show subagent results without leaving your current context.
+- **Concurrent Modification Protection**: Safe file operations with mutex-based locking and content hash tracking prevent data loss when multiple sessions edit the same files. Multi-agent conflict detection alerts you when parallel sessions touch the same files.
+- **Favorite Models**: Star your most-used models for quick access at the top of the model selector.
+- **Per-Model Thinking Control**: Set thinking mode (auto, enabled, or disabled) independently for each model. Preferences persist across sessions.
+- **Automatic Update Checking**: Daily checks for Era Code and OpenCode updates with toast notifications and an at-a-glance view in Settings.
+- **Auto-Approve Permissions**: Configurable at the global, project, or session level so Shell and other tool calls execute without manual approval prompts.
+- **Governance Integration**: Constitution and directive-based governance via `era-code config` CLI, with in-app settings for managing project standards.
 
 ## Requirements
 
