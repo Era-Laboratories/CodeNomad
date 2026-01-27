@@ -17,9 +17,10 @@ import type { MessageStatus } from "./message-v2/types"
 
 import { getLogger } from "../lib/logger"
 import { showToastNotification, ToastVariant } from "../lib/notifications"
-import { instances, addPermissionToQueue, removePermissionFromQueue } from "./instances"
+import { instances, addPermissionToQueue, removePermissionFromQueue, sendPermissionResponse } from "./instances"
 import { showAlertDialog } from "./alerts"
 import { sessions, setSessions, withSession, markSubagentComplete } from "./session-state"
+import { getEffectivePermissionState } from "./session-permissions"
 import { normalizeMessagePart } from "./message-v2/normalizers"
 import { updateSessionInfo } from "./message-v2/session-info"
 
@@ -383,10 +384,32 @@ function handleTuiToast(_instanceId: string, event: TuiToastEvent): void {
 }
 
 function handlePermissionUpdated(instanceId: string, event: EventPermissionUpdated): void {
-  const permission = event.properties
-  if (!permission) return
+  const raw = event.properties
+  if (!raw) return
 
-  log.info(`[SSE] Permission updated: ${permission.id} (${permission.type})`)
+  // Normalize: permission.asked events may lack `time` and use `permission` instead of `type`
+  const permission = {
+    ...raw,
+    time: (raw as any).time ?? { created: Date.now() },
+  } as typeof raw
+
+  log.info(`[SSE] Permission received: ${permission.id} (${(permission as any).permission ?? permission.type})`)
+
+  const sessionId = (permission as any).sessionID ?? ""
+
+  // Check if auto-approve is enabled for this session
+  if (sessionId && getEffectivePermissionState(instanceId, sessionId)) {
+    log.info(`[SSE] Auto-approving permission ${permission.id} for session ${sessionId}`)
+    sendPermissionResponse(instanceId, sessionId, permission.id, "always").catch((error) => {
+      log.error(`[SSE] Failed to auto-approve permission ${permission.id}`, error)
+      // If auto-approve fails, fall back to manual approval
+      addPermissionToQueue(instanceId, permission)
+      upsertPermissionV2(instanceId, permission)
+    })
+    return
+  }
+
+  // Manual approval: add to queue for UI display
   addPermissionToQueue(instanceId, permission)
   upsertPermissionV2(instanceId, permission)
 }

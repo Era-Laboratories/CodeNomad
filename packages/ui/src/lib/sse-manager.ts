@@ -123,6 +123,7 @@ class SSEManager {
       case "session.idle":
         this.onSessionIdle?.(instanceId, event as EventSessionIdle)
         break
+      case "permission.asked":
       case "permission.updated":
         this.onPermissionUpdated?.(instanceId, event as EventPermissionUpdated)
         break
