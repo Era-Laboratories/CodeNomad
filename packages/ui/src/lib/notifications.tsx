@@ -98,6 +98,17 @@ export function showToastNotification(payload: ToastPayload): ToastHandle {
               </a>
             )}
           </div>
+          <button
+            type="button"
+            class="flex-shrink-0 p-0.5 rounded hover:bg-white/10 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              dismiss()
+            }}
+            aria-label="Dismiss notification"
+          >
+            <X class="w-3.5 h-3.5 opacity-60 hover:opacity-100" />
+          </button>
         </div>
       </div>
     ),

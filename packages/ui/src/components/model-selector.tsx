@@ -1,9 +1,10 @@
 import { Popover } from "@kobalte/core/popover"
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 import { providers, fetchProviders } from "../stores/sessions"
-import { ChevronDown, ChevronRight, Check } from "lucide-solid"
+import { ChevronDown, ChevronRight, Check, Star } from "lucide-solid"
 import type { Model } from "../types/session"
 import { getLogger } from "../lib/logger"
+import { isModelFavorite, toggleModelFavorite, getModelFavorites } from "../stores/preferences"
 const log = getLogger("session")
 
 
@@ -49,6 +50,12 @@ export default function ModelSelector(props: ModelSelectorProps) {
       })),
     ),
   )
+
+  // Get favorite models
+  const favoriteModels = createMemo<FlatModel[]>(() => {
+    const favorites = getModelFavorites()
+    return allModels().filter(m => favorites.includes(m.key))
+  })
 
   // Group models by provider for display
   const groupedModels = createMemo<ProviderGroup[]>(() => {
@@ -182,6 +189,55 @@ export default function ModelSelector(props: ModelSelectorProps) {
             </div>
 
             <div class="model-selector-groups">
+              {/* Favorites section */}
+              <Show when={favoriteModels().length > 0 && !searchQuery().trim()}>
+                <div class="model-selector-favorites">
+                  <div class="model-selector-favorites-header">
+                    <Star class="w-3 h-3" />
+                    <span>Favorites</span>
+                  </div>
+                  <div class="model-selector-favorites-list">
+                    <For each={favoriteModels()}>
+                      {(model) => {
+                        const isSelected = () =>
+                          model.providerId === props.currentModel.providerId &&
+                          model.id === props.currentModel.modelId
+
+                        return (
+                          <div class="model-selector-favorite-row">
+                            <button
+                              type="button"
+                              class="model-selector-model model-selector-favorite-model"
+                              classList={{ "model-selector-model--selected": isSelected() }}
+                              onClick={() => handleModelSelect(model)}
+                            >
+                              <div class="model-selector-model-content">
+                                <span class="model-selector-model-name">{model.name}</span>
+                                <span class="model-selector-model-id">{model.providerName}</span>
+                              </div>
+                              <Show when={isSelected()}>
+                                <Check class="w-4 h-4 text-green-400" />
+                              </Show>
+                            </button>
+                            <button
+                              type="button"
+                              class="model-selector-star model-selector-star--active"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleModelFavorite(model.key)
+                              }}
+                              title="Remove from favorites"
+                            >
+                              <Star class="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )
+                      }}
+                    </For>
+                  </div>
+                </div>
+              </Show>
+
               <For each={filteredGroups()}>
                 {(group) => {
                   const isExpanded = () => expandedProvider() === group.provider
@@ -217,22 +273,37 @@ export default function ModelSelector(props: ModelSelectorProps) {
                               const isSelected = () =>
                                 model.providerId === props.currentModel.providerId &&
                                 model.id === props.currentModel.modelId
+                              const isFavorite = () => isModelFavorite(model.key)
 
                               return (
-                                <button
-                                  type="button"
-                                  class="model-selector-model"
-                                  classList={{ "model-selector-model--selected": isSelected() }}
-                                  onClick={() => handleModelSelect(model)}
-                                >
-                                  <div class="model-selector-model-content">
-                                    <span class="model-selector-model-name">{model.name}</span>
-                                    <span class="model-selector-model-id">{model.id}</span>
-                                  </div>
-                                  <Show when={isSelected()}>
-                                    <Check class="w-4 h-4 text-green-400" />
-                                  </Show>
-                                </button>
+                                <div class="model-selector-model-row">
+                                  <button
+                                    type="button"
+                                    class="model-selector-model"
+                                    classList={{ "model-selector-model--selected": isSelected() }}
+                                    onClick={() => handleModelSelect(model)}
+                                  >
+                                    <div class="model-selector-model-content">
+                                      <span class="model-selector-model-name">{model.name}</span>
+                                      <span class="model-selector-model-id">{model.id}</span>
+                                    </div>
+                                    <Show when={isSelected()}>
+                                      <Check class="w-4 h-4 text-green-400" />
+                                    </Show>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="model-selector-star"
+                                    classList={{ "model-selector-star--active": isFavorite() }}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      toggleModelFavorite(model.key)
+                                    }}
+                                    title={isFavorite() ? "Remove from favorites" : "Add to favorites"}
+                                  >
+                                    <Star class="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               )
                             }}
                           </For>

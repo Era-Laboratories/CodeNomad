@@ -53,6 +53,12 @@ export type McpServerConfig = McpLocalServerConfig | McpRemoteServerConfig
 
 export type BinaryPreferenceSource = "user" | "auto"
 
+/** Thinking mode for extended thinking feature */
+export type ThinkingMode = "auto" | "enabled" | "disabled"
+
+/** Per-model thinking mode selections */
+export type ModelThinkingSelections = Record<string, ThinkingMode>
+
 export interface Preferences {
   showThinkingBlocks: boolean
   thinkingBlocksExpansion: ExpansionPreference
@@ -69,6 +75,7 @@ export interface Preferences {
   autoCleanupBlankSessions: boolean
   stopInstanceOnLastSessionDelete: boolean
   idleInstanceTimeoutMinutes: number
+  autoStopOnDisconnect: boolean
   listeningMode: ListeningMode
 
   // Permissions
@@ -83,6 +90,16 @@ export interface Preferences {
   mcpRegistry: Record<string, McpServerConfig>
   mcpDesiredState: Record<string, boolean>
   mcpAutoApply: boolean
+
+  /** Per-model thinking mode selections */
+  modelThinkingSelections: ModelThinkingSelections
+
+  /** Favorite model identifiers (e.g., "providerId/modelId") */
+  modelFavorites: string[]
+
+  // Update checking preferences (synced from server)
+  lastUpdateCheckTime?: number
+  autoCheckForUpdates: boolean
 }
 
 
@@ -117,6 +134,7 @@ const defaultPreferences: Preferences = {
   autoCleanupBlankSessions: true,
   stopInstanceOnLastSessionDelete: false,
   idleInstanceTimeoutMinutes: 0,
+  autoStopOnDisconnect: true, // Auto-stop disconnected instances to prevent orphans
   listeningMode: "local",
 
   // Permissions - default to auto-approve (skip permission prompts)
@@ -131,6 +149,12 @@ const defaultPreferences: Preferences = {
   mcpRegistry: {},
   mcpDesiredState: {},
   mcpAutoApply: true,
+
+  modelThinkingSelections: {},
+  modelFavorites: [],
+
+  // Update checking
+  autoCheckForUpdates: true,
 }
 
 
@@ -160,6 +184,8 @@ function normalizePreferences(pref?: Partial<Preferences> & { agentModelSelectio
 
   const mcpRegistry = { ...(sanitized.mcpRegistry ?? defaultPreferences.mcpRegistry) }
   const mcpDesiredState = { ...(sanitized.mcpDesiredState ?? defaultPreferences.mcpDesiredState) }
+  const modelThinkingSelections = { ...(sanitized.modelThinkingSelections ?? defaultPreferences.modelThinkingSelections) }
+  const modelFavorites = [...(sanitized.modelFavorites ?? defaultPreferences.modelFavorites)]
 
   return {
     showThinkingBlocks: sanitized.showThinkingBlocks ?? defaultPreferences.showThinkingBlocks,
@@ -176,6 +202,7 @@ function normalizePreferences(pref?: Partial<Preferences> & { agentModelSelectio
     autoCleanupBlankSessions: sanitized.autoCleanupBlankSessions ?? defaultPreferences.autoCleanupBlankSessions,
     stopInstanceOnLastSessionDelete: sanitized.stopInstanceOnLastSessionDelete ?? defaultPreferences.stopInstanceOnLastSessionDelete,
     idleInstanceTimeoutMinutes: sanitized.idleInstanceTimeoutMinutes ?? defaultPreferences.idleInstanceTimeoutMinutes,
+    autoStopOnDisconnect: sanitized.autoStopOnDisconnect ?? defaultPreferences.autoStopOnDisconnect,
     listeningMode: sanitized.listeningMode ?? defaultPreferences.listeningMode,
 
     // Permissions
@@ -190,6 +217,13 @@ function normalizePreferences(pref?: Partial<Preferences> & { agentModelSelectio
     mcpRegistry,
     mcpDesiredState,
     mcpAutoApply: sanitized.mcpAutoApply ?? defaultPreferences.mcpAutoApply,
+
+    modelThinkingSelections,
+    modelFavorites,
+
+    // Update checking
+    lastUpdateCheckTime: sanitized.lastUpdateCheckTime,
+    autoCheckForUpdates: sanitized.autoCheckForUpdates ?? defaultPreferences.autoCheckForUpdates,
   }
 }
 
@@ -526,6 +560,89 @@ function setDefaultModels(models: Record<string, ModelPreference>): void {
   updatePreferences({ modelDefaultsByAgent: models })
 }
 
+/**
+ * Set the thinking mode for a specific model.
+ * @param modelKey - The model identifier (e.g., "claude-sonnet-4" or "providerId/modelId")
+ * @param mode - The thinking mode to set
+ */
+function setModelThinkingMode(modelKey: string, mode: ThinkingMode): void {
+  if (!modelKey) return
+  const current = preferences().modelThinkingSelections ?? {}
+  // Skip update if mode is the same
+  if (current[modelKey] === mode) return
+  // If mode is "auto", remove the entry (auto is the default)
+  if (mode === "auto") {
+    const { [modelKey]: removed, ...rest } = current
+    updatePreferences({ modelThinkingSelections: rest })
+  } else {
+    updatePreferences({ modelThinkingSelections: { ...current, [modelKey]: mode } })
+  }
+}
+
+/**
+ * Get the thinking mode for a specific model.
+ * @param modelKey - The model identifier
+ * @returns The thinking mode, defaults to "auto"
+ */
+function getModelThinkingMode(modelKey: string): ThinkingMode {
+  if (!modelKey) return "auto"
+  return preferences().modelThinkingSelections?.[modelKey] ?? "auto"
+}
+
+/**
+ * Add a model to favorites.
+ * @param modelKey - The model identifier (e.g., "providerId/modelId")
+ */
+function addModelFavorite(modelKey: string): void {
+  if (!modelKey) return
+  const current = preferences().modelFavorites ?? []
+  if (current.includes(modelKey)) return
+  updatePreferences({ modelFavorites: [...current, modelKey] })
+}
+
+/**
+ * Remove a model from favorites.
+ * @param modelKey - The model identifier
+ */
+function removeModelFavorite(modelKey: string): void {
+  if (!modelKey) return
+  const current = preferences().modelFavorites ?? []
+  if (!current.includes(modelKey)) return
+  updatePreferences({ modelFavorites: current.filter(key => key !== modelKey) })
+}
+
+/**
+ * Toggle a model's favorite status.
+ * @param modelKey - The model identifier
+ */
+function toggleModelFavorite(modelKey: string): void {
+  if (!modelKey) return
+  const current = preferences().modelFavorites ?? []
+  if (current.includes(modelKey)) {
+    removeModelFavorite(modelKey)
+  } else {
+    addModelFavorite(modelKey)
+  }
+}
+
+/**
+ * Check if a model is a favorite.
+ * @param modelKey - The model identifier
+ * @returns Whether the model is favorited
+ */
+function isModelFavorite(modelKey: string): boolean {
+  if (!modelKey) return false
+  return (preferences().modelFavorites ?? []).includes(modelKey)
+}
+
+/**
+ * Get the list of favorite model keys.
+ * @returns Array of favorite model identifiers
+ */
+function getModelFavorites(): string[] {
+  return preferences().modelFavorites ?? []
+}
+
 void ensureConfigLoaded().catch((error: unknown) => {
   log.error("Failed to initialize config", error)
 })
@@ -567,6 +684,13 @@ interface ConfigContextValue {
   setAgentModelPreference: typeof setAgentModelPreference
   getAgentModelPreference: typeof getAgentModelPreference
   setDefaultModels: typeof setDefaultModels
+  setModelThinkingMode: typeof setModelThinkingMode
+  getModelThinkingMode: typeof getModelThinkingMode
+  addModelFavorite: typeof addModelFavorite
+  removeModelFavorite: typeof removeModelFavorite
+  toggleModelFavorite: typeof toggleModelFavorite
+  isModelFavorite: typeof isModelFavorite
+  getModelFavorites: typeof getModelFavorites
 }
 
 const ConfigContext = createContext<ConfigContextValue>()
@@ -607,6 +731,13 @@ const configContextValue: ConfigContextValue = {
   setAgentModelPreference,
   getAgentModelPreference,
   setDefaultModels,
+  setModelThinkingMode,
+  getModelThinkingMode,
+  addModelFavorite,
+  removeModelFavorite,
+  toggleModelFavorite,
+  isModelFavorite,
+  getModelFavorites,
 }
 
 const ConfigProvider: ParentComponent = (props) => {
@@ -674,7 +805,14 @@ export {
   setThemePreference,
   recordWorkspaceLaunch,
   setDefaultModels,
- }
+  setModelThinkingMode,
+  getModelThinkingMode,
+  addModelFavorite,
+  removeModelFavorite,
+  toggleModelFavorite,
+  isModelFavorite,
+  getModelFavorites,
+}
  
 
 

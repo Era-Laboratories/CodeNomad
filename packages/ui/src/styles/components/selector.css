@@ -349,3 +349,118 @@
   @apply p-4 text-center text-sm;
   color: var(--text-muted);
 }
+
+/* Model Selector - Favorites Section */
+.model-selector-favorites {
+  @apply mb-2 pb-2 border-b;
+  border-color: var(--border-base);
+}
+
+.model-selector-favorites-header {
+  @apply flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold uppercase tracking-wide;
+  color: var(--warning-text);
+}
+
+.model-selector-favorites-header svg {
+  fill: currentColor;
+}
+
+.model-selector-favorites-list {
+  @apply space-y-0.5;
+}
+
+.model-selector-favorite-row,
+.model-selector-model-row {
+  @apply flex items-center gap-1;
+}
+
+.model-selector-favorite-model {
+  @apply flex-1;
+}
+
+.model-selector-star {
+  @apply p-1.5 rounded transition-all flex-shrink-0;
+  color: var(--text-muted);
+  opacity: 0;
+}
+
+.model-selector-model-row:hover .model-selector-star,
+.model-selector-favorite-row:hover .model-selector-star {
+  opacity: 1;
+}
+
+.model-selector-star:hover {
+  color: var(--warning-text);
+  background-color: var(--surface-hover);
+}
+
+.model-selector-star--active {
+  opacity: 1;
+  color: var(--warning-text);
+}
+
+.model-selector-star--active svg {
+  fill: currentColor;
+}
+
+/* Thinking Selector */
+.thinking-selector {
+  margin-top: 0.75rem;
+}
+
+.thinking-selector .selector-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.thinking-selector-trigger {
+  @apply w-full;
+}
+
+.thinking-selector-popover {
+  @apply min-w-[200px];
+}
+
+.thinking-selector-listbox {
+  @apply p-1;
+}
+
+.thinking-selector-item {
+  @apply w-full flex items-center gap-2 px-3 py-2 text-left rounded cursor-pointer transition-colors outline-none;
+  color: var(--text-primary);
+}
+
+.thinking-selector-item:hover,
+.thinking-selector-item[data-highlighted] {
+  background-color: var(--surface-hover);
+}
+
+.thinking-selector-item[data-selected] {
+  background-color: var(--selection-highlight-strong-bg);
+}
+
+.thinking-selector-item-content {
+  @apply flex-1 flex flex-col min-w-0;
+}
+
+.thinking-selector-item-label {
+  @apply text-sm font-medium;
+  color: var(--text-primary);
+}
+
+.thinking-selector-item-description {
+  @apply text-xs;
+  color: var(--text-muted);
+}
+
+.thinking-selector-item-indicator {
+  @apply flex-shrink-0;
+  color: var(--accent-primary);
+}
+
+.thinking-selector-hint {
+  @apply mt-1.5 text-xs;
+  color: var(--text-muted);
+  font-style: italic;
+}
