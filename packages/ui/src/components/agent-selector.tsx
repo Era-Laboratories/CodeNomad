@@ -6,6 +6,7 @@ import type { Agent } from "../types/session"
 import { getLogger } from "../lib/logger"
 const log = getLogger("session")
 
+const INTERNAL_AGENT_NAMES = new Set(["compaction", "title", "summary"])
 
 interface AgentSelectorProps {
   instanceId: string
@@ -32,7 +33,9 @@ export default function AgentSelector(props: AgentSelectorProps) {
       return allAgents
     }
 
-    const filtered = allAgents.filter((agent) => agent.mode !== "subagent")
+    const filtered = allAgents.filter(
+      (agent) => agent.mode !== "subagent" && !INTERNAL_AGENT_NAMES.has(agent.name),
+    )
 
     const currentAgent = allAgents.find((a) => a.name === props.currentAgent)
     if (currentAgent && !filtered.find((a) => a.name === props.currentAgent)) {

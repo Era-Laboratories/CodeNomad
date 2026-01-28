@@ -58,7 +58,7 @@ function logHttp(message: string, context?: Record<string, unknown>) {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = API_BASE ? new URL(path, API_BASE).toString() : path
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
+    ...(init?.body ? { "Content-Type": "application/json" } : {}),
     ...(init?.headers ?? {}),
   }
 

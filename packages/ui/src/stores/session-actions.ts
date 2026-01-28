@@ -1,9 +1,10 @@
 import { resolvePastedPlaceholders } from "../lib/prompt-placeholders"
+import { classifyPromptIntent } from "../lib/agent-intent"
 import { instances } from "./instances"
 
-import { addRecentModelPreference, setAgentModelPreference } from "./preferences"
+import { addRecentModelPreference, setAgentModelPreference, getEffectiveThinkingMode } from "./preferences"
 import { getEffectivePermissionState } from "./session-permissions"
-import { sessions, withSession, checkAndArchiveSubagents } from "./session-state"
+import { sessions, withSession, checkAndArchiveSubagents, agents } from "./session-state"
 import { getDefaultModel, isModelValid } from "./session-models"
 import { updateSessionInfo } from "./message-v2/session-info"
 import { messageStoreBus, triggerCollapseAll } from "./message-v2/bus"
@@ -71,7 +72,7 @@ async function sendMessage(
   }
 
   const instanceSessions = sessions().get(instanceId)
-  const session = instanceSessions?.get(sessionId)
+  let session = instanceSessions?.get(sessionId)
   if (!session) {
     throw new Error("Session not found")
   }
@@ -86,6 +87,38 @@ async function sendMessage(
     const store = messageStoreBus.getOrCreate(instanceId)
     const parentMessageCount = store.getSessionMessageIds(sessionId).length
     checkAndArchiveSubagents(instanceId, parentMessageCount)
+  }
+
+  // Auto-route agent on first message of a top-level session
+  {
+    const store = messageStoreBus.getOrCreate(instanceId)
+    const isFirstMessage = store.getSessionMessageIds(sessionId).length === 0
+
+    if (isFirstMessage && session.parentId === null) {
+      const instanceAgentList = agents().get(instanceId) || []
+      const availableNames = instanceAgentList
+        .filter((a) => a.mode !== "subagent")
+        .map((a) => a.name)
+      const suggestedAgent = classifyPromptIntent(prompt, availableNames)
+
+      if (suggestedAgent && suggestedAgent !== session.agent) {
+        const nextModel = await getDefaultModel(instanceId, suggestedAgent)
+        const shouldApplyModel = isModelValid(instanceId, nextModel)
+
+        withSession(instanceId, sessionId, (current) => {
+          current.agent = suggestedAgent
+          if (shouldApplyModel) {
+            current.model = nextModel
+          }
+        })
+        // Re-read session after mutation for request body
+        session = sessions().get(instanceId)?.get(sessionId)
+        if (!session) {
+          throw new Error("Session lost after auto-route")
+        }
+        log.info("Auto-routed to agent", { suggestedAgent, sessionId })
+      }
+    }
   }
 
   const messageId = createId("msg")
@@ -178,6 +211,12 @@ async function sendMessage(
   // Get effective permission state for this session
   const autoApprove = getEffectivePermissionState(instanceId, sessionId)
 
+  // Resolve thinking mode for the current model
+  const modelKey = session.model.providerId && session.model.modelId
+    ? `${session.model.providerId}/${session.model.modelId}`
+    : ""
+  const thinkingMode = modelKey ? getEffectiveThinkingMode(modelKey, session.model.providerId) : undefined
+
   const requestBody = {
     messageID: messageId,
     parts: requestParts,
@@ -189,6 +228,8 @@ async function sendMessage(
           modelID: session.model.modelId,
         },
       }),
+    // Include thinking mode in request (backend may silently ignore if unsupported)
+    ...(thinkingMode && { thinking: thinkingMode }),
     // Include permission state in request
     dangerouslySkipPermissions: autoApprove,
   }

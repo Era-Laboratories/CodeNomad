@@ -104,9 +104,9 @@ test.describe("EC-054: Activity Monitor", () => {
   })
 
   // ------------------------------------------------------------------
-  // 2. Panel loads with summary cards
+  // 2. Panel loads with summary stats
   // ------------------------------------------------------------------
-  test("should display summary cards with correct labels", async ({ page }) => {
+  test("should display summary stats with correct labels", async ({ page }) => {
     await page.goto(APP_URL)
     await page.waitForLoadState("domcontentloaded")
     await page.waitForTimeout(2000)
@@ -129,24 +129,24 @@ test.describe("EC-054: Activity Monitor", () => {
     await expect(header).toBeVisible({ timeout: 5000 })
     console.log("PASS: Activity Monitor header visible")
 
-    // Summary cards
-    const summaryCards = page.locator(".activity-monitor-summary .activity-monitor-card")
-    await expect(summaryCards.first()).toBeVisible({ timeout: 10000 })
-    const cardCount = await summaryCards.count()
+    // Summary stat cards
+    const statCards = page.locator(".activity-monitor-stats .activity-monitor-stat")
+    await expect(statCards.first()).toBeVisible({ timeout: 10000 })
+    const cardCount = await statCards.count()
     expect(cardCount).toBe(4)
-    console.log(`PASS: Found ${cardCount} summary cards`)
+    console.log(`PASS: Found ${cardCount} summary stat cards`)
 
-    // Card labels
-    const labels = page.locator(".activity-monitor-card-label")
+    // Stat labels
+    const labels = page.locator(".activity-monitor-stat-label")
     const labelTexts: string[] = []
     for (let i = 0; i < await labels.count(); i++) {
       labelTexts.push((await labels.nth(i).textContent()) ?? "")
     }
-    console.log("Card labels:", labelTexts)
-    expect(labelTexts.map(t => t.toUpperCase())).toEqual(
-      expect.arrayContaining(["INSTANCES", "RUNNING", "ORPHANS", "SESSIONS"])
+    console.log("Stat labels:", labelTexts)
+    expect(labelTexts).toEqual(
+      expect.arrayContaining(["Instances", "Running", "Orphans", "Sessions"])
     )
-    console.log("PASS: All four summary card labels present")
+    console.log("PASS: All four summary stat labels present")
   })
 
   // ------------------------------------------------------------------
@@ -166,14 +166,14 @@ test.describe("EC-054: Activity Monitor", () => {
     // Wait for loading to finish
     await expect(page.locator(".activity-monitor-loading")).not.toBeVisible({ timeout: 15000 })
 
-    // Section title
-    const instancesTitle = page.locator(".activity-monitor-section-title").filter({ hasText: /ACTIVE INSTANCES/i })
+    // Section title (uses full-settings-subsection-title)
+    const instancesTitle = page.locator(".full-settings-subsection-title").filter({ hasText: /Active Instances/i })
     await expect(instancesTitle).toBeVisible({ timeout: 10000 })
-    console.log("PASS: ACTIVE INSTANCES section visible")
+    console.log("PASS: Active Instances section visible")
 
-    // Either we see instance items or the empty state
-    const items = page.locator(".activity-monitor-item")
-    const emptyState = page.locator(".activity-monitor-empty").first()
+    // Either we see list items or the empty state
+    const items = page.locator(".full-settings-list-item")
+    const emptyState = page.locator(".activity-monitor-empty-state").first()
     const itemCount = await items.count()
     const isEmpty = await emptyState.isVisible().catch(() => false)
 
@@ -182,24 +182,17 @@ test.describe("EC-054: Activity Monitor", () => {
     expect(itemCount > 0 || isEmpty).toBeTruthy()
 
     if (itemCount > 0) {
-      // Verify first instance has PID, folder name
+      // Verify first instance has PID badge
       const firstItem = items.first()
-      const pidText = firstItem.locator(".activity-monitor-pid")
-      await expect(pidText).toBeVisible()
-      const pid = await pidText.textContent()
+      const pidBadge = firstItem.locator(".activity-monitor-pid-badge")
+      await expect(pidBadge).toBeVisible()
+      const pid = await pidBadge.textContent()
       console.log(`PASS: First instance PID: ${pid}`)
 
-      const folderName = firstItem.locator(".activity-monitor-folder-name")
-      if (await folderName.isVisible().catch(() => false)) {
-        console.log(`PASS: Folder name: ${await folderName.textContent()}`)
-      }
-
       // Check for Kill button on running instances
-      const runningItems = page.locator(".activity-monitor-item-running")
-      if (await runningItems.count() > 0) {
-        const killBtn = runningItems.first().locator(".activity-monitor-kill-btn")
-        await expect(killBtn).toBeVisible()
-        console.log("PASS: Kill button visible on running instance")
+      const killBtn = firstItem.locator(".activity-monitor-kill-btn")
+      if (await killBtn.isVisible().catch(() => false)) {
+        console.log("PASS: Kill button visible on instance")
       }
     } else {
       console.log("INFO: No registered instances (empty state shown)")
@@ -224,40 +217,40 @@ test.describe("EC-054: Activity Monitor", () => {
     await expect(page.locator(".activity-monitor-loading")).not.toBeVisible({ timeout: 15000 })
 
     // Session cleanup section title
-    const cleanupTitle = page.locator(".activity-monitor-section-title").filter({ hasText: /SESSION CLEANUP/i })
+    const cleanupTitle = page.locator(".full-settings-subsection-title").filter({ hasText: /Session Cleanup/i })
     await expect(cleanupTitle).toBeVisible({ timeout: 10000 })
-    console.log("PASS: SESSION CLEANUP section visible")
+    console.log("PASS: Session Cleanup section visible")
 
-    // Subtitle should show session count and project count
-    const subtitle = page.locator(".activity-monitor-section-subtitle").filter({ hasText: /sessions across/i })
-    await expect(subtitle).toBeVisible({ timeout: 5000 })
-    const subtitleText = await subtitle.textContent()
-    console.log(`PASS: Subtitle text: "${subtitleText}"`)
+    // Description should show session count and project count
+    const desc = page.locator(".activity-monitor-section-desc").filter({ hasText: /sessions across/i })
+    await expect(desc).toBeVisible({ timeout: 5000 })
+    const descText = await desc.textContent()
+    console.log(`PASS: Description text: "${descText}"`)
 
     await page.screenshot({ path: "test-screenshots/EC-054-04-session-cleanup.png", fullPage: true })
 
-    // Either cleanup cards (stale/blank) or the "All clean" message
-    const cleanupCards = page.locator(".activity-monitor-cleanup-card")
+    // Either cleanup action rows (stale/blank) or the "All clean" message
+    const cleanupActions = page.locator(".activity-monitor-cleanup-actions .full-settings-toggle-row")
     const allClean = page.locator(".activity-monitor-all-clean")
-    const hasCards = (await cleanupCards.count()) > 0
+    const hasActions = (await cleanupActions.count()) > 0
     const isAllClean = await allClean.isVisible().catch(() => false)
 
-    expect(hasCards || isAllClean).toBeTruthy()
+    expect(hasActions || isAllClean).toBeTruthy()
 
-    if (hasCards) {
-      const cardCount = await cleanupCards.count()
-      console.log(`PASS: Found ${cardCount} cleanup card(s)`)
+    if (hasActions) {
+      const actionCount = await cleanupActions.count()
+      console.log(`PASS: Found ${actionCount} cleanup action(s)`)
 
-      // Check for Purge Stale button
-      const purgeStaleBtn = page.getByRole("button", { name: /Purge Stale/i })
-      if (await purgeStaleBtn.isVisible().catch(() => false)) {
-        console.log("PASS: Purge Stale button visible")
+      // Check for Purge button
+      const purgeBtn = page.getByRole("button", { name: /Purge/i })
+      if (await purgeBtn.isVisible().catch(() => false)) {
+        console.log("PASS: Purge button visible")
       }
 
-      // Check for Clean Blank button
-      const cleanBlankBtn = page.getByRole("button", { name: /Clean Blank/i })
-      if (await cleanBlankBtn.isVisible().catch(() => false)) {
-        console.log("PASS: Clean Blank button visible")
+      // Check for Clean button
+      const cleanBtn = page.getByRole("button", { name: /Clean/i })
+      if (await cleanBtn.isVisible().catch(() => false)) {
+        console.log("PASS: Clean button visible")
       }
     } else {
       console.log("PASS: All clean — no stale or blank sessions")
@@ -291,10 +284,10 @@ test.describe("EC-054: Activity Monitor", () => {
 
     await page.screenshot({ path: "test-screenshots/EC-054-06-after-refresh.png", fullPage: true })
 
-    // Summary cards should still be visible after refresh
-    const summaryCards = page.locator(".activity-monitor-summary .activity-monitor-card")
-    await expect(summaryCards.first()).toBeVisible({ timeout: 5000 })
-    console.log("PASS: Data refreshed — summary cards still visible")
+    // Summary stats should still be visible after refresh
+    const statCards = page.locator(".activity-monitor-stats .activity-monitor-stat")
+    await expect(statCards.first()).toBeVisible({ timeout: 5000 })
+    console.log("PASS: Data refreshed — summary stats still visible")
   })
 
   // ------------------------------------------------------------------
@@ -312,8 +305,8 @@ test.describe("EC-054: Activity Monitor", () => {
           const rules = sheet.cssRules || sheet.rules
           for (const rule of rules) {
             if (
-              rule.cssText?.includes("activity-monitor-summary") ||
-              rule.cssText?.includes("activity-monitor-card")
+              rule.cssText?.includes("activity-monitor-stats") ||
+              rule.cssText?.includes("activity-monitor-stat")
             ) {
               return true
             }
@@ -367,25 +360,26 @@ test.describe("EC-054: Activity Monitor", () => {
     await activityNav.click()
     await page.waitForTimeout(1500)
 
-    // Get the orphan count from the summary card
-    const orphanCard = page.locator(".activity-monitor-card").nth(2)
-    const orphanValue = await orphanCard.locator(".activity-monitor-card-value").textContent()
+    // Get the orphan count from the summary stat
+    const orphanStat = page.locator(".activity-monitor-stat").nth(2)
+    const orphanValue = await orphanStat.locator(".activity-monitor-stat-value").textContent()
     const orphanCount = parseInt(orphanValue ?? "0", 10)
 
     console.log(`Orphan count: ${orphanCount}`)
 
-    const orphanSection = page.locator(".activity-monitor-section-warning")
+    // Look for orphan subsection title
+    const orphanTitle = page.locator("h3").filter({ hasText: /Orphaned Processes/i })
 
     if (orphanCount === 0) {
       // Orphan section should be hidden
-      await expect(orphanSection).not.toBeVisible()
+      await expect(orphanTitle).not.toBeVisible()
       console.log("PASS: Orphan section hidden when count is 0")
     } else {
-      // Orphan section should be visible with Kill All Orphans button
-      await expect(orphanSection).toBeVisible()
-      const killAllBtn = page.getByRole("button", { name: /Kill All Orphans/i })
+      // Orphan section should be visible with Kill All button
+      await expect(orphanTitle).toBeVisible()
+      const killAllBtn = page.getByRole("button", { name: /Kill All/i })
       await expect(killAllBtn).toBeVisible()
-      console.log("PASS: Orphan section visible with Kill All Orphans button")
+      console.log("PASS: Orphan section visible with Kill All button")
     }
 
     await page.screenshot({ path: "test-screenshots/EC-054-07-orphan-section.png", fullPage: true })

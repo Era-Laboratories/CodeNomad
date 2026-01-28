@@ -156,7 +156,6 @@ export default function MessageSection(props: MessageSectionProps) {
     resolvePendingActiveScroll()
   }
   const [autoScroll, setAutoScroll] = createSignal(true)
-  const [showScrollTopButton, setShowScrollTopButton] = createSignal(false)
   const [showScrollBottomButton, setShowScrollBottomButton] = createSignal(false)
   const [topSentinelVisible, setTopSentinelVisible] = createSignal(true)
   const [bottomSentinelVisible, setBottomSentinelVisible] = createSignal(true)
@@ -232,12 +231,9 @@ export default function MessageSection(props: MessageSectionProps) {
   }
  
   function updateScrollIndicatorsFromVisibility() {
-
     const hasItems = messageIds().length > 0
     const bottomVisible = bottomSentinelVisible()
-    const topVisible = topSentinelVisible()
     setShowScrollBottomButton(hasItems && !bottomVisible)
-    setShowScrollTopButton(hasItems && !topVisible)
   }
 
   function scheduleScrollPersist() {
@@ -300,15 +296,6 @@ export default function MessageSection(props: MessageSectionProps) {
     requestScrollToBottom(true)
   }
  
-  function scrollToTop(immediate = false) {
-    if (!containerRef) return
-    const behavior = immediate ? "auto" : "smooth"
-    setAutoScroll(false)
-    topSentinel()?.scrollIntoView({ block: "start", inline: "nearest", behavior })
-    scheduleScrollPersist()
-  }
-
-
   function scheduleAnchorScroll(immediate = false) {
     if (!autoScroll()) return
     if (!isActive()) {
@@ -658,7 +645,6 @@ export default function MessageSection(props: MessageSectionProps) {
 
   createEffect(() => {
     if (messageIds().length === 0) {
-      setShowScrollTopButton(false)
       setShowScrollBottomButton(false)
       setAutoScroll(true)
       return
@@ -840,28 +826,27 @@ export default function MessageSection(props: MessageSectionProps) {
 
           </div>
  
-          <Show when={showScrollTopButton() || showScrollBottomButton()}>
+          <Show when={hasNewActivity()}>
+            <button
+              type="button"
+              class="new-activity-pill"
+              onClick={() => scrollToBottom(false, { suppressAutoAnchor: false })}
+              aria-label="New activity - scroll to latest"
+            >
+              New Activity ↓
+            </button>
+          </Show>
+
+          <Show when={showScrollBottomButton()}>
             <div class="message-scroll-button-wrapper">
-              <Show when={showScrollTopButton()}>
-                <button type="button" class="message-scroll-button" onClick={() => scrollToTop()} aria-label="Scroll to first message">
-                  <span class="message-scroll-icon" aria-hidden="true">↑</span>
-                </button>
-              </Show>
-              <Show when={showScrollBottomButton()}>
-                <button
-                  type="button"
-                  class={`message-scroll-button ${hasNewActivity() ? "has-new-activity" : ""}`}
-                  onClick={() => scrollToBottom(false, { suppressAutoAnchor: false })}
-                  aria-label={hasNewActivity() ? "New activity - scroll to latest" : "Scroll to latest message"}
-                >
-                  <Show when={hasNewActivity()} fallback={<span class="message-scroll-icon" aria-hidden="true">↓</span>}>
-                    <span class="message-scroll-new-activity">
-                      <span class="message-scroll-icon" aria-hidden="true">↓</span>
-                      <span class="message-scroll-label">New activity</span>
-                    </span>
-                  </Show>
-                </button>
-              </Show>
+              <button
+                type="button"
+                class="message-scroll-button"
+                onClick={() => scrollToBottom(false, { suppressAutoAnchor: false })}
+                aria-label="Scroll to latest message"
+              >
+                <span class="message-scroll-icon" aria-hidden="true">↓</span>
+              </button>
             </div>
           </Show>
 

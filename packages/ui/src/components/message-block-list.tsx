@@ -1,9 +1,8 @@
-import { Index, Show, createMemo, type Accessor } from "solid-js"
+import { Index, Show, createMemo, createSignal, createEffect, onCleanup, type Accessor } from "solid-js"
 import VirtualItem from "./virtual-item"
 import MessageBlock from "./message-block"
-import ThinkingCard from "./thinking-card"
+import ActivityStatusLine from "./activity-status-line"
 import type { InstanceMessageStore } from "../stores/message-v2/instance-store"
-import { preferences } from "../stores/preferences"
 
 export function getMessageAnchorId(messageId: string) {
   return `message-anchor-${messageId}`
@@ -57,6 +56,39 @@ export default function MessageBlockList(props: MessageBlockListProps) {
     }
 
     return info
+  })
+
+  // Timer-based activity status display with delay to avoid flash for fast responses
+  // Shows after 500ms whenever the session is busy (processing tools, generating, etc.)
+  const ACTIVITY_STATUS_DELAY_MS = 500
+  const [showActivityStatus, setShowActivityStatus] = createSignal(false)
+  let activityTimerId: ReturnType<typeof setTimeout> | null = null
+
+  createEffect(() => {
+    const busy = props.isSessionBusy
+
+    if (busy && !showActivityStatus()) {
+      // Start timer to show status after delay (avoids flash for fast responses)
+      activityTimerId = setTimeout(() => {
+        if (props.isSessionBusy) {
+          setShowActivityStatus(true)
+        }
+      }, ACTIVITY_STATUS_DELAY_MS)
+
+      onCleanup(() => {
+        if (activityTimerId) {
+          clearTimeout(activityTimerId)
+          activityTimerId = null
+        }
+      })
+    } else if (!busy && showActivityStatus()) {
+      // Hide immediately when session becomes idle
+      setShowActivityStatus(false)
+      if (activityTimerId) {
+        clearTimeout(activityTimerId)
+        activityTimerId = null
+      }
+    }
   })
 
   // Get all message IDs in the same assistant turn (for tool consolidation)
@@ -129,9 +161,13 @@ export default function MessageBlockList(props: MessageBlockListProps) {
           )
         }}
       </Index>
-      {/* Thinking card - shown when assistant is processing and verbose output is disabled */}
-      <Show when={props.isSessionBusy && !preferences().showVerboseOutput}>
-        <ThinkingCard isThinking={true} />
+      {/* Activity status line - shown after delay whenever session is busy */}
+      <Show when={showActivityStatus()}>
+        <ActivityStatusLine
+          instanceId={props.instanceId}
+          sessionId={props.sessionId}
+          store={props.store}
+        />
       </Show>
       {/* Ready indicator is now integrated into the completion card in the last message */}
       <div ref={props.setBottomSentinel} aria-hidden="true" style={{ height: "1px" }} />

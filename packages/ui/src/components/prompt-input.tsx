@@ -33,6 +33,7 @@ interface PromptInputProps {
   isSubAgentSession?: boolean  // If true, show read-only footer instead of input
   parentSessionTitle?: string  // Title of parent session for "return to" button
   onReturnToParent?: () => void  // Handler to return to parent session
+  hasActiveQuestion?: boolean  // If true, a Question tool is awaiting user input
 }
 
 export default function PromptInput(props: PromptInputProps) {
@@ -1113,7 +1114,7 @@ export default function PromptInput(props: PromptInputProps) {
     <div class="prompt-input-container">
       <div
         ref={containerRef}
-        class={`prompt-input-wrapper relative ${isDragging() ? "border-2" : ""}`}
+        class={`prompt-input-wrapper relative ${isDragging() ? "border-2" : ""} ${props.hasActiveQuestion ? "prompt-input-question-glow" : ""}`}
         style={
           isDragging()
             ? "border-color: var(--accent-primary); background-color: rgba(0, 102, 255, 0.05);"
@@ -1250,7 +1251,9 @@ export default function PromptInput(props: PromptInputProps) {
                 placeholder={
                   mode() === "shell"
                     ? "Run a shell command (Esc to exit)..."
-                    : "Type your message, @file, @agent, or paste images and text..."
+                    : props.hasActiveQuestion
+                      ? "Type your answer here..."
+                      : "Type your message, @file, @agent, or paste images and text..."
                 }
                 value={prompt()}
                 onInput={handleInput}

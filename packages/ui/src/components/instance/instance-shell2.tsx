@@ -875,6 +875,7 @@ const InstanceShell2: Component<InstanceShellProps> = (props) => {
 
                 <ThinkingSelector
                   currentModelId={`${activeSession().model.providerId}/${activeSession().model.modelId}`}
+                  instanceId={props.instance.id}
                 />
 
                 <PermissionToggle

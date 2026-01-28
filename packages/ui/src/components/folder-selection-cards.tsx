@@ -4,7 +4,7 @@ import { useConfig } from "../stores/preferences"
 import AdvancedSettingsModal from "./advanced-settings-modal"
 import DirectoryBrowserDialog from "./directory-browser-dialog"
 import Kbd from "./kbd"
-import { openNativeFolderDialog, supportsNativeDialogs } from "../lib/native/native-functions"
+import { openNativeFolderDialog, supportsNativeDialogsAsync } from "../lib/native/native-functions"
 import eraCodeAnimated from "../images/era-code-animated.gif"
 import EraUpgradeBanner from "./era-upgrade-banner"
 import {
@@ -47,7 +47,6 @@ const FolderSelectionCards: Component<FolderSelectionCardsProps> = (props) => {
   const [manualPath, setManualPath] = createSignal("")
   const [manualPathError, setManualPathError] = createSignal<string | null>(null)
 
-  const nativeDialogsAvailable = supportsNativeDialogs()
   let recentListRef: HTMLDivElement | undefined
 
   const folders = () => recentFolders()
@@ -256,8 +255,10 @@ const FolderSelectionCards: Component<FolderSelectionCardsProps> = (props) => {
   async function handleBrowse() {
     if (isLoading()) return
     setFocusMode("new")
-    if (nativeDialogsAvailable) {
-      const fallbackPath = folders()[0]?.path
+    const fallbackPath = folders()[0]?.path
+    // Check if native OS dialog is available (Electron, Tauri, or web+localhost)
+    const hasNative = await supportsNativeDialogsAsync()
+    if (hasNative) {
       const selected = await openNativeFolderDialog({
         title: "Select Workspace",
         defaultPath: fallbackPath,
@@ -265,8 +266,10 @@ const FolderSelectionCards: Component<FolderSelectionCardsProps> = (props) => {
       if (selected) {
         handleFolderSelect(selected)
       }
+      // If user cancelled native dialog, do nothing (don't fall back to custom browser)
       return
     }
+    // Only use custom browser when no native dialog is available (e.g., remote web)
     setIsFolderBrowserOpen(true)
   }
 

@@ -34,6 +34,91 @@ import { getLogger } from "../lib/logger"
 
 const log = getLogger("api")
 
+// ---------------------------------------------------------------------------
+// localStorage session cache – safety net for hard-refresh race conditions
+// ---------------------------------------------------------------------------
+
+const SESSION_CACHE_KEY = "opencode-session-cache-v1"
+const SESSION_CACHE_TTL_MS = 3_600_000 // 1 hour
+
+interface SessionCacheEntry {
+  data: any[]
+  cachedAt: number
+}
+
+function normalizeFolder(folder: string): string {
+  return folder.endsWith("/") ? folder.slice(0, -1) : folder
+}
+
+function saveSessionCache(folder: string, data: any[]): void {
+  if (typeof window === "undefined") return
+  try {
+    const key = normalizeFolder(folder)
+    const raw = window.localStorage.getItem(SESSION_CACHE_KEY)
+    const cache: Record<string, SessionCacheEntry> = raw ? JSON.parse(raw) : {}
+    cache[key] = { data, cachedAt: Date.now() }
+    window.localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // localStorage may be full or unavailable – silently ignore
+  }
+}
+
+function loadSessionCache(folder: string): any[] | null {
+  if (typeof window === "undefined") return null
+  try {
+    const key = normalizeFolder(folder)
+    const raw = window.localStorage.getItem(SESSION_CACHE_KEY)
+    if (!raw) return null
+    const cache: Record<string, SessionCacheEntry> = JSON.parse(raw)
+    const entry = cache[key]
+    if (!entry) return null
+    if (Date.now() - entry.cachedAt > SESSION_CACHE_TTL_MS) return null
+    if (!Array.isArray(entry.data) || entry.data.length === 0) return null
+    return entry.data
+  } catch {
+    return null
+  }
+}
+
+function removeSessionFromCache(folder: string, sessionId: string): void {
+  if (typeof window === "undefined") return
+  try {
+    const key = normalizeFolder(folder)
+    const raw = window.localStorage.getItem(SESSION_CACHE_KEY)
+    if (!raw) return
+    const cache: Record<string, SessionCacheEntry> = JSON.parse(raw)
+    const entry = cache[key]
+    if (!entry) return
+    entry.data = entry.data.filter((s: any) => s.id !== sessionId)
+    entry.cachedAt = Date.now()
+    window.localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // silently ignore
+  }
+}
+
+function addSessionToCache(folder: string, apiSession: any): void {
+  if (typeof window === "undefined") return
+  try {
+    const key = normalizeFolder(folder)
+    const raw = window.localStorage.getItem(SESSION_CACHE_KEY)
+    const cache: Record<string, SessionCacheEntry> = raw ? JSON.parse(raw) : {}
+    const entry = cache[key] || { data: [], cachedAt: Date.now() }
+    // Replace if exists, otherwise prepend
+    const idx = entry.data.findIndex((s: any) => s.id === apiSession.id)
+    if (idx >= 0) {
+      entry.data[idx] = apiSession
+    } else {
+      entry.data.unshift(apiSession)
+    }
+    entry.cachedAt = Date.now()
+    cache[key] = entry
+    window.localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // silently ignore
+  }
+}
+
 interface SessionForkResponse {
   id: string
   title?: string
@@ -73,15 +158,38 @@ async function fetchSessions(instanceId: string): Promise<void> {
       query: { directory: instance.folder },
     })
 
-    const sessionMap = new Map<string, Session>()
+    let responseData = response.data
 
-    if (!response.data || !Array.isArray(response.data)) {
-      return
+    // Retry + cache fallback for hard-refresh race condition
+    if (!responseData || !Array.isArray(responseData) || responseData.length === 0) {
+      // Retry once after 500ms – backend may still be initializing
+      await new Promise((r) => setTimeout(r, 500))
+      log.info("session.list retry", { instanceId, directory: instance.folder })
+      const retryResponse = await instance.client.session.list({
+        query: { directory: instance.folder },
+      })
+      responseData = retryResponse.data
+
+      if (!responseData || !Array.isArray(responseData) || responseData.length === 0) {
+        // Both calls returned empty – try localStorage cache
+        const cached = loadSessionCache(instance.folder)
+        if (cached) {
+          log.info("session.list using cached data", { instanceId, count: cached.length })
+          responseData = cached
+        } else {
+          return // genuinely no sessions
+        }
+      }
     }
+
+    // Cache the successful non-empty response
+    saveSessionCache(instance.folder, responseData)
+
+    const sessionMap = new Map<string, Session>()
 
     const existingSessions = sessions().get(instanceId)
 
-    for (const apiSession of response.data) {
+    for (const apiSession of responseData) {
       const existingSession = existingSessions?.get(apiSession.id)
 
       sessionMap.set(apiSession.id, {
@@ -209,6 +317,8 @@ async function createSession(instanceId: string, agent?: string): Promise<Sessio
       return next
     })
 
+    addSessionToCache(instance.folder, response.data)
+
     const instanceProviders = providers().get(instanceId) || []
     const initialProvider = instanceProviders.find((p) => p.id === session.model.providerId)
     const initialModel = initialProvider?.models.find((m) => m.id === session.model.modelId)
@@ -319,6 +429,8 @@ async function forkSession(
     return next
   })
 
+  addSessionToCache(instance.folder, response.data)
+
   const instanceProviders = providers().get(instanceId) || []
   const forkProvider = instanceProviders.find((p) => p.id === forkedSession.model.providerId)
   const forkModel = forkProvider?.models.find((m) => m.id === forkedSession.model.modelId)
@@ -375,6 +487,8 @@ async function deleteSession(instanceId: string, sessionId: string): Promise<voi
       }
       return next
     })
+
+    removeSessionFromCache(instance.folder, sessionId)
 
     setSessionCompactionState(instanceId, sessionId, false)
     clearSessionDraftPrompt(instanceId, sessionId)
@@ -505,6 +619,7 @@ async function fetchProviders(instanceId: string): Promise<void> {
         id,
         name: model.name,
         providerId: provider.id,
+        reasoning: (model as any).reasoning ?? (model as any).capabilities?.reasoning ?? false,
         limit: model.limit,
         cost: model.cost,
       })),

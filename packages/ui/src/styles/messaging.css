@@ -5,7 +5,7 @@
 @import "./messaging/message-timeline.css";
 @import "./messaging/tool-call.css";
 @import "./messaging/log-view.css";
-@import "./messaging/thinking-card.css";
+@import "./messaging/activity-status-line.css";
 @import "./messaging/ready-card.css";
 /* Message item base styles */
 
