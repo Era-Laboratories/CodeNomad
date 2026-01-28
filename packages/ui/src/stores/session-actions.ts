@@ -394,10 +394,62 @@ async function renameSession(instanceId: string, sessionId: string, nextTitle: s
   })
 }
 
+/**
+ * Reply to an active Question tool call via the /question/{id}/reply API.
+ * The question tool uses a separate API from permissions and regular messages.
+ */
+async function replyToQuestion(
+  instanceId: string,
+  requestId: string,
+  answers: string[][],
+): Promise<void> {
+  const instance = instances().get(instanceId)
+  if (!instance) {
+    throw new Error("Instance not ready")
+  }
+
+  log.info("replyToQuestion", { instanceId, requestId, answers })
+
+  try {
+    const { instanceApi } = await import("../lib/instance-api")
+    await instanceApi.replyToQuestion(instance, requestId, answers)
+    log.info("Question reply sent successfully")
+  } catch (error) {
+    log.error("Failed to reply to question", error)
+    throw error
+  }
+}
+
+/**
+ * Reject/dismiss an active Question tool call.
+ */
+async function rejectQuestion(
+  instanceId: string,
+  requestId: string,
+): Promise<void> {
+  const instance = instances().get(instanceId)
+  if (!instance) {
+    throw new Error("Instance not ready")
+  }
+
+  log.info("rejectQuestion", { instanceId, requestId })
+
+  try {
+    const { instanceApi } = await import("../lib/instance-api")
+    await instanceApi.rejectQuestion(instance, requestId)
+    log.info("Question rejected successfully")
+  } catch (error) {
+    log.error("Failed to reject question", error)
+    throw error
+  }
+}
+
 export {
   abortSession,
   executeCustomCommand,
+  rejectQuestion,
   renameSession,
+  replyToQuestion,
   runShellCommand,
   sendMessage,
   updateSessionAgent,

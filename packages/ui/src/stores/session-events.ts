@@ -29,6 +29,8 @@ import { loadMessages } from "./session-api"
 import { setSessionCompactionState } from "./session-compaction"
 import { scheduleChildCleanup, updateSessionActivity, cancelScheduledCleanup } from "./session-cleanup"
 import { processToolCallForWorkspace } from "./workspace-state"
+import { addQuestionRequest, removeQuestionRequest } from "./question-store"
+import type { QuestionRequest } from "./question-store"
 import {
   applyPartUpdateV2,
   replaceMessageIdV2,
@@ -423,12 +425,47 @@ function handlePermissionReplied(instanceId: string, event: EventPermissionRepli
   removePermissionV2(instanceId, permissionID)
 }
 
+function handleQuestionEvent(instanceId: string, event: { type: string; properties: Record<string, unknown> }): void {
+  const props = event.properties
+  if (!props) return
+
+  switch (event.type) {
+    case "question.asked": {
+      const request = props as unknown as QuestionRequest
+      if (!request.id || !request.sessionID) {
+        log.warn("[SSE] Malformed question.asked event", props)
+        return
+      }
+      log.info(`[SSE] Question asked: ${request.id} for session ${request.sessionID}`)
+      addQuestionRequest(instanceId, request)
+      break
+    }
+    case "question.replied": {
+      const sessionID = props.sessionID as string
+      const requestID = props.requestID as string
+      if (!sessionID || !requestID) return
+      log.info(`[SSE] Question replied: ${requestID}`)
+      removeQuestionRequest(instanceId, sessionID, requestID)
+      break
+    }
+    case "question.rejected": {
+      const sessionID = props.sessionID as string
+      const requestID = props.requestID as string
+      if (!sessionID || !requestID) return
+      log.info(`[SSE] Question rejected: ${requestID}`)
+      removeQuestionRequest(instanceId, sessionID, requestID)
+      break
+    }
+  }
+}
+
 export {
   handleMessagePartRemoved,
   handleMessageRemoved,
   handleMessageUpdate,
   handlePermissionReplied,
   handlePermissionUpdated,
+  handleQuestionEvent,
   handleSessionCompacted,
   handleSessionError,
   handleSessionIdle,

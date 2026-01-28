@@ -12,6 +12,20 @@
   padding: 0;
 }
 
+/* Glow effect when a Question tool is awaiting user input */
+.prompt-input-question-glow {
+  animation: question-glow 2s ease-in-out infinite;
+}
+
+@keyframes question-glow {
+  0%, 100% {
+    box-shadow: 0 0 4px var(--accent-primary), inset 0 0 4px rgba(0, 102, 255, 0.05);
+  }
+  50% {
+    box-shadow: 0 0 12px var(--accent-primary), inset 0 0 8px rgba(0, 102, 255, 0.1);
+  }
+}
+
 .prompt-input-actions {
   @apply flex flex-col items-center;
   align-self: stretch;

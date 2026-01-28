@@ -60,6 +60,7 @@ import {
   handleSessionIdle,
   handleSessionUpdate,
   handleTuiToast,
+  handleQuestionEvent,
 } from "./session-events"
 
 sseManager.onMessageUpdate = handleMessageUpdate
@@ -73,6 +74,7 @@ sseManager.onSessionIdle = handleSessionIdle
 sseManager.onTuiToast = handleTuiToast
 sseManager.onPermissionUpdated = handlePermissionUpdated
 sseManager.onPermissionReplied = handlePermissionReplied
+sseManager.onQuestionEvent = handleQuestionEvent
 
 // When connection is restored after disconnect, reload messages for all sessions
 // to sync UI state with actual OpenCode state (fixes "stuck in working" issue)

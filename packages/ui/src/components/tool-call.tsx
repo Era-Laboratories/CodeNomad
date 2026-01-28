@@ -21,6 +21,8 @@ import type {
 import { getRelativePath, getToolIcon, getToolName, isToolStateCompleted, isToolStateError, isToolStateRunning, getDefaultToolAction } from "./tool-call/utils"
 import { resolveTitleForTool } from "./tool-call/tool-title"
 import { getLogger } from "../lib/logger"
+import { getQuestionRequests } from "../stores/question-store"
+import { replyToQuestion, rejectQuestion } from "../stores/session-actions"
 import { ansiToHtml, createAnsiStreamRenderer, hasAnsi } from "../lib/ansi"
 import { escapeHtml } from "../lib/markdown"
 
@@ -284,6 +286,7 @@ export default function ToolCall(props: ToolCallProps) {
   const expanded = () => {
     const permission = pendingPermission()
     if (permission?.active) return true
+    if (pendingQuestion()) return true
     const override = userExpanded()
     if (override !== null) return override
     return defaultExpandedForTool()
@@ -298,6 +301,19 @@ export default function ToolCall(props: ToolCallProps) {
   const [permissionSubmitting, setPermissionSubmitting] = createSignal(false)
   const [permissionError, setPermissionError] = createSignal<string | null>(null)
   const [diagnosticsOverride, setDiagnosticsOverride] = createSignal<boolean | undefined>(undefined)
+
+  // Question tool: match pending question to this tool call via callID
+  const pendingQuestion = createMemo(() => {
+    const callId = toolCallIdentifier()
+    if (!callId) return null
+    const requests = getQuestionRequests(props.instanceId, props.sessionId)
+    return requests.find(r => r.tool?.callID === callId) ?? null
+  })
+
+  const [questionAnswers, setQuestionAnswers] = createSignal<Map<number, Set<string>>>(new Map())
+  const [questionCustomText, setQuestionCustomText] = createSignal<Map<number, string>>(new Map())
+  const [questionSubmitting, setQuestionSubmitting] = createSignal(false)
+  const [questionError, setQuestionError] = createSignal<string | null>(null)
 
   const diagnosticsExpanded = () => {
     const permission = pendingPermission()
@@ -509,6 +525,23 @@ export default function ToolCall(props: ToolCallProps) {
     })
   })
 
+  // Scroll into view when a question arrives for this tool call
+  createEffect(() => {
+    const question = pendingQuestion()
+    if (!question) return
+    requestAnimationFrame(() => {
+      toolCallRootRef?.scrollIntoView({ block: "center", behavior: "smooth" })
+    })
+  })
+
+  // Clear question UI state when the question is resolved
+  createEffect(() => {
+    if (!pendingQuestion()) {
+      setQuestionSubmitting(false)
+      setQuestionError(null)
+    }
+  })
+
   createEffect(() => {
     const activeKey = activePermissionKey()
     if (!activeKey) return
@@ -552,6 +585,7 @@ export default function ToolCall(props: ToolCallProps) {
 
   const combinedStatusClass = () => {
     const base = statusClass()
+    if (pendingQuestion()) return `${base} tool-call-awaiting-question`
     return pendingPermission() ? `${base} tool-call-awaiting-permission` : base
   }
 
@@ -560,6 +594,7 @@ export default function ToolCall(props: ToolCallProps) {
     if (permission?.active) {
       return
     }
+    if (pendingQuestion()) return
     setUserExpanded((prev) => {
       const current = prev === null ? defaultExpandedForTool() : prev
       return !current
@@ -938,6 +973,164 @@ export default function ToolCall(props: ToolCallProps) {
     )
   }
 
+  function toggleQuestionOption(questionIndex: number, label: string, isMultiple: boolean) {
+    setQuestionAnswers(prev => {
+      const next = new Map(prev)
+      const current = new Set(next.get(questionIndex) ?? [])
+      if (isMultiple) {
+        if (current.has(label)) {
+          current.delete(label)
+        } else {
+          current.add(label)
+        }
+      } else {
+        if (current.has(label)) {
+          current.clear()
+        } else {
+          current.clear()
+          current.add(label)
+        }
+      }
+      next.set(questionIndex, current)
+      return next
+    })
+  }
+
+  function setCustomText(questionIndex: number, text: string) {
+    setQuestionCustomText(prev => {
+      const next = new Map(prev)
+      next.set(questionIndex, text)
+      return next
+    })
+  }
+
+  async function handleQuestionSubmit() {
+    const question = pendingQuestion()
+    if (!question) return
+
+    setQuestionSubmitting(true)
+    setQuestionError(null)
+
+    try {
+      const answers: string[][] = question.questions.map((_q, i) => {
+        const selected = [...(questionAnswers().get(i) ?? [])]
+        const custom = questionCustomText().get(i)?.trim()
+        if (custom) {
+          selected.push(custom)
+        }
+        return selected
+      })
+
+      await replyToQuestion(props.instanceId, question.id, answers)
+      setQuestionAnswers(new Map())
+      setQuestionCustomText(new Map())
+    } catch (error) {
+      log.error("Failed to reply to question", error)
+      setQuestionError(error instanceof Error ? error.message : "Failed to send answer")
+    } finally {
+      setQuestionSubmitting(false)
+    }
+  }
+
+  async function handleQuestionDismiss() {
+    const question = pendingQuestion()
+    if (!question) return
+
+    setQuestionSubmitting(true)
+    setQuestionError(null)
+
+    try {
+      await rejectQuestion(props.instanceId, question.id)
+      setQuestionAnswers(new Map())
+      setQuestionCustomText(new Map())
+    } catch (error) {
+      log.error("Failed to reject question", error)
+      setQuestionError(error instanceof Error ? error.message : "Failed to dismiss question")
+    } finally {
+      setQuestionSubmitting(false)
+    }
+  }
+
+  const renderQuestionBlock = () => {
+    const question = pendingQuestion()
+    if (!question) return null
+
+    return (
+      <div class="tool-call-question-block">
+        <div class="tool-call-question-block-header">
+          <span class="tool-call-question-block-label">Question from Agent</span>
+        </div>
+        <div class="tool-call-question-block-body">
+          <For each={question.questions}>
+            {(q, qIndex) => (
+              <div class="tool-call-question-block-item">
+                <Show when={q.header}>
+                  <div class="tool-call-question-block-chip">{q.header}</div>
+                </Show>
+                <div class="tool-call-question-block-question">{q.question}</div>
+                <Show when={q.options?.length > 0}>
+                  <div class="tool-call-question-block-options">
+                    <For each={q.options}>
+                      {(opt) => {
+                        const isSelected = () => questionAnswers().get(qIndex())?.has(opt.label) ?? false
+                        return (
+                          <button
+                            type="button"
+                            class={`tool-call-question-block-option ${isSelected() ? "selected" : ""}`}
+                            disabled={questionSubmitting()}
+                            onClick={() => toggleQuestionOption(qIndex(), opt.label, q.multiple ?? false)}
+                          >
+                            <span class="tool-call-question-block-option-label">{opt.label}</span>
+                            <Show when={opt.description}>
+                              <span class="tool-call-question-block-option-desc">{opt.description}</span>
+                            </Show>
+                          </button>
+                        )
+                      }}
+                    </For>
+                  </div>
+                </Show>
+                <Show when={q.custom !== false}>
+                  <input
+                    type="text"
+                    class="tool-call-question-block-custom-input"
+                    placeholder="Other (type your answer)..."
+                    value={questionCustomText().get(qIndex()) ?? ""}
+                    onInput={(e) => setCustomText(qIndex(), e.currentTarget.value)}
+                    disabled={questionSubmitting()}
+                  />
+                </Show>
+              </div>
+            )}
+          </For>
+          <div class="tool-call-question-block-actions">
+            <div class="tool-call-question-block-buttons">
+              <button
+                type="button"
+                class="tool-call-question-block-button tool-call-question-block-button-primary"
+                disabled={questionSubmitting()}
+                onClick={handleQuestionSubmit}
+              >
+                Submit Answer
+              </button>
+              <button
+                type="button"
+                class="tool-call-question-block-button"
+                disabled={questionSubmitting()}
+                onClick={handleQuestionDismiss}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+          <Show when={questionError()}>
+            <div class="tool-call-question-block-error">{questionError()}</div>
+          </Show>
+        </div>
+      </div>
+    )
+  }
+
   const status = () => toolState()?.status || ""
 
   onCleanup(() => {
@@ -981,7 +1174,9 @@ export default function ToolCall(props: ToolCallProps) {
           {renderError()}
  
           {renderPermissionBlock()}
- 
+
+          {renderQuestionBlock()}
+
           <Show when={status() === "pending" && !pendingPermission()}>
             <div class="tool-call-pending-message">
               <span class="spinner-small"></span>

@@ -7,6 +7,7 @@ import { messageStoreBus } from "../../stores/message-v2/bus"
 import PromptInput from "../prompt-input"
 import { instances } from "../../stores/instances"
 import { loadMessages, sendMessage, forkSession, isSessionMessagesLoading, setActiveParentSession, setActiveSession, runShellCommand, abortSession, getSessions } from "../../stores/sessions"
+import { getActiveQuestion } from "../../stores/question-store"
 import { isSessionBusy as getSessionBusyStatus } from "../../stores/session-status"
 import { showAlertDialog } from "../../stores/alerts"
 import { getLogger } from "../../lib/logger"
@@ -40,6 +41,11 @@ export const SessionView: Component<SessionViewProps> = (props) => {
     const currentSession = session()
     if (!currentSession) return false
     return getSessionBusyStatus(props.instanceId, currentSession.id)
+  })
+
+  // Detect if there's an active question from the question store
+  const hasActiveQuestion = createMemo(() => {
+    return !!getActiveQuestion(props.instanceId, props.sessionId)
   })
 
   // Compute sub-agent state from session data
@@ -269,6 +275,7 @@ export const SessionView: Component<SessionViewProps> = (props) => {
               isSubAgentSession={isSubAgentSession()}
               parentSessionTitle={parentSessionTitle()}
               onReturnToParent={handleReturnToParent}
+              hasActiveQuestion={hasActiveQuestion()}
             />
           </div>
         )

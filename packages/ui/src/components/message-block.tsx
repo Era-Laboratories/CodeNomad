@@ -1,5 +1,6 @@
 import { For, Match, Show, Switch, createEffect, createMemo, createSignal } from "solid-js"
 import MessageItem from "./message-item"
+import ToolCall from "./tool-call"
 import ToolCallGroup from "./tool-call-group"
 import SubAgentGroup from "./subagent-group"
 import PipelineGroup from "./pipeline-group"
@@ -356,6 +357,7 @@ export default function MessageBlock(props: MessageBlockProps) {
     | { type: "tool-group"; tools: ToolDisplayItem[] }
     | { type: "subagent-group"; tools: ToolDisplayItem[] }
     | { type: "pipeline-group"; tools: ToolDisplayItem[]; patternName: string }
+    | { type: "standalone-tool"; tool: ToolDisplayItem }
 
   const renderSections = createMemo<RenderSection[]>(() => {
     const items = block()?.items ?? []
@@ -402,8 +404,15 @@ export default function MessageBlock(props: MessageBlockProps) {
         const toolItem = item as ToolDisplayItem
         const toolName = toolItem.toolPart.tool || "unknown"
         const isSubAgentTask = toolName === "task"
+        const isQuestionTool = toolName === "question"
 
-        if (isSubAgentTask) {
+        if (isQuestionTool) {
+          // Question tools render as standalone ToolCall components so the
+          // interactive question block can appear inline in the message stream
+          flushTools()
+          flushSubAgents()
+          sections.push({ type: "standalone-tool", tool: toolItem })
+        } else if (isSubAgentTask) {
           // Sub-agent tasks: flush pending regular tools, then batch sub-agents
           flushTools()
           pendingSubAgents.push(toolItem)
@@ -495,6 +504,20 @@ export default function MessageBlock(props: MessageBlockProps) {
       return (
         <SubAgentGroup
           tools={section.tools}
+          instanceId={props.instanceId}
+          sessionId={props.sessionId}
+        />
+      )
+    }
+    if (section.type === "standalone-tool") {
+      // Standalone tool - render as full ToolCall component (e.g., question tool)
+      return (
+        <ToolCall
+          toolCall={section.tool.toolPart}
+          toolCallId={section.tool.key}
+          messageId={section.tool.messageId}
+          messageVersion={section.tool.messageVersion}
+          partVersion={section.tool.partVersion}
           instanceId={props.instanceId}
           sessionId={props.sessionId}
         />
