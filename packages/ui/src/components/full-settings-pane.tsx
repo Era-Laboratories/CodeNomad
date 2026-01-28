@@ -39,17 +39,15 @@ import {
   FileCode,
   FolderCog,
   Folder,
-  History,
   Activity,
 } from "lucide-solid"
 import UnifiedGovernancePanel from "./unified-governance-panel"
 import ConstitutionPanel from "./constitution-panel"
-import SessionManagerSection from "./session-manager-section"
+import ActivityMonitor from "./activity-monitor"
 import OpenCodeBinarySelector from "./opencode-binary-selector"
 import GlobalDirectivesPanel from "./global-directives-panel"
 import ProjectDirectivesPanel from "./project-directives-panel"
 import ActiveRulesPanel from "./active-rules-panel"
-import ProcessManagerPanel from "./process-manager-panel"
 import type { Instance } from "../types/instance"
 import {
   preferences,
@@ -120,6 +118,7 @@ import {
 import ModelCatalogPanel from "./model-catalog-panel"
 import ProviderConfigModal from "./provider-config-modal"
 import { providers as instanceProviders } from "../stores/sessions"
+import { serverApi } from "../lib/api-client"
 import {
   isGCloudAuthenticated,
   isGCloudExpired,
@@ -157,8 +156,7 @@ type SettingsSection =
   | "governance-rules"
   | "environment"
   | "accounts"
-  | "sessions"
-  | "processes"
+  | "activity-monitor"
   | "era-code"
   | "about"
 
@@ -206,17 +204,11 @@ const FullSettingsPane: Component<FullSettingsPaneProps> = (props) => {
       ],
     },
     {
-      title: "Data",
-      items: [
-        { id: "sessions" as const, label: "All Sessions", icon: History },
-      ],
-    },
-    {
       title: "System",
       items: [
         { id: "environment" as const, label: "Environment", icon: Terminal },
         { id: "accounts" as const, label: "Accounts", icon: User },
-        { id: "processes" as const, label: "Processes", icon: Activity },
+        { id: "activity-monitor" as const, label: "Activity Monitor", icon: Activity },
         { id: "era-code" as const, label: "Era Code", icon: Sparkles },
         { id: "about" as const, label: "About", icon: Info },
       ],
@@ -247,10 +239,8 @@ const FullSettingsPane: Component<FullSettingsPaneProps> = (props) => {
         return <EnvironmentSection instance={props.instance} />
       case "accounts":
         return <AccountsSection onOpenGCloudModal={props.onOpenGCloudModal} />
-      case "sessions":
-        return <SessionManagerSection />
-      case "processes":
-        return <ProcessManagerPanel />
+      case "activity-monitor":
+        return <ActivityMonitor />
       case "era-code":
         return <EraCodeSection />
       case "about":
@@ -333,7 +323,8 @@ const FullSettingsPane: Component<FullSettingsPaneProps> = (props) => {
 // ============================================
 
 const GeneralSection: Component = () => {
-  const { preferences: prefs, setDiffViewMode, setThinkingBlocksExpansion, setToolOutputExpansion, setDiagnosticsExpansion } = useConfig()
+  const { preferences: prefs, setDiffViewMode, setThinkingBlocksExpansion, setToolOutputExpansion, setDiagnosticsExpansion, setDefaultClonePath } = useConfig()
+  const [clonePathInput, setClonePathInput] = createSignal(prefs().defaultClonePath ?? "")
 
   return (
     <div class="full-settings-section">
@@ -452,6 +443,56 @@ const GeneralSection: Component = () => {
           </select>
         </div>
       </div>
+
+      <div class="full-settings-section-divider" />
+
+      <div class="full-settings-subsection">
+        <h3 class="full-settings-subsection-title">GitHub</h3>
+
+        <div class="full-settings-field">
+          <label class="full-settings-field-label">Default clone path</label>
+          <div class="full-settings-field-row">
+            <input
+              class="full-settings-input"
+              type="text"
+              value={clonePathInput()}
+              placeholder="~/Projects"
+              onInput={(e) => setClonePathInput(e.currentTarget.value)}
+              onBlur={() => setDefaultClonePath(clonePathInput())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setDefaultClonePath(clonePathInput())
+                  e.currentTarget.blur()
+                }
+              }}
+            />
+            <button
+              class="full-settings-browse-button"
+              type="button"
+              onClick={async () => {
+                try {
+                  const result = await serverApi.pickFolder({
+                    title: "Select Default Clone Directory",
+                    defaultPath: clonePathInput() || undefined,
+                  })
+                  if (result.path) {
+                    setClonePathInput(result.path)
+                    setDefaultClonePath(result.path)
+                  }
+                } catch {
+                  // Fallback: user can type path manually
+                }
+              }}
+            >
+              <Folder class="w-4 h-4" />
+              Browse
+            </button>
+          </div>
+          <div class="full-settings-field-hint">
+            Where new repos are cloned. Defaults to ~/Projects when not set.
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -556,13 +597,22 @@ const SessionSection: Component = () => {
   )
 }
 
-type AgentType = "main" | "plan" | "explore"
+type AgentType = "main" | "plan" | "explore" | "coder" | "test-writer" | "reviewer"
 
-interface DefaultModels {
-  main: { providerId: string; modelId: string }
-  plan: { providerId: string; modelId: string }
-  explore: { providerId: string; modelId: string }
+/** All agent types as a typed array — ensures exhaustiveness with AGENT_META */
+const ALL_AGENT_TYPES: AgentType[] = ["main", "plan", "explore", "coder", "test-writer", "reviewer"]
+
+/** Metadata for each agent type. Record<AgentType, ...> enforces exhaustive coverage. */
+const AGENT_META: Record<AgentType, { label: string; icon: string; desc: string }> = {
+  main:          { label: "Main Agent",     icon: "🤖", desc: "Primary coding assistant" },
+  plan:          { label: "Plan Agent",     icon: "📋", desc: "Architecture & planning" },
+  explore:       { label: "Explore Agent",  icon: "🔍", desc: "Quick searches" },
+  coder:         { label: "Coder Agent",    icon: "🔨", desc: "Implementation specialist" },
+  "test-writer": { label: "Test Writer",    icon: "🧪", desc: "Test generation & execution" },
+  reviewer:      { label: "Reviewer Agent", icon: "📝", desc: "Code review & quality" },
 }
+
+type DefaultModels = Record<AgentType, { providerId: string; modelId: string }>
 
 const ModelsSection: Component = () => {
   const { preferences, setDefaultModels } = useConfig()
@@ -577,6 +627,9 @@ const ModelsSection: Component = () => {
       main: saved?.main ?? { providerId: "anthropic", modelId: "claude-sonnet-4-20250514" },
       plan: saved?.plan ?? { providerId: "anthropic", modelId: "claude-sonnet-4-20250514" },
       explore: saved?.explore ?? { providerId: "anthropic", modelId: "claude-3-5-haiku-20241022" },
+      coder: saved?.coder ?? { providerId: "anthropic", modelId: "claude-sonnet-4-20250514" },
+      "test-writer": saved?.["test-writer"] ?? { providerId: "anthropic", modelId: "claude-sonnet-4-20250514" },
+      reviewer: saved?.reviewer ?? { providerId: "anthropic", modelId: "claude-sonnet-4-20250514" },
     }
   })
 
@@ -658,23 +711,10 @@ const ModelsSection: Component = () => {
     setConfigureProviderId(providerId)
   }
 
-  const agentLabels: Record<AgentType, string> = {
-    main: "Main Agent",
-    plan: "Plan Agent",
-    explore: "Explore Agent",
-  }
-
-  const agentIcons: Record<AgentType, string> = {
-    main: "🤖",
-    plan: "📋",
-    explore: "🔍",
-  }
-
-  const agentDescriptions: Record<AgentType, string> = {
-    main: "Primary coding assistant",
-    plan: "Architecture & planning",
-    explore: "Quick searches",
-  }
+  // Agent display metadata is derived from the module-level AGENT_META constant
+  const agentLabels = Object.fromEntries(ALL_AGENT_TYPES.map(t => [t, AGENT_META[t].label])) as Record<AgentType, string>
+  const agentIcons = Object.fromEntries(ALL_AGENT_TYPES.map(t => [t, AGENT_META[t].icon])) as Record<AgentType, string>
+  const agentDescriptions = Object.fromEntries(ALL_AGENT_TYPES.map(t => [t, AGENT_META[t].desc])) as Record<AgentType, string>
 
   // Get price class for color coding
   const getPriceClass = (model: ModelsDevModel | undefined) => {
@@ -712,7 +752,7 @@ const ModelsSection: Component = () => {
         <p class="text-xs text-secondary mb-3">Default models for each agent type</p>
 
         <div class="models-quick-access-grid">
-          <For each={(["main", "plan", "explore"] as AgentType[])}>
+          <For each={ALL_AGENT_TYPES}>
             {(agent) => {
               const model = () => defaultModels()[agent]
               const modelData = () => getAgentModelData(agent)
@@ -2448,6 +2488,38 @@ const EraCodeSection: Component = () => {
             </div>
           </div>
         </Show>
+
+        <div class="full-settings-section-divider" />
+
+        {/* Sub-Agent Configuration */}
+        <div class="full-settings-subsection">
+          <h3 class="full-settings-subsection-title">Sub-Agent Configuration</h3>
+          <div class="full-settings-list">
+            <div class="full-settings-list-item">
+              <div class="full-settings-list-item-info">
+                <div class="full-settings-list-item-title">Max Iterations</div>
+                <div class="full-settings-list-item-subtitle">
+                  Maximum retry cycles for sub-agent pipelines (1-10)
+                </div>
+              </div>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+                value={prefs().maxSubagentIterations}
+                onInput={(e) => {
+                  const val = parseInt(e.currentTarget.value, 10)
+                  if (!isNaN(val)) {
+                    const { setMaxSubagentIterations } = useConfig()
+                    setMaxSubagentIterations(val)
+                  }
+                }}
+                class="full-settings-number-input"
+              />
+            </div>
+          </div>
+        </div>
 
         <div class="full-settings-section-divider" />
 

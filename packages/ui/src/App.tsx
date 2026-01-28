@@ -2,7 +2,6 @@ import { Component, For, Show, createMemo, createEffect, createSignal, onMount, 
 import { Dialog } from "@kobalte/core/dialog"
 import { Toaster } from "solid-toast"
 import AlertDialog from "./components/alert-dialog"
-import FolderSelectionView from "./components/folder-selection-view"
 import FolderSelectionCards from "./components/folder-selection-cards"
 import { showConfirmDialog } from "./stores/alerts"
 import InstanceTabs from "./components/instance-tabs"
@@ -904,6 +903,7 @@ const App: Component = () => {
                       advancedSettingsOpen={isAdvancedSettingsOpen()}
                       onAdvancedSettingsOpen={() => setIsAdvancedSettingsOpen(true)}
                       onAdvancedSettingsClose={() => setIsAdvancedSettingsOpen(false)}
+                      onOpenFullSettings={() => setFullSettingsOpen(true)}
                     />
                   </div>
                 </div>
@@ -938,15 +938,21 @@ const App: Component = () => {
             </>
           }
         >
-          <FolderSelectionView
-            onSelectFolder={handleSelectFolder}
-            isLoading={isSelectingFolder()}
-            advancedSettingsOpen={isAdvancedSettingsOpen()}
-            onAdvancedSettingsOpen={() => setIsAdvancedSettingsOpen(true)}
-            onAdvancedSettingsClose={() => setIsAdvancedSettingsOpen(false)}
-            onOpenRemoteAccess={() => setRemoteAccessOpen(true)}
-            onOpenFullSettings={() => setFullSettingsOpen(true)}
-          />
+          <div
+            class="flex-1 min-h-0 overflow-auto flex items-center justify-center p-6"
+            style="background-color: var(--surface-secondary)"
+          >
+            <div class="w-full max-w-3xl">
+              <FolderSelectionCards
+                onSelectFolder={handleSelectFolder}
+                isLoading={isSelectingFolder()}
+                advancedSettingsOpen={isAdvancedSettingsOpen()}
+                onAdvancedSettingsOpen={() => setIsAdvancedSettingsOpen(true)}
+                onAdvancedSettingsClose={() => setIsAdvancedSettingsOpen(false)}
+                onOpenFullSettings={() => setFullSettingsOpen(true)}
+              />
+            </div>
+          </div>
         </Show>
  
         <RemoteAccessOverlay open={remoteAccessOpen()} onClose={() => setRemoteAccessOpen(false)} />

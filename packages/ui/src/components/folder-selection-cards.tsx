@@ -1,5 +1,5 @@
 import { Component, createSignal, Show, For, onMount, onCleanup, createEffect } from "solid-js"
-import { Folder, Clock, Trash2, FolderOpen, Github, Search, X } from "lucide-solid"
+import { Folder, Clock, Trash2, FolderOpen, Github, Search, X, Settings, Lock, Loader2 } from "lucide-solid"
 import { useConfig } from "../stores/preferences"
 import AdvancedSettingsModal from "./advanced-settings-modal"
 import DirectoryBrowserDialog from "./directory-browser-dialog"
@@ -7,6 +7,27 @@ import Kbd from "./kbd"
 import { openNativeFolderDialog, supportsNativeDialogs } from "../lib/native/native-functions"
 import eraCodeAnimated from "../images/era-code-animated.gif"
 import EraUpgradeBanner from "./era-upgrade-banner"
+import {
+  isGhCliInstalled,
+  isGhCliChecked,
+  isGitHubAuthenticated,
+  isGitHubLoading,
+  githubUsername,
+  checkGhCliInstalled as checkGhCli,
+  initiateGitHubLogin,
+  installGhCli,
+} from "../stores/github-auth"
+import {
+  githubRepos,
+  githubOrgs,
+  selectedOrg,
+  setSelectedOrg,
+  fetchRepos,
+  fetchOrgs,
+  isReposLoading,
+  cloneRepo,
+  isCloning,
+} from "../stores/github-repos"
 
 interface FolderSelectionCardsProps {
   onSelectFolder: (folder: string, binaryPath?: string) => void
@@ -14,6 +35,7 @@ interface FolderSelectionCardsProps {
   advancedSettingsOpen?: boolean
   onAdvancedSettingsOpen?: () => void
   onAdvancedSettingsClose?: () => void
+  onOpenFullSettings?: () => void
 }
 
 const FolderSelectionCards: Component<FolderSelectionCardsProps> = (props) => {
@@ -79,6 +101,13 @@ const FolderSelectionCards: Component<FolderSelectionCardsProps> = (props) => {
     }
 
     const folderList = folders()
+
+    // Cmd+, opens full settings
+    if ((e.metaKey || e.ctrlKey) && normalizedKey === ",") {
+      e.preventDefault()
+      props.onOpenFullSettings?.()
+      return
+    }
 
     if (isBrowseShortcut) {
       e.preventDefault()
@@ -155,10 +184,57 @@ const FolderSelectionCards: Component<FolderSelectionCardsProps> = (props) => {
   onMount(() => {
     window.addEventListener("keydown", handleKeyDown)
 
+    // Check GitHub CLI status on mount
+    void checkGhCli()
+
     onCleanup(() => {
       window.removeEventListener("keydown", handleKeyDown)
     })
   })
+
+  // Load repos and orgs once authenticated
+  createEffect(() => {
+    if (isGitHubAuthenticated()) {
+      void fetchOrgs()
+      void fetchRepos()
+    }
+  })
+
+  // Refetch repos when selected org changes
+  createEffect(() => {
+    const org = selectedOrg()
+    if (isGitHubAuthenticated()) {
+      void fetchRepos(org ?? undefined)
+    }
+  })
+
+  function formatGitHubTime(dateStr: string): string {
+    const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+
+    if (days > 0) return `${days}d ago`
+    if (hours > 0) return `${hours}h ago`
+    if (minutes > 0) return `${minutes}m ago`
+    return "just now"
+  }
+
+  async function handleCloneRepo(repo: { name: string; cloneUrl?: string; sshUrl?: string; url: string; owner?: { login: string } }) {
+    const cloneUrl = repo.sshUrl || repo.cloneUrl || repo.url
+    const defaultPath = preferences().defaultClonePath || "~/Projects"
+    const expandedPath = defaultPath.replace(/^~/, `/Users/${githubUsername() || "user"}`)
+    const targetDir = `${expandedPath}/${repo.name}`
+
+    try {
+      const result = await cloneRepo(cloneUrl, targetDir)
+      if (result.success && result.path) {
+        props.onSelectFolder(result.path)
+      }
+    } catch {
+      // Error is handled by the store
+    }
+  }
 
   function formatRelativeTime(timestamp: number): string {
     const seconds = Math.floor((Date.now() - timestamp) / 1000)
@@ -362,16 +438,100 @@ const FolderSelectionCards: Component<FolderSelectionCardsProps> = (props) => {
             <div class="home-card-header">
               <Github class="home-card-icon" />
               <h2 class="home-card-title">GitHub</h2>
+              <Show when={isGitHubAuthenticated() && githubUsername()}>
+                <span class="home-github-user">@{githubUsername()}</span>
+              </Show>
             </div>
             <p class="home-card-description">Clone or open repositories from GitHub</p>
 
             <div class="home-card-body">
-              <div class="home-github-placeholder">
-                <p>Connect your GitHub account to clone repos</p>
-                <button class="home-action-button home-action-button-secondary" disabled>
-                  Coming Soon
-                </button>
-              </div>
+              <Show when={isGhCliChecked()} fallback={
+                <div class="home-github-placeholder">
+                  <Loader2 class="w-5 h-5 animate-spin" />
+                  <p>Checking GitHub CLI...</p>
+                </div>
+              }>
+                <Show when={isGhCliInstalled()} fallback={
+                  <div class="home-github-placeholder">
+                    <p>GitHub CLI (gh) is required</p>
+                    <button
+                      class="home-action-button home-action-button-secondary"
+                      onClick={() => void installGhCli()}
+                    >
+                      Install GitHub CLI
+                    </button>
+                  </div>
+                }>
+                  <Show when={isGitHubAuthenticated()} fallback={
+                    <div class="home-github-placeholder">
+                      <p>Sign in to browse your repositories</p>
+                      <button
+                        class="home-action-button"
+                        onClick={() => void initiateGitHubLogin()}
+                        disabled={isGitHubLoading()}
+                      >
+                        {isGitHubLoading() ? "Signing in..." : "Sign in with GitHub"}
+                      </button>
+                    </div>
+                  }>
+                    {/* Tabbed repo list */}
+                    <div class="home-github-tabs">
+                      <button
+                        class={`home-github-tab ${selectedOrg() === null ? "active" : ""}`}
+                        onClick={() => setSelectedOrg(null)}
+                      >
+                        All
+                      </button>
+                      <For each={githubOrgs()}>
+                        {(org) => (
+                          <button
+                            class={`home-github-tab ${selectedOrg() === org ? "active" : ""}`}
+                            onClick={() => setSelectedOrg(org)}
+                          >
+                            {org}
+                          </button>
+                        )}
+                      </For>
+                    </div>
+                    <div class="home-github-repo-list">
+                      <Show when={!isReposLoading()} fallback={
+                        <div class="home-github-placeholder">
+                          <Loader2 class="w-4 h-4 animate-spin" />
+                        </div>
+                      }>
+                        <Show when={githubRepos().length > 0} fallback={
+                          <div class="home-github-placeholder">
+                            <p>No repositories found</p>
+                          </div>
+                        }>
+                          <For each={githubRepos().slice(0, 8)}>
+                            {(repo) => (
+                              <button
+                                class="home-github-repo-item"
+                                onClick={() => void handleCloneRepo(repo)}
+                                disabled={isCloning()}
+                              >
+                                <div class="home-github-repo-info">
+                                  <span class="home-github-repo-name">{repo.name}</span>
+                                  <Show when={repo.description}>
+                                    <span class="home-github-repo-desc">{repo.description}</span>
+                                  </Show>
+                                </div>
+                                <div class="home-github-repo-meta">
+                                  <Show when={repo.visibility === "private"}>
+                                    <Lock class="w-3 h-3" />
+                                  </Show>
+                                  <span class="home-github-repo-time">{formatGitHubTime(repo.updatedAt)}</span>
+                                </div>
+                              </button>
+                            )}
+                          </For>
+                        </Show>
+                      </Show>
+                    </div>
+                  </Show>
+                </Show>
+              </Show>
             </div>
           </div>
         </div>
@@ -383,6 +543,15 @@ const FolderSelectionCards: Component<FolderSelectionCardsProps> = (props) => {
           <span><Kbd shortcut="cmd+shift+g" /> GitHub</span>
           <span class="home-shortcuts-divider">·</span>
           <span><Kbd shortcut="cmd+1" /> - <Kbd shortcut="cmd+9" /> Recent</span>
+          <span class="home-shortcuts-divider">·</span>
+          <button
+            class="home-shortcuts-settings"
+            onClick={() => props.onOpenFullSettings?.()}
+            title="Settings (Cmd+,)"
+          >
+            <Settings class="w-4 h-4" />
+            <Kbd shortcut="cmd+," />
+          </button>
         </div>
       </div>
 
@@ -392,6 +561,7 @@ const FolderSelectionCards: Component<FolderSelectionCardsProps> = (props) => {
         selectedBinary={selectedBinary()}
         onBinaryChange={handleBinaryChange}
         isLoading={props.isLoading}
+        onOpenFullSettings={props.onOpenFullSettings}
       />
 
       <DirectoryBrowserDialog

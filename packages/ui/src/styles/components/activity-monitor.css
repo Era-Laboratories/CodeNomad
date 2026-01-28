@@ -1,36 +1,39 @@
-.process-manager-panel {
+.activity-monitor {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
 
-.process-manager-header {
+/* Header */
+.activity-monitor-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
 }
 
-.process-manager-header-left {
+.activity-monitor-header-left {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  align-items: flex-start;
+  gap: var(--space-3);
 }
 
-.process-manager-header-left h2 {
+.activity-monitor-header-left h2 {
   margin: 0;
   font-size: var(--font-size-lg);
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.process-manager-header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.activity-monitor-subtitle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
-.process-manager-btn {
+/* Buttons */
+.activity-monitor-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -42,39 +45,47 @@
   transition: all 0.15s ease;
 }
 
-.process-manager-btn:disabled {
+.activity-monitor-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.process-manager-btn-secondary {
+.activity-monitor-btn-secondary {
   background: var(--surface-secondary);
   border: 1px solid var(--border-primary);
   color: var(--text-primary);
 }
 
-.process-manager-btn-secondary:hover:not(:disabled) {
+.activity-monitor-btn-secondary:hover:not(:disabled) {
   background: var(--surface-hover);
 }
 
-.process-manager-btn-danger {
+.activity-monitor-btn-danger {
   background: var(--status-error);
   border: 1px solid var(--status-error);
   color: white;
 }
 
-.process-manager-btn-danger:hover:not(:disabled) {
+.activity-monitor-btn-danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--status-error) 85%, black);
 }
 
-.process-manager-description {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  margin: 0;
-  line-height: 1.5;
+.activity-monitor-btn-warning {
+  background: var(--surface-secondary);
+  border: 1px solid var(--status-warning);
+  color: var(--status-warning);
+  font-weight: 600;
+  width: 100%;
+  justify-content: center;
+  margin-top: var(--space-2);
 }
 
-.process-manager-error {
+.activity-monitor-btn-warning:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-warning) 15%, transparent);
+}
+
+/* Error */
+.activity-monitor-error {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -86,32 +97,8 @@
   font-size: var(--font-size-sm);
 }
 
-.process-manager-result {
-  padding: var(--space-3);
-  background: color-mix(in srgb, var(--status-success) 15%, transparent);
-  border: 1px solid var(--status-success);
-  border-radius: var(--radius-md);
-}
-
-.process-manager-result-title {
-  font-weight: 600;
-  color: var(--status-success);
-  margin-bottom: var(--space-2);
-}
-
-.process-manager-result-stats {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.process-manager-result-failed {
-  color: var(--status-error);
-}
-
-.process-manager-loading {
+/* Loading */
+.activity-monitor-loading {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -120,86 +107,108 @@
   color: var(--text-secondary);
 }
 
-.process-manager-summary {
-  display: flex;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  background: var(--surface-secondary);
-  border-radius: var(--radius-md);
+/* Summary Cards */
+.activity-monitor-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
 }
 
-.process-manager-summary-item {
+.activity-monitor-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
-  flex: 1;
+  padding: var(--space-4) var(--space-3);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
 }
 
-.process-manager-summary-value {
+.activity-monitor-card-value {
   font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.process-manager-summary-running {
+.activity-monitor-card-success {
   color: var(--status-success);
 }
 
-.process-manager-summary-danger {
+.activity-monitor-card-danger {
   color: var(--status-error);
 }
 
-.process-manager-summary-label {
+.activity-monitor-card-label {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
-.process-manager-section {
+/* Sections */
+.activity-monitor-section {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
 
-.process-manager-section-warning {
+.activity-monitor-section-warning {
   padding: var(--space-4);
   background: color-mix(in srgb, var(--status-warning) 10%, transparent);
   border: 1px solid var(--status-warning);
   border-radius: var(--radius-md);
 }
 
-.process-manager-section-title {
+.activity-monitor-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.activity-monitor-section-title {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   margin: 0;
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.process-manager-section-description {
+.activity-monitor-section-subtitle {
+  margin: 0;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  margin: 0;
 }
 
-.process-manager-empty {
+/* Empty state */
+.activity-monitor-empty {
   padding: var(--space-4);
   text-align: center;
   color: var(--text-muted);
   font-size: var(--font-size-sm);
 }
 
-.process-manager-list {
+.activity-monitor-all-clean {
+  background: color-mix(in srgb, var(--status-success) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-success) 30%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--status-success);
+}
+
+/* Item List */
+.activity-monitor-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.process-manager-item {
+.activity-monitor-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -211,25 +220,25 @@
   transition: border-color 0.15s ease;
 }
 
-.process-manager-item:hover {
+.activity-monitor-item:hover {
   border-color: var(--border-active);
 }
 
-.process-manager-item-running {
+.activity-monitor-item-running {
   border-left: 3px solid var(--status-success);
 }
 
-.process-manager-item-dead {
+.activity-monitor-item-dead {
   border-left: 3px solid var(--text-muted);
   opacity: 0.7;
 }
 
-.process-manager-item-orphan {
+.activity-monitor-item-orphan {
   border-left: 3px solid var(--status-error);
   background: color-mix(in srgb, var(--status-error) 5%, var(--surface-primary));
 }
 
-.process-manager-item-main {
+.activity-monitor-item-main {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -237,34 +246,35 @@
   min-width: 0;
 }
 
-.process-manager-item-header {
+.activity-monitor-item-header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-.process-manager-status {
+/* Status dots */
+.activity-monitor-status {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.process-manager-status-running {
+.activity-monitor-status-running {
   background: var(--status-success);
   box-shadow: 0 0 6px var(--status-success);
 }
 
-.process-manager-status-dead {
+.activity-monitor-status-dead {
   background: var(--text-muted);
 }
 
-.process-manager-status-orphan {
+.activity-monitor-status-orphan {
   background: var(--status-error);
-  animation: pulse-error 2s ease-in-out infinite;
+  animation: activity-pulse-error 2s ease-in-out infinite;
 }
 
-@keyframes pulse-error {
+@keyframes activity-pulse-error {
   0%, 100% {
     opacity: 1;
     box-shadow: 0 0 4px var(--status-error);
@@ -275,32 +285,43 @@
   }
 }
 
-.process-manager-pid {
+/* Text elements */
+.activity-monitor-pid {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.process-manager-workspace-id {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+.activity-monitor-separator {
   color: var(--text-muted);
 }
 
-.process-manager-orphan-label {
+.activity-monitor-folder-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.activity-monitor-orphan-label {
   font-size: var(--font-size-xs);
   color: var(--status-error);
   font-weight: 500;
 }
 
-.process-manager-item-details {
+.activity-monitor-stale-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.activity-monitor-item-details {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
 }
 
-.process-manager-detail {
+.activity-monitor-detail {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -308,18 +329,15 @@
   color: var(--text-secondary);
 }
 
-.process-manager-folder {
+.activity-monitor-folder-path {
   font-family: var(--font-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.process-manager-uptime {
-  color: var(--text-muted);
-}
-
-.process-manager-kill-btn {
+/* Kill button */
+.activity-monitor-kill-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -332,13 +350,64 @@
   transition: all 0.15s ease;
 }
 
-.process-manager-kill-btn:hover:not(:disabled) {
+.activity-monitor-kill-btn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--status-error) 15%, transparent);
   border-color: var(--status-error);
   color: var(--status-error);
 }
 
-.process-manager-kill-btn:disabled {
+.activity-monitor-kill-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Cleanup Cards */
+.activity-monitor-cleanup-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.activity-monitor-cleanup-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+.activity-monitor-cleanup-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+}
+
+.activity-monitor-cleanup-card-count {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+}
+
+.activity-monitor-cleanup-card-desc {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .activity-monitor-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .activity-monitor-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .activity-monitor-section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

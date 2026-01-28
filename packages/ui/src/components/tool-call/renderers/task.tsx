@@ -151,6 +151,7 @@ export const taskRenderer: ToolRenderer = {
   renderBody({ toolState, messageVersion, partVersion, scrollHelpers, renderMarkdown }) {
     // Track pane expansion states
     const [promptExpanded, setPromptExpanded] = createSignal(false)
+    const [approachesExpanded, setApproachesExpanded] = createSignal(false)
     const [stepsExpanded, setStepsExpanded] = createSignal(true)
     const [outputExpanded, setOutputExpanded] = createSignal(false)
 
@@ -165,6 +166,30 @@ export const taskRenderer: ToolRenderer = {
       const promptText = typeof input.prompt === "string" ? input.prompt :
                          typeof (metadata as any).prompt === "string" ? (metadata as any).prompt : null
       return promptText
+    })
+
+    // Extract approach evaluation from metadata
+    const approaches = createMemo(() => {
+      messageVersion?.()
+      partVersion?.()
+      const state = toolState()
+      if (!state) return null
+      const { metadata } = readToolStatePayload(state)
+      const evalData = (metadata as any).approachEvaluation
+      if (!evalData || !Array.isArray(evalData.approaches)) return null
+      return evalData as {
+        requirement?: string
+        approaches: Array<{
+          name: string
+          description?: string
+          selected?: boolean
+          complexity?: string
+          risk?: string
+          alignment?: string
+          testability?: string
+        }>
+        rationale?: string
+      }
     })
 
     // Extract output from metadata or state
@@ -209,9 +234,10 @@ export const taskRenderer: ToolRenderer = {
 
     // Check if we have any content to show
     const hasPrompt = () => prompt() !== null && prompt()!.length > 0
+    const hasApproaches = () => approaches() !== null
     const hasSteps = () => items().length > 0
     const hasOutput = () => output() !== null && output()!.length > 0
-    const hasAnyContent = () => hasPrompt() || hasSteps() || hasOutput()
+    const hasAnyContent = () => hasPrompt() || hasApproaches() || hasSteps() || hasOutput()
 
     if (!hasAnyContent()) return null
 
@@ -235,6 +261,65 @@ export const taskRenderer: ToolRenderer = {
                   content: ensureMarkdownContent(prompt()!, undefined, true) || prompt()!,
                   disableHighlight: false
                 })}
+              </div>
+            </Show>
+          </div>
+        </Show>
+
+        {/* Approaches Pane */}
+        <Show when={hasApproaches()}>
+          <div class="task-pane task-pane-approaches">
+            <TaskPaneHeader
+              title="Approaches"
+              isExpanded={approachesExpanded()}
+              onToggle={() => setApproachesExpanded(!approachesExpanded())}
+              count={approaches()!.approaches.length}
+            />
+            <Show when={approachesExpanded()}>
+              <div class="task-pane-content">
+                <Show when={approaches()!.requirement}>
+                  <div class="approach-requirement">{approaches()!.requirement}</div>
+                </Show>
+                <For each={approaches()!.approaches}>
+                  {(approach) => (
+                    <div class={`approach-card ${approach.selected ? "approach-card--selected" : ""}`}>
+                      <div class="approach-card-header">
+                        <span class="approach-card-name">{approach.name}</span>
+                        <Show when={approach.selected}>
+                          <span class="approach-badge approach-badge--selected">SELECTED</span>
+                        </Show>
+                      </div>
+                      <Show when={approach.description}>
+                        <div class="approach-card-description">{approach.description}</div>
+                      </Show>
+                      <div class="approach-card-badges">
+                        <Show when={approach.complexity}>
+                          <span class={`approach-badge approach-badge--${approach.complexity?.toLowerCase()}`}>
+                            {approach.complexity}
+                          </span>
+                        </Show>
+                        <Show when={approach.risk}>
+                          <span class={`approach-badge approach-badge--${approach.risk?.toLowerCase()}`}>
+                            {approach.risk}
+                          </span>
+                        </Show>
+                        <Show when={approach.alignment}>
+                          <span class={`approach-badge approach-badge--${approach.alignment?.toLowerCase()}`}>
+                            {approach.alignment}
+                          </span>
+                        </Show>
+                        <Show when={approach.testability}>
+                          <span class={`approach-badge approach-badge--${approach.testability?.toLowerCase()}`}>
+                            {approach.testability}
+                          </span>
+                        </Show>
+                      </div>
+                    </div>
+                  )}
+                </For>
+                <Show when={approaches()!.rationale}>
+                  <div class="approach-rationale">{approaches()!.rationale}</div>
+                </Show>
               </div>
             </Show>
           </div>

@@ -2,6 +2,8 @@ import { For, Match, Show, Switch, createEffect, createMemo, createSignal } from
 import MessageItem from "./message-item"
 import ToolCallGroup from "./tool-call-group"
 import SubAgentGroup from "./subagent-group"
+import PipelineGroup from "./pipeline-group"
+import { detectPipelinePattern } from "./pipeline-step"
 import type { ToolDisplayItem } from "./inline-tool-call"
 import type { InstanceMessageStore } from "../stores/message-v2/instance-store"
 import type { ClientPart, MessageInfo } from "../types/message"
@@ -353,12 +355,17 @@ export default function MessageBlock(props: MessageBlockProps) {
     | { type: "item"; item: MessageBlockItem }
     | { type: "tool-group"; tools: ToolDisplayItem[] }
     | { type: "subagent-group"; tools: ToolDisplayItem[] }
+    | { type: "pipeline-group"; tools: ToolDisplayItem[]; patternName: string }
 
   const renderSections = createMemo<RenderSection[]>(() => {
     const items = block()?.items ?? []
     const sections: RenderSection[] = []
     let pendingTools: ToolDisplayItem[] = []
     let pendingSubAgents: ToolDisplayItem[] = []
+    // Buffer for non-task tools that appear between sub-agent tasks.
+    // If a pipeline pattern is detected, these interstitial items are
+    // absorbed into the pipeline group; otherwise they're flushed normally.
+    let interstitialTools: ToolDisplayItem[] = []
 
     const flushTools = () => {
       if (pendingTools.length > 0) {
@@ -369,8 +376,19 @@ export default function MessageBlock(props: MessageBlockProps) {
 
     const flushSubAgents = () => {
       if (pendingSubAgents.length > 0) {
-        sections.push({ type: "subagent-group", tools: [...pendingSubAgents] })
+        const pipelinePattern = detectPipelinePattern(pendingSubAgents)
+        if (pipelinePattern) {
+          // Pipeline detected — interstitial tools are absorbed (not shown separately)
+          sections.push({ type: "pipeline-group", tools: [...pendingSubAgents], patternName: pipelinePattern })
+        } else {
+          // No pipeline — flush interstitial tools before the subagent group
+          if (interstitialTools.length > 0) {
+            sections.push({ type: "tool-group", tools: [...interstitialTools] })
+          }
+          sections.push({ type: "subagent-group", tools: [...pendingSubAgents] })
+        }
         pendingSubAgents = []
+        interstitialTools = []
       }
     }
 
@@ -389,9 +407,13 @@ export default function MessageBlock(props: MessageBlockProps) {
           // Sub-agent tasks: flush pending regular tools, then batch sub-agents
           flushTools()
           pendingSubAgents.push(toolItem)
+        } else if (pendingSubAgents.length > 0) {
+          // Non-task tool while sub-agents are accumulating — buffer as interstitial
+          // so we don't break pipeline detection across gaps like:
+          // task(coder) → read(file) → task(test-writer) → task(reviewer)
+          interstitialTools.push(toolItem)
         } else {
-          // Regular tools: flush pending sub-agents, then batch regular tools
-          flushSubAgents()
+          // Regular tools with no sub-agents in flight
           pendingTools.push(toolItem)
         }
       } else {
@@ -457,6 +479,16 @@ export default function MessageBlock(props: MessageBlockProps) {
   const renderSection = (section: RenderSection) => {
     if (section.type === "item") {
       return renderItem(section.item)
+    }
+    if (section.type === "pipeline-group") {
+      return (
+        <PipelineGroup
+          tools={section.tools}
+          patternName={section.patternName}
+          instanceId={props.instanceId}
+          sessionId={props.sessionId}
+        />
+      )
     }
     if (section.type === "subagent-group") {
       // Sub-agent group - render via SubAgentGroup with accordion behavior

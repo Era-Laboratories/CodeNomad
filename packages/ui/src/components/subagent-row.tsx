@@ -73,10 +73,13 @@ const SubAgentRow: Component<SubAgentRowProps> = (props) => {
     const summary = Array.isArray((metadata as any).summary) ? (metadata as any).summary : []
     const toolCount = summary.length
 
+    // Check for approach evaluation
+    const hasApproachEvaluation = Boolean((metadata as any).approachEvaluation)
+
     // Determine overall status
     const status = state.status ?? "pending"
 
-    return { title, toolCount, status }
+    return { title, toolCount, status, hasApproachEvaluation }
   })
 
   // Session navigation
@@ -111,6 +114,9 @@ const SubAgentRow: Component<SubAgentRowProps> = (props) => {
     <div class="subagent-row" data-status={taskInfo().status}>
       <Bot class="subagent-row-icon" size={16} />
       <span class="subagent-row-title">{taskInfo().title}</span>
+      <Show when={taskInfo().hasApproachEvaluation}>
+        <span class="subagent-badge subagent-badge--planned">Planned</span>
+      </Show>
       <span class="subagent-row-count">{taskInfo().toolCount} tools</span>
       <span class={`subagent-row-status ${statusIndicator().class}`} title={statusIndicator().label}>
         {statusIndicator().icon}

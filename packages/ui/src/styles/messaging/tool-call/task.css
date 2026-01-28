@@ -205,3 +205,98 @@
 .task-pane-content::-webkit-scrollbar-thumb:hover {
   background-color: var(--text-muted);
 }
+
+/* Approach Evaluation Cards */
+.task-pane-approaches .task-pane-content {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.approach-requirement {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-base);
+  margin-bottom: 0.25rem;
+}
+
+.approach-card {
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-base);
+  background-color: var(--surface-secondary);
+}
+
+.approach-card--selected {
+  border-color: var(--accent);
+  background-color: color-mix(in srgb, var(--accent) 5%, var(--surface-secondary));
+}
+
+.approach-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.approach-card-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.approach-card-description {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.approach-card-badges {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.approach-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-family-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.approach-badge--selected {
+  background-color: var(--accent);
+  color: white;
+}
+
+.approach-badge--low {
+  background-color: color-mix(in srgb, var(--status-success) 15%, transparent);
+  color: var(--status-success);
+}
+
+.approach-badge--med,
+.approach-badge--medium {
+  background-color: color-mix(in srgb, var(--status-warning) 15%, transparent);
+  color: var(--status-warning);
+}
+
+.approach-badge--high {
+  background-color: color-mix(in srgb, var(--status-error) 15%, transparent);
+  color: var(--status-error);
+}
+
+.approach-rationale {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-style: italic;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-base);
+}

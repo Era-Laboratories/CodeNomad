@@ -185,3 +185,19 @@
 .subagent-row[data-status="completed"] {
   border-left-color: var(--status-success);
 }
+
+/* ========== Badges ========== */
+.subagent-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+.subagent-badge--planned {
+  background-color: color-mix(in srgb, var(--accent-secondary, #8b5cf6) 15%, transparent);
+  color: var(--accent-secondary, #8b5cf6);
+}

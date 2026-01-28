@@ -382,6 +382,30 @@
   cursor: not-allowed;
 }
 
+/* Number input */
+.full-settings-number-input {
+  width: 64px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-base);
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.full-settings-number-input:focus {
+  border-color: var(--accent);
+}
+
+.full-settings-number-input::-webkit-inner-spin-button,
+.full-settings-number-input::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
 /* Account cards */
 .full-settings-account-card {
   padding: 16px;
@@ -696,6 +720,42 @@
 .full-settings-input:focus {
   outline: none;
   border-color: var(--accent-primary);
+}
+
+.full-settings-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.full-settings-field-row .full-settings-input {
+  flex: 1;
+}
+
+.full-settings-browse-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border-base);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.full-settings-browse-button:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+
+.full-settings-field-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 4px;
 }
 
 /* Radio group */

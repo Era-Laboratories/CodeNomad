@@ -97,9 +97,26 @@ export interface Preferences {
   /** Favorite model identifiers (e.g., "providerId/modelId") */
   modelFavorites: string[]
 
+  // GitHub
+  defaultClonePath?: string
+
   // Update checking preferences (synced from server)
   lastUpdateCheckTime?: number
   autoCheckForUpdates: boolean
+
+  // Sub-agent configuration
+  maxSubagentIterations: number
+
+  // Tool routing configuration
+  toolRouting: {
+    globalDeny: string[]
+    profiles: Record<string, {
+      addCategories?: string[]
+      removeCategories?: string[]
+      addTools?: string[]
+      denyTools?: string[]
+    } | undefined>
+  }
 }
 
 
@@ -155,6 +172,12 @@ const defaultPreferences: Preferences = {
 
   // Update checking
   autoCheckForUpdates: true,
+
+  // Sub-agent configuration
+  maxSubagentIterations: 3,
+
+  // Tool routing
+  toolRouting: { globalDeny: [], profiles: {} },
 }
 
 
@@ -221,9 +244,18 @@ function normalizePreferences(pref?: Partial<Preferences> & { agentModelSelectio
     modelThinkingSelections,
     modelFavorites,
 
+    // GitHub
+    defaultClonePath: sanitized.defaultClonePath,
+
     // Update checking
     lastUpdateCheckTime: sanitized.lastUpdateCheckTime,
     autoCheckForUpdates: sanitized.autoCheckForUpdates ?? defaultPreferences.autoCheckForUpdates,
+
+    // Sub-agent configuration
+    maxSubagentIterations: Math.min(10, Math.max(1, sanitized.maxSubagentIterations ?? defaultPreferences.maxSubagentIterations)),
+
+    // Tool routing
+    toolRouting: sanitized.toolRouting ?? defaultPreferences.toolRouting,
   }
 }
 
@@ -469,6 +501,16 @@ function toggleAutoApprovePermissions(): void {
   updatePreferences({ autoApprovePermissions: nextValue })
 }
 
+function setMaxSubagentIterations(value: number): void {
+  const clamped = Math.min(10, Math.max(1, Math.round(value)))
+  if (preferences().maxSubagentIterations === clamped) return
+  updatePreferences({ maxSubagentIterations: clamped })
+}
+
+function setDefaultClonePath(path: string): void {
+  updatePreferences({ defaultClonePath: path || undefined })
+}
+
 function addRecentFolder(path: string): void {
   updateConfig((draft) => {
     draft.recentFolders = buildRecentFolderList(path, draft.recentFolders)
@@ -683,6 +725,8 @@ interface ConfigContextValue {
   addRecentModelPreference: typeof addRecentModelPreference
   setAgentModelPreference: typeof setAgentModelPreference
   getAgentModelPreference: typeof getAgentModelPreference
+  setMaxSubagentIterations: typeof setMaxSubagentIterations
+  setDefaultClonePath: typeof setDefaultClonePath
   setDefaultModels: typeof setDefaultModels
   setModelThinkingMode: typeof setModelThinkingMode
   getModelThinkingMode: typeof getModelThinkingMode
@@ -730,6 +774,8 @@ const configContextValue: ConfigContextValue = {
   addRecentModelPreference,
   setAgentModelPreference,
   getAgentModelPreference,
+  setMaxSubagentIterations,
+  setDefaultClonePath,
   setDefaultModels,
   setModelThinkingMode,
   getModelThinkingMode,
@@ -804,6 +850,8 @@ export {
   themePreference,
   setThemePreference,
   recordWorkspaceLaunch,
+  setMaxSubagentIterations,
+  setDefaultClonePath,
   setDefaultModels,
   setModelThinkingMode,
   getModelThinkingMode,
@@ -813,6 +861,6 @@ export {
   isModelFavorite,
   getModelFavorites,
 }
- 
+
 
 
