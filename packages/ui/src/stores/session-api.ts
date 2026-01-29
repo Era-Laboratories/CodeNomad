@@ -30,6 +30,7 @@ import { updateSessionInfo } from "./message-v2/session-info"
 import { seedSessionMessagesV2 } from "./message-v2/bridge"
 import { messageStoreBus } from "./message-v2/bus"
 import { clearCacheForSession } from "../lib/global-cache"
+import { ERA_CODE_API_BASE } from "../lib/api-client"
 import { getLogger } from "../lib/logger"
 
 const log = getLogger("api")
@@ -119,6 +120,42 @@ function addSessionToCache(folder: string, apiSession: any): void {
   }
 }
 
+/**
+ * Fetch sessions from the server's disk-based storage (bypasses the OpenCode
+ * SDK instance which may not have loaded historical sessions). Returns data
+ * in the same shape the SDK would, filtered to the given directory.
+ */
+async function fetchSessionsFromStorage(folder: string): Promise<any[] | null> {
+  try {
+    const url = ERA_CODE_API_BASE
+      ? new URL("/api/sessions", ERA_CODE_API_BASE).toString()
+      : "/api/sessions"
+    const response = await fetch(url)
+    if (!response.ok) return null
+    const data: { sessions: any[] } = await response.json()
+    if (!data?.sessions?.length) return null
+
+    const normalizedFolder = normalizeFolder(folder)
+    const matched = data.sessions
+      .filter((s: any) => normalizeFolder(s.directory || "") === normalizedFolder)
+      .map((s: any) => ({
+        id: s.id,
+        title: s.title || "Untitled",
+        parentID: null, // disk storage doesn't track parent hierarchy
+        version: "0",
+        time: {
+          created: s.createdAt ?? Date.now(),
+          updated: s.updatedAt ?? Date.now(),
+        },
+      }))
+
+    return matched.length > 0 ? matched : null
+  } catch (error) {
+    log.error("Failed to fetch sessions from storage:", error)
+    return null
+  }
+}
+
 interface SessionForkResponse {
   id: string
   title?: string
@@ -171,13 +208,31 @@ async function fetchSessions(instanceId: string): Promise<void> {
       responseData = retryResponse.data
 
       if (!responseData || !Array.isArray(responseData) || responseData.length === 0) {
-        // Both calls returned empty – try localStorage cache
-        const cached = loadSessionCache(instance.folder)
-        if (cached) {
-          log.info("session.list using cached data", { instanceId, count: cached.length })
-          responseData = cached
+        // SDK returned empty — try server-side disk storage as fallback.
+        // The OpenCode instance may not load historical sessions on startup,
+        // but the server reads them directly from disk.
+        const storageSessions = await fetchSessionsFromStorage(instance.folder)
+        if (storageSessions && storageSessions.length > 0) {
+          log.info("session.list using disk storage fallback", { instanceId, count: storageSessions.length })
+          responseData = storageSessions
         } else {
-          return // genuinely no sessions
+          // Try localStorage cache as last resort
+          const cached = loadSessionCache(instance.folder)
+          if (cached) {
+            log.info("session.list using cached data", { instanceId, count: cached.length })
+            responseData = cached
+          } else {
+            // Genuinely no sessions — still initialize an empty map so SSE
+            // events (session.updated) can insert new sessions later.
+            setSessions((prev) => {
+              const next = new Map(prev)
+              if (!next.has(instanceId)) {
+                next.set(instanceId, new Map())
+              }
+              return next
+            })
+            return
+          }
         }
       }
     }
