@@ -110,8 +110,16 @@ const SubAgentRow: Component<SubAgentRowProps> = (props) => {
     }
   })
 
+  const isNavigable = () => Boolean(taskLocation())
+
   return (
-    <div class="subagent-row" data-status={taskInfo().status}>
+    <div
+      class={`subagent-row ${isNavigable() ? "subagent-row--clickable" : ""}`}
+      data-status={taskInfo().status}
+      onClick={isNavigable() ? handleGoToSession : undefined}
+      role={isNavigable() ? "button" : undefined}
+      title={isNavigable() ? `Go to ${taskInfo().title}` : taskInfo().title}
+    >
       <Bot class="subagent-row-icon" size={16} />
       <span class="subagent-row-title">{taskInfo().title}</span>
       <Show when={taskInfo().hasApproachEvaluation}>
@@ -121,17 +129,6 @@ const SubAgentRow: Component<SubAgentRowProps> = (props) => {
       <span class={`subagent-row-status ${statusIndicator().class}`} title={statusIndicator().label}>
         {statusIndicator().icon}
       </span>
-      <Show when={taskSessionId()}>
-        <button
-          type="button"
-          class="subagent-row-session-btn"
-          onClick={handleGoToSession}
-          disabled={!taskLocation()}
-          title={taskLocation() ? "Go to session" : "Session not available"}
-        >
-          Session
-        </button>
-      </Show>
     </div>
   )
 }
