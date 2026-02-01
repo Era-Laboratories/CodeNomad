@@ -29,6 +29,7 @@ import { loadMessages } from "./session-api"
 import { setSessionCompactionState } from "./session-compaction"
 import { scheduleChildCleanup, updateSessionActivity, cancelScheduledCleanup } from "./session-cleanup"
 import { processToolCallForWorkspace } from "./workspace-state"
+import { retrieveToolInstructions, flushSession } from "./instruction-retrieval"
 import { recordFirstToken, addDeltaChars, setCompleted } from "./streaming-metrics"
 import { addQuestionRequest, removeQuestionRequest } from "./question-store"
 import type { QuestionRequest } from "./question-store"
@@ -150,6 +151,13 @@ function handleMessageUpdate(instanceId: string, event: MessageUpdateEvent | Mes
         input,
         toolStatus
       )
+
+      // Fire-and-forget: retrieve tool-specific instructions when a tool starts running
+      if (toolStatus === "running") {
+        const folder = instances().get(instanceId)?.folder
+        const projectName = folder?.split("/").pop() ?? undefined
+        retrieveToolInstructions(instanceId, sessionId, part.tool, { projectName }).catch(() => {})
+      }
     }
 
     updateSessionInfo(instanceId, sessionId)
@@ -319,6 +327,9 @@ function handleSessionIdle(instanceId: string, event: EventSessionIdle): void {
     markSubagentComplete(instanceId, sessionId, parentMessageCount)
     log.info(`Marked subagent ${sessionId} as complete at parent message count ${parentMessageCount}`)
   }
+
+  // Flush retrieval access counts to server
+  flushSession(instanceId, sessionId).catch(() => {})
 
   // Update session status to idle
   withSession(instanceId, sessionId, (s) => {

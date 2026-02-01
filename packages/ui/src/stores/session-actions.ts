@@ -1,5 +1,15 @@
 import { resolvePastedPlaceholders } from "../lib/prompt-placeholders"
 import { classifyPromptIntent, shouldEscalateAgent } from "../lib/agent-intent"
+import {
+  classify,
+  mergeWithLlmResult,
+  isLlmUnavailable,
+  type ClassifyConfirmResponse,
+  type ClassificationResult,
+} from "../lib/instruction-classifier"
+import { showCaptureCard } from "./instruction-capture"
+import { getComposedInjection, retrieveSessionStartInstructions } from "./instruction-retrieval"
+import { ERA_CODE_API_BASE } from "../lib/api-client"
 import { instances } from "./instances"
 
 import { addRecentModelPreference, setAgentModelPreference, getEffectiveThinkingMode } from "./preferences"
@@ -149,6 +159,17 @@ async function sendMessage(
     }
   }
 
+  // Fire-and-forget: pre-fetch instructions for first message of a top-level session
+  {
+    const store = messageStoreBus.getOrCreate(instanceId)
+    const isFirstMessage = store.getSessionMessageIds(sessionId).length === 0
+    if (isFirstMessage && session.parentId === null) {
+      const folder = instance?.folder
+      const projectName = folder?.split("/").pop() ?? undefined
+      retrieveSessionStartInstructions(instanceId, sessionId, { projectName }).catch(() => {})
+    }
+  }
+
   const messageId = createId("msg")
   const textPartId = createId("part")
 
@@ -218,6 +239,16 @@ async function sendMessage(
     }
   }
 
+  // Inject retrieved instructions as a hidden text part (requestParts only, not optimisticParts)
+  const composedInstructions = getComposedInjection(instanceId, sessionId)
+  if (composedInstructions) {
+    requestParts.unshift({
+      id: createId("part"),
+      type: "text" as const,
+      text: composedInstructions,
+    })
+  }
+
   const store = messageStoreBus.getOrCreate(instanceId)
   const createdAt = Date.now()
 
@@ -235,6 +266,22 @@ async function sendMessage(
   withSession(instanceId, sessionId, () => {
     /* trigger reactivity for legacy session data */
   })
+
+  // Non-blocking instruction classification — fire and forget
+  try {
+    const classification = classify(resolvedPrompt)
+    if (classification) {
+      if (!classification.needsLlmConfirmation) {
+        // High confidence — show card immediately
+        showCaptureCard(classification)
+      } else {
+        // Borderline — ask server for LLM confirmation
+        confirmClassification(classification).catch(() => {})
+      }
+    }
+  } catch {
+    // Classification errors are silently swallowed — never block message send
+  }
 
   // Get effective permission state for this session
   const autoApprove = getEffectivePermissionState(instanceId, sessionId)
@@ -511,6 +558,34 @@ async function rejectQuestion(
   } catch (error) {
     log.error("Failed to reject question", error)
     throw error
+  }
+}
+
+/**
+ * Ask the server to refine a borderline classification using Haiku.
+ * Fire-and-forget: if the LLM confirms, shows the capture card.
+ * If it rejects or is unavailable, does nothing.
+ */
+async function confirmClassification(regexResult: ClassificationResult): Promise<void> {
+  try {
+    const resp = await fetch(`${ERA_CODE_API_BASE}/api/era/classify-confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: regexResult.sourceMessage }),
+    })
+
+    if (!resp.ok) return
+
+    const data = (await resp.json()) as ClassifyConfirmResponse
+
+    if (isLlmUnavailable(data)) return
+
+    const refined = mergeWithLlmResult(regexResult, data)
+    if (refined.isInstruction) {
+      showCaptureCard(refined)
+    }
+  } catch {
+    // Best-effort — silently ignore errors
   }
 }
 
