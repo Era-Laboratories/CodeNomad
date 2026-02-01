@@ -1,6 +1,8 @@
 import { Component, createMemo, Show } from "solid-js"
 import type { ToolDisplayItem } from "./inline-tool-call"
 import { readToolStatePayload } from "./tool-call/utils"
+import { cn } from "../lib/cn"
+import { Badge } from "./ui"
 
 /** Known pipeline agent types and their display metadata */
 const PIPELINE_AGENT_META: Record<string, { label: string; icon: string }> = {
@@ -130,26 +132,50 @@ const PipelineStep: Component<PipelineStepProps> = (props) => {
     return extractReviewerVerdict(props.tool)
   })
 
+  const connectorColor = () => {
+    switch (status()) {
+      case "completed": return "bg-success"
+      case "running": return "bg-warning"
+      case "error": return "bg-destructive"
+      default: return "bg-border"
+    }
+  }
+
   return (
-    <div class="pipeline-step" data-status={status()}>
-      <div class="pipeline-step-indicator">
-        <span class="pipeline-step-icon">{meta().icon}</span>
+    <div class="flex gap-3 px-3 py-1 pl-4">
+      <div class="flex w-6 flex-shrink-0 flex-col items-center">
+        <span class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-muted text-center text-sm leading-6">
+          {meta().icon}
+        </span>
         <Show when={!props.isLast}>
-          <div class="pipeline-connector" />
+          <div class={cn("mt-0.5 min-h-[8px] w-0.5 flex-1", connectorColor())} />
         </Show>
       </div>
-      <div class="pipeline-step-content">
-        <div class="pipeline-step-header">
-          <span class="pipeline-step-label">{meta().label}</span>
-          <span class={`pipeline-step-status pipeline-step-status--${status()}`}>{statusIcon()}</span>
+      <div class="min-w-0 flex-1 pb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-[13px] font-semibold text-foreground">{meta().label}</span>
+          <span
+            class={cn(
+              "flex-shrink-0 text-[13px]",
+              status() === "completed" && "text-success",
+              status() === "running" && "text-warning animate-pulse",
+              status() === "error" && "text-destructive",
+              status() === "pending" && "text-muted-foreground"
+            )}
+          >
+            {statusIcon()}
+          </span>
           <Show when={verdict()}>
-            <span class={`pipeline-verdict pipeline-verdict--${verdict()!.toLowerCase()}`}>
+            <Badge
+              variant={verdict()!.toLowerCase() === "approve" ? "success" : "destructive"}
+              class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+            >
               {verdict()}
-            </span>
+            </Badge>
           </Show>
         </div>
         <Show when={description()}>
-          <div class="pipeline-step-desc">{description()}</div>
+          <div class="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-muted-foreground">{description()}</div>
         </Show>
       </div>
     </div>

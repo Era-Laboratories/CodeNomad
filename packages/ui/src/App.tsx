@@ -90,6 +90,7 @@ import { isSessionCompactionActive } from "./stores/session-compaction"
 import { isSessionBusy as checkSessionBusy } from "./stores/session-status"
 import { modelSelectorRequestedSignal, acknowledgeModelSelectorRequest, clearContinueFlag, shouldContinueAfterSwitch, instanceInfoRequestedSignal, acknowledgeInstanceInfoRequest } from "./stores/ui-actions"
 import { sendMessage } from "./stores/session-actions"
+import { sseManager } from "./lib/sse-manager"
 
 const log = getLogger("actions")
 
@@ -320,6 +321,13 @@ const App: Component = () => {
     const instance = activeInstance()
     if (!instance) return 0
     return getActiveMcpServerCount(instance.id, instance.folder)
+  })
+
+  // Connection status for bottom status bar
+  const connectionStatus = createMemo(() => {
+    const instance = activeInstance()
+    if (!instance) return null
+    return sseManager.getStatus(instance.id)
   })
 
   // Check if we're viewing a child session (not the parent)
@@ -802,27 +810,27 @@ const App: Component = () => {
 
       <Dialog open={Boolean(launchErrorBinary())} modal>
         <Dialog.Portal>
-          <Dialog.Overlay class="modal-overlay" />
+          <Dialog.Overlay class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" />
           <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Content class="modal-surface w-full max-w-md p-6 flex flex-col gap-6">
+            <Dialog.Content class="bg-background/95 backdrop-blur-sm rounded-xl border border-border shadow-xl w-full max-w-md p-6 flex flex-col gap-6">
               <div>
                 <Dialog.Title class="text-xl font-semibold text-primary">Unable to launch OpenCode</Dialog.Title>
-                <Dialog.Description class="text-sm text-secondary mt-2 break-words">
+                <Dialog.Description class="text-sm text-muted-foreground mt-2 break-words">
                   Install the OpenCode CLI and make sure it is available in your PATH, or pick a custom binary from
                   Advanced Settings.
                 </Dialog.Description>
               </div>
 
-              <div class="rounded-lg border border-base bg-surface-secondary p-4">
-                <p class="text-xs font-medium text-muted uppercase tracking-wide mb-1">Binary path</p>
+              <div class="rounded-lg border border-border bg-secondary p-4">
+                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Binary path</p>
                 <p class="text-sm font-mono text-primary break-all">{launchErrorPath()}</p>
               </div>
 
               <div class="flex justify-end gap-2">
-                <button type="button" class="selector-button selector-button-secondary" onClick={handleLaunchErrorAdvanced}>
+                <button type="button" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-secondary text-secondary-foreground border border-border hover:bg-accent transition-colors" onClick={handleLaunchErrorAdvanced}>
                   Open Advanced Settings
                 </button>
-                <button type="button" class="selector-button selector-button-primary" onClick={handleLaunchErrorClose}>
+                <button type="button" class="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" onClick={handleLaunchErrorClose}>
                   Close
                 </button>
               </div>
@@ -1123,6 +1131,7 @@ const App: Component = () => {
             gitBranch={gitStatus()?.branch}
             gitAhead={gitStatus()?.ahead}
             gitBehind={gitStatus()?.behind}
+            connectionStatus={connectionStatus()}
             onModelClick={() => setModelSelectorOpen(true)}
             onContextClick={() => {
               // TODO: Open session summary modal

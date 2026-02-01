@@ -2,7 +2,7 @@ import { Component, createMemo, createSignal, For, Show } from "solid-js"
 import { Bot } from "lucide-solid"
 import SubAgentRow from "./subagent-row"
 import type { ToolDisplayItem } from "./inline-tool-call"
-import "../styles/components/subagent.css"
+import { cn } from "../lib/cn"
 
 interface SubAgentGroupProps {
   tools: ToolDisplayItem[]
@@ -74,7 +74,7 @@ const SubAgentGroup: Component<SubAgentGroupProps> = (props) => {
   if (isSingleAgent()) {
     const tool = props.tools[0]
     return (
-      <div class="subagent-single">
+      <div class="my-2">
         <SubAgentRow
           toolPart={tool.toolPart}
           instanceId={props.instanceId}
@@ -86,29 +86,48 @@ const SubAgentGroup: Component<SubAgentGroupProps> = (props) => {
 
   // For multiple agents, render stacked group
   return (
-    <div class="subagent-group">
+    <div class="my-2 flex flex-col overflow-hidden rounded-r-md border-l-[3px] border-l-violet-500 bg-secondary">
       <button
         type="button"
-        class={`subagent-stack-header subagent-stack-header--${dominantStatus()}`}
+        class={cn(
+          "flex w-full items-center gap-2 border-none bg-transparent px-2.5 py-1.5 text-left text-foreground transition-colors duration-150 cursor-pointer",
+          "hover:bg-muted"
+        )}
         onClick={toggleGroup}
         aria-expanded={groupExpanded()}
         title={`${props.tools.length} sub-agents — ${statusSummary()}`}
       >
-        <span class="subagent-stack-icon-wrapper">
-          <Bot class="subagent-stack-icon" size={16} />
-          <span class="subagent-stack-count">({props.tools.length})</span>
+        <span class="flex flex-shrink-0 items-center gap-1">
+          <Bot
+            class={cn(
+              "text-violet-500",
+              dominantStatus() === "running" && "text-warning animate-pulse",
+              dominantStatus() === "error" && "text-destructive"
+            )}
+            size={16}
+          />
+          <span
+            class={cn(
+              "font-mono text-xs font-semibold text-violet-500",
+              dominantStatus() === "running" && "text-warning",
+              dominantStatus() === "error" && "text-destructive"
+            )}
+          >
+            ({props.tools.length})
+          </span>
         </span>
-        <span class="subagent-stack-summary">{statusSummary()}</span>
+        <span class="font-mono text-xs text-muted-foreground">{statusSummary()}</span>
       </button>
 
       <Show when={groupExpanded()}>
-        <div class="subagent-group-content">
+        <div class="flex flex-col pb-1">
           <For each={props.tools}>
             {(tool) => (
               <SubAgentRow
                 toolPart={tool.toolPart}
                 instanceId={props.instanceId}
                 sessionId={props.sessionId}
+                inGroup
               />
             )}
           </For>

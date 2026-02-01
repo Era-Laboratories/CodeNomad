@@ -6,8 +6,6 @@ import { InstanceConfigProvider } from "./stores/instance-config"
 import { runtimeEnv } from "./lib/runtime-env"
 import { initTestInjection } from "./lib/test-injection"
 import "./index.css"
-import "./styles/components/pipeline.css"
-import "./styles/components/subagent.css"
 import "@git-diff-view/solid/styles/diff-view-pure.css"
 
 initTestInjection()

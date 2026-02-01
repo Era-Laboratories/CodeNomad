@@ -1,6 +1,7 @@
 import { createMemo, Show } from "solid-js"
 import { Select } from "@kobalte/core/select"
-import { ChevronDown, Brain, Check } from "lucide-solid"
+import { ChevronDown, Check } from "lucide-solid"
+import { cn } from "../lib/cn"
 import {
   setModelThinkingMode,
   getEffectiveThinkingMode,
@@ -128,9 +129,8 @@ export default function ThinkingSelector(props: ThinkingSelectorProps) {
 
   return (
     <Show when={supportsReasoning()}>
-      <div class="sidebar-selector thinking-selector">
-        <label class="selector-label">
-          <Brain class="w-3 h-3 inline-block mr-1 opacity-70" />
+      <div class="flex flex-col gap-1.5 w-full">
+        <label class="text-xs font-semibold uppercase tracking-wide block text-muted-foreground">
           {getLabelForFlavor(flavor())}
         </label>
         <Select<ThinkingOption>
@@ -143,37 +143,37 @@ export default function ThinkingSelector(props: ThinkingSelectorProps) {
           itemComponent={(itemProps) => (
             <Select.Item
               item={itemProps.item}
-              class="thinking-selector-item"
+              class="w-full flex items-center gap-2 px-3 py-2 text-left rounded cursor-pointer transition-colors outline-none text-foreground hover:bg-accent data-[highlighted]:bg-accent data-[selected]:bg-accent"
             >
-              <Select.ItemLabel class="thinking-selector-item-content">
-                <span class="thinking-selector-item-label">{itemProps.item.rawValue.label}</span>
-                <span class="thinking-selector-item-description">{itemProps.item.rawValue.description}</span>
+              <Select.ItemLabel class="flex-1 flex flex-col min-w-0">
+                <span class="text-sm font-medium text-foreground">{itemProps.item.rawValue.label}</span>
+                <span class="text-xs text-muted-foreground">{itemProps.item.rawValue.description}</span>
               </Select.ItemLabel>
-              <Select.ItemIndicator class="thinking-selector-item-indicator">
+              <Select.ItemIndicator class="flex-shrink-0 text-info">
                 <Check class="w-3.5 h-3.5" />
               </Select.ItemIndicator>
             </Select.Item>
           )}
         >
-          <Select.Trigger class="selector-trigger thinking-selector-trigger">
+          <Select.Trigger class="w-full inline-flex items-center justify-between gap-2 px-2 py-1.5 border rounded outline-none transition-colors text-xs bg-background border-border text-foreground hover:bg-accent focus:ring-2 focus:ring-info">
             <Select.Value<ThinkingOption>>
               {(state) => (
-                <div class="selector-trigger-label">
-                  <span class="selector-trigger-primary">{state.selectedOption()?.label ?? "Auto"}</span>
+                <div class="flex flex-col min-w-0">
+                  <span class="text-sm font-medium truncate text-foreground">{state.selectedOption()?.label ?? "Auto"}</span>
                 </div>
               )}
             </Select.Value>
-            <Select.Icon class="selector-trigger-icon">
+            <Select.Icon class="flex-shrink-0 text-muted-foreground">
               <ChevronDown class="w-3 h-3" />
             </Select.Icon>
           </Select.Trigger>
           <Select.Portal>
-            <Select.Content class="selector-popover thinking-selector-popover">
-              <Select.Listbox class="thinking-selector-listbox" />
+            <Select.Content class="rounded-md shadow-lg overflow-hidden min-w-[200px] bg-background border border-border z-[2200]">
+              <Select.Listbox class="p-1" />
             </Select.Content>
           </Select.Portal>
         </Select>
-        <p class="thinking-selector-hint">
+        <p class="mt-1 text-xs italic text-muted-foreground">
           {getHintForMode(currentMode(), flavor())}
         </p>
       </div>

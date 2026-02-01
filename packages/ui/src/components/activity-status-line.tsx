@@ -6,6 +6,7 @@ import { getActiveQuestion } from "../stores/question-store"
 import { getRandomLoadingVerb } from "../lib/loading-verbs"
 import { getRandomPenguinFact } from "../lib/penguin-facts"
 import { getStreamingMetrics, sampleCurrentRate, getRollingTokPerSec } from "../stores/streaming-metrics"
+import { cn } from "../lib/cn"
 
 interface ActivityStatusLineProps {
   instanceId: string
@@ -139,47 +140,68 @@ export default function ActivityStatusLine(props: ActivityStatusLineProps) {
 
   const showPenguinFact = () => isActivelyWorking()
 
-  // CSS modifier class for the status bar state
-  const stateClass = () => {
+  // Dot color class based on display mode
+  const dotClass = () => {
     const mode = displayMode()
-    if (mode === "idle") return "activity-status-line--idle"
-    if (mode === "waiting-question" || mode === "waiting-permission") return "activity-status-line--waiting"
-    if (mode === "compacting") return "activity-status-line--compacting"
-    return "activity-status-line--working"
+    if (mode === "idle") return "bg-muted-foreground opacity-70"
+    if (mode === "working") return "bg-info animate-activity-dot-pulse"
+    if (mode === "compacting") return "bg-violet-500 animate-activity-dot-pulse"
+    // waiting-question or waiting-permission
+    return "bg-warning"
+  }
+
+  // Verb color class based on display mode
+  const verbColorClass = () => {
+    const mode = displayMode()
+    if (mode === "idle") return "text-muted-foreground"
+    if (mode === "working") return "text-info"
+    if (mode === "compacting") return "text-violet-400"
+    if (mode === "waiting-question" || mode === "waiting-permission") return "text-warning"
+    return "text-muted-foreground"
   }
 
   return (
-    <div class={`activity-status-line ${stateClass()}`}>
-      <div class="activity-status-main">
-        <span class={`activity-status-dot activity-status-dot--${displayMode()}`} />
-        <span class="activity-status-verb">{verbText()}</span>
+    <div class="shrink-0 border-t border-border px-3 py-1.5 bg-background max-sm:px-2 max-sm:py-1">
+      <div class="flex items-center gap-2 text-sm text-muted-foreground max-sm:flex-wrap max-sm:gap-x-2 max-sm:gap-y-1">
+        <span class={cn("size-2 rounded-full shrink-0", dotClass())} />
+        <span class={cn("font-medium", verbColorClass())}>{verbText()}</span>
         <Show when={isActivelyWorking()}>
-          <span class="activity-status-elapsed">{formatElapsed(elapsedSeconds())}</span>
+          <span class="text-muted-foreground tabular-nums">{formatElapsed(elapsedSeconds())}</span>
         </Show>
         <Show when={tokenBreakdown()}>
-          <span class="activity-status-separator">|</span>
-          <span class="activity-status-tokens">
-            <span class="activity-metric-in">↑ {formatTokenCount(tokenBreakdown()!.in)}</span>
+          <span class="text-border">|</span>
+          <span class="text-muted-foreground tabular-nums">
+            <span class="text-muted-foreground">
+              {"\u2191 "}{formatTokenCount(tokenBreakdown()!.in)}
+            </span>
             {" "}
-            <span class="activity-metric-out">↓ {tokenBreakdown()!.isEstimate ? "~" : ""}{formatTokenCount(tokenBreakdown()!.out)}</span>
+            <span class={cn(
+              "text-muted-foreground",
+              displayMode() === "working" && "text-info"
+            )}>
+              {"\u2193 "}{tokenBreakdown()!.isEstimate ? "~" : ""}{formatTokenCount(tokenBreakdown()!.out)}
+            </span>
           </span>
         </Show>
         <Show when={!isActivelyWorking() && ttft() !== null}>
-          <span class="activity-status-separator">|</span>
-          <span class="activity-status-ttft">TTFT {ttft()!.toFixed(1)}s</span>
+          <span class="text-border">|</span>
+          <span class="text-muted-foreground tabular-nums">TTFT {ttft()!.toFixed(1)}s</span>
         </Show>
         <Show when={tokensPerSec() !== null}>
-          <span class="activity-status-separator">|</span>
-          <span class="activity-status-tps">{tokensPerSec()} tok/s</span>
+          <span class="text-border">|</span>
+          <span class={cn(
+            "text-muted-foreground tabular-nums",
+            displayMode() === "working" && "text-info"
+          )}>{tokensPerSec()} tok/s</span>
         </Show>
         <Show when={cost() > 0}>
-          <span class="activity-status-separator">|</span>
-          <span class="activity-status-cost">${cost().toFixed(4)}</span>
+          <span class="text-border">|</span>
+          <span class="text-muted-foreground tabular-nums">${cost().toFixed(4)}</span>
         </Show>
       </div>
       <Show when={showPenguinFact()}>
-        <div class="activity-status-fact">
-          <span class="activity-status-fact-icon">&gt;</span>
+        <div class="flex items-baseline gap-1.5 text-xs text-muted-foreground pl-5 pt-0.5 animate-activity-fact-fade max-sm:pl-4">
+          <span class="text-muted-foreground font-semibold shrink-0">&gt;</span>
           <span>{penguinFact()}</span>
         </div>
       </Show>

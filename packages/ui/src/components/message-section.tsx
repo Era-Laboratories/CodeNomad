@@ -7,6 +7,7 @@ import { getSessionInfo } from "../stores/sessions"
 import { messageStoreBus } from "../stores/message-v2/bus"
 import { useScrollCache } from "../lib/hooks/use-scroll-cache"
 import type { InstanceMessageStore } from "../stores/message-v2/instance-store"
+import { cn } from "../lib/cn"
 
 const SCROLL_SCOPE = "session"
 const SCROLL_SENTINEL_MARGIN_PX = 48
@@ -75,7 +76,7 @@ export default function MessageSection(props: MessageSectionProps) {
     const anchor = document.getElementById(getMessageAnchorId(segment.messageId))
     anchor?.scrollIntoView({ block: "start", behavior: "smooth" })
   }
- 
+
   const lastAssistantIndex = createMemo(() => {
     const ids = messageIds()
     const resolvedStore = store()
@@ -87,7 +88,7 @@ export default function MessageSection(props: MessageSectionProps) {
     }
     return -1
   })
- 
+
   const [timelineSegments, setTimelineSegments] = createSignal<TimelineSegment[]>([])
   const hasTimelineSegments = () => timelineSegments().length > 0
 
@@ -136,7 +137,7 @@ export default function MessageSection(props: MessageSectionProps) {
     }
   }
   const [activeMessageId, setActiveMessageId] = createSignal<string | null>(null)
- 
+
   const changeToken = createMemo(() => String(sessionRevision()))
   const isActive = createMemo(() => props.isActive !== false)
 
@@ -229,7 +230,7 @@ export default function MessageSection(props: MessageSectionProps) {
       clearQuoteSelection()
     }
   }
- 
+
   function updateScrollIndicatorsFromVisibility() {
     const hasItems = messageIds().length > 0
     const bottomVisible = bottomSentinelVisible()
@@ -244,7 +245,7 @@ export default function MessageSection(props: MessageSectionProps) {
       // scrollCache.persist(containerRef, { atBottomOffset: SCROLL_SENTINEL_MARGIN_PX })
     })
   }
- 
+
   function scrollToBottom(immediate = false, options?: { suppressAutoAnchor?: boolean }) {
     if (!containerRef) return
     const sentinel = bottomSentinel()
@@ -295,7 +296,7 @@ export default function MessageSection(props: MessageSectionProps) {
     if (!isActive()) return
     requestScrollToBottom(true)
   }
- 
+
   function scheduleAnchorScroll(immediate = false) {
     if (!autoScroll()) return
     if (!isActive()) {
@@ -382,7 +383,7 @@ export default function MessageSection(props: MessageSectionProps) {
       selection?.removeAllRanges()
     }
   }
- 
+
   function handleContentRendered() {
     if (props.loading) {
       return
@@ -584,7 +585,7 @@ export default function MessageSection(props: MessageSectionProps) {
       document.removeEventListener("pointerdown", handlePointerDown)
     })
   })
- 
+
   createEffect(() => {
     if (props.loading) {
       clearQuoteSelection()
@@ -678,7 +679,7 @@ export default function MessageSection(props: MessageSectionProps) {
     observer.observe(bottomTarget)
     onCleanup(() => observer.disconnect())
   })
- 
+
   createEffect(() => {
     const container = scrollElement()
     const ids = messageIds()
@@ -745,7 +746,7 @@ export default function MessageSection(props: MessageSectionProps) {
       }
     })
   })
- 
+
   onCleanup(() => {
 
 
@@ -769,14 +770,23 @@ export default function MessageSection(props: MessageSectionProps) {
   })
 
   return (
-    <div class="message-stream-container">
-      <div class={`message-layout${hasTimelineSegments() ? " message-layout--with-timeline" : ""}`}>
-        <div class="message-stream-shell" ref={setShellElement}>
-          <div class="message-stream" ref={setContainerRef} onScroll={handleScroll} onMouseUp={handleStreamMouseUp}>
+    <div class="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+      <div class={cn(
+        "grid grid-cols-[minmax(0,1fr)] w-full min-h-0 flex-1 relative",
+        hasTimelineSegments() && "grid-cols-[minmax(0,1fr)_64px] max-sm:grid-cols-[minmax(0,1fr)_40px]"
+      )}>
+        <div class="min-h-0 flex flex-col relative" ref={setShellElement}>
+          <div
+            class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 p-4 px-5 bg-background text-inherit overscroll-contain"
+            style={{ contain: "style" }}
+            ref={setContainerRef}
+            onScroll={handleScroll}
+            onMouseUp={handleStreamMouseUp}
+          >
             <div ref={setTopSentinel} aria-hidden="true" style={{ height: "1px" }} />
             <Show when={!props.loading && messageIds().length === 0}>
-              <div class="empty-state">
-                <div class="empty-state-content">
+              <div class="flex-1 flex items-center justify-center p-12">
+                <div class="text-center max-w-sm">
                   <div class="flex flex-col items-center gap-3 mb-6">
                     <img src={codeNomadLogo} alt="Era Code logo" class="h-48 w-auto" loading="lazy" />
                     <h1 class="text-3xl font-semibold text-primary">Era Code</h1>
@@ -796,14 +806,14 @@ export default function MessageSection(props: MessageSectionProps) {
                 </div>
               </div>
             </Show>
- 
+
             <Show when={props.loading}>
-              <div class="loading-state">
-                <div class="spinner" />
+              <div class="flex-1 flex flex-col items-center justify-center gap-4 p-12">
+                <div class="w-8 h-8 border-2 border-border border-t-primary rounded-full animate-spin" />
                 <p>Loading messages...</p>
               </div>
             </Show>
- 
+
             <MessageBlockList
               instanceId={props.instanceId}
               sessionId={props.sessionId}
@@ -825,27 +835,27 @@ export default function MessageSection(props: MessageSectionProps) {
 
 
           </div>
- 
+
           <Show when={hasNewActivity()}>
             <button
               type="button"
-              class="new-activity-pill"
+              class="absolute top-3 left-1/2 -translate-x-1/2 z-[15] inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-primary bg-primary text-primary-foreground text-sm font-medium cursor-pointer shadow-lg animate-in fade-in slide-in-from-top-2"
               onClick={() => scrollToBottom(false, { suppressAutoAnchor: false })}
               aria-label="New activity - scroll to latest"
             >
-              New Activity ↓
+              New Activity &#8595;
             </button>
           </Show>
 
           <Show when={showScrollBottomButton()}>
-            <div class="message-scroll-button-wrapper">
+            <div class="absolute right-4 bottom-4 flex flex-col gap-2 items-end">
               <button
                 type="button"
-                class="message-scroll-button"
+                class="inline-flex items-center justify-center w-11 h-11 rounded-full border border-border bg-transparent text-foreground shadow-md transition-all duration-200 hover:bg-accent hover:-translate-y-px"
                 onClick={() => scrollToBottom(false, { suppressAutoAnchor: false })}
                 aria-label="Scroll to latest message"
               >
-                <span class="message-scroll-icon" aria-hidden="true">↓</span>
+                <span class="text-lg text-primary" aria-hidden="true">&#8595;</span>
               </button>
             </div>
           </Show>
@@ -853,14 +863,22 @@ export default function MessageSection(props: MessageSectionProps) {
           <Show when={quoteSelection()}>
             {(selection) => (
               <div
-                class="message-quote-popover"
+                class="absolute z-[5] flex items-center justify-center pointer-events-none"
                 style={{ top: `${selection().top}px`, left: `${selection().left}px` }}
               >
-                <div class="message-quote-button-group">
-                  <button type="button" class="message-quote-button" onClick={() => handleQuoteSelectionRequest("quote")}>
+                <div class="pointer-events-auto inline-flex rounded-full border border-border bg-popover shadow-lg overflow-hidden">
+                  <button
+                    type="button"
+                    class="pointer-events-auto inline-flex items-center justify-center px-3.5 py-1.5 text-sm font-medium border-none bg-transparent text-foreground transition-colors duration-200 hover:bg-accent"
+                    onClick={() => handleQuoteSelectionRequest("quote")}
+                  >
                     Add as quote
                   </button>
-                  <button type="button" class="message-quote-button" onClick={() => handleQuoteSelectionRequest("code")}>
+                  <button
+                    type="button"
+                    class="pointer-events-auto inline-flex items-center justify-center px-3.5 py-1.5 text-sm font-medium border-none bg-transparent text-foreground transition-colors duration-200 hover:bg-accent border-l border-l-border"
+                    onClick={() => handleQuoteSelectionRequest("code")}
+                  >
                     Add as code
                   </button>
                 </div>
@@ -868,9 +886,9 @@ export default function MessageSection(props: MessageSectionProps) {
             )}
           </Show>
         </div>
- 
+
         <Show when={hasTimelineSegments()}>
-          <div class="message-timeline-sidebar">
+          <div class="w-16 max-sm:w-10 min-h-0 flex flex-col border-l border-border/50">
             <MessageTimeline
               segments={timelineSegments()}
               onSegmentClick={handleTimelineSegmentClick}

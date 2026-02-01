@@ -1,7 +1,8 @@
-import Switch from "@suid/material/Switch"
+import { Switch } from "./ui/switch"
 import { Dialog } from "@kobalte/core/dialog"
 import { Plus } from "lucide-solid"
 import { For, Show, createMemo, createSignal, type Component } from "solid-js"
+import { cn } from "../lib/cn"
 import type { Instance, RawMcpStatus } from "../types/instance"
 import type { McpServerConfig } from "../stores/preferences"
 import { instances } from "../stores/instances"
@@ -211,15 +212,16 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
   }
 
   const renderStatusDotClass = (row: McpRow) => {
-    if (pending()[row.name]) return "status-dot animate-pulse"
+    const base = "w-2 h-2 rounded-full"
+    if (pending()[row.name]) return cn(base, "bg-warning animate-pulse")
 
     const status = row.runtime?.status
-    if (status === "connected") return "status-dot ready animate-pulse"
-    if (status === "failed" || status === "needs_auth" || status === "needs_client_registration") return "status-dot error"
-    if (status === "disabled") return "status-dot stopped"
+    if (status === "connected") return cn(base, "bg-success animate-pulse")
+    if (status === "failed" || status === "needs_auth" || status === "needs_client_registration") return cn(base, "bg-destructive")
+    if (status === "disabled") return cn(base, "bg-muted-foreground")
 
     // Runtime status unknown/not reported.
-    return row.desiredEnabled ? "status-dot" : "status-dot stopped"
+    return row.desiredEnabled ? cn(base, "bg-muted-foreground") : cn(base, "bg-muted-foreground")
   }
 
   const renderStatusLabel = (row: McpRow) => {
@@ -237,14 +239,14 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
   return (
     <div class={props.class}>
       <div class="flex items-center justify-between gap-2 mb-2">
-        <div class="text-[11px] font-semibold uppercase tracking-wide text-secondary">Servers</div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Servers</div>
         <div class="flex items-center gap-2">
-          <button type="button" class="control-panel-inline-button" onClick={() => setAddModalOpen(true)}>
+          <button type="button" class="inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium transition-colors bg-secondary border border-border text-muted-foreground hover:bg-accent hover:text-foreground" onClick={() => setAddModalOpen(true)}>
             <Plus class="w-3.5 h-3.5" />
             Add
           </button>
           <Show when={props.onManage}>
-            <button type="button" class="control-panel-inline-button" onClick={() => props.onManage?.()}>
+            <button type="button" class="inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs font-medium transition-colors bg-secondary border border-border text-muted-foreground hover:bg-accent hover:text-foreground" onClick={() => props.onManage?.()}>
               Settings
             </button>
           </Show>
@@ -253,19 +255,19 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
 
       <Dialog open={addModalOpen()} onOpenChange={(open) => setAddModalOpen(open)}>
         <Dialog.Portal>
-          <Dialog.Overlay class="modal-overlay" />
+          <Dialog.Overlay class="fixed inset-0 z-50 bg-black/50" />
           <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <Dialog.Content class="modal-surface w-full max-w-xl">
-              <header class="px-6 py-4 border-b" style={{ "border-color": "var(--border-base)" }}>
+            <Dialog.Content class="rounded-lg shadow-2xl flex flex-col bg-background text-foreground w-full max-w-xl">
+              <header class="px-6 py-4 border-b border-border">
                 <Dialog.Title class="text-lg font-semibold text-primary">Add MCP Server</Dialog.Title>
-                <div class="text-[11px] text-secondary mt-1">Adds to the global registry and connects this instance.</div>
+                <div class="text-xs text-muted-foreground mt-1">Adds to the global registry and connects this instance.</div>
               </header>
 
               <div class="p-6 space-y-4">
                 <div class="flex flex-col gap-1">
-                  <label class="text-xs text-secondary">Name</label>
+                  <label class="text-xs text-muted-foreground">Name</label>
                   <input
-                    class="selector-search-input"
+                    class="w-full px-3 py-2 text-sm bg-transparent border-b border-border outline-none placeholder:text-muted-foreground"
                     value={newName()}
                     onInput={(event) => setNewName(event.currentTarget.value)}
                     placeholder="e.g. playwright-mcp"
@@ -273,9 +275,9 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
                 </div>
 
                 <div class="flex flex-col gap-1">
-                  <label class="text-xs text-secondary">Type</label>
+                  <label class="text-xs text-muted-foreground">Type</label>
                   <select
-                    class="selector-search-input"
+                    class="w-full px-3 py-2 text-sm bg-transparent border-b border-border outline-none placeholder:text-muted-foreground"
                     value={newType()}
                     onChange={(event) => setNewType(event.currentTarget.value as McpServerConfig["type"])}
                   >
@@ -286,22 +288,22 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
 
                 <Show when={newType() === "local"}>
                   <div class="flex flex-col gap-1">
-                    <label class="text-xs text-secondary">Command</label>
+                    <label class="text-xs text-muted-foreground">Command</label>
                     <input
-                      class="selector-search-input"
+                      class="w-full px-3 py-2 text-sm bg-transparent border-b border-border outline-none placeholder:text-muted-foreground"
                       value={newCommand()}
                       onInput={(event) => setNewCommand(event.currentTarget.value)}
                       placeholder="npx -y @modelcontextprotocol/server-playwright"
                     />
-                    <div class="text-[11px] text-secondary">Tip: use full command + args.</div>
+                    <div class="text-xs text-muted-foreground">Tip: use full command + args.</div>
                   </div>
                 </Show>
 
                 <Show when={newType() === "remote"}>
                   <div class="flex flex-col gap-1">
-                    <label class="text-xs text-secondary">URL</label>
+                    <label class="text-xs text-muted-foreground">URL</label>
                     <input
-                      class="selector-search-input"
+                      class="w-full px-3 py-2 text-sm bg-transparent border-b border-border outline-none placeholder:text-muted-foreground"
                       value={newUrl()}
                       onInput={(event) => setNewUrl(event.currentTarget.value)}
                       placeholder="https://mcp.example.com/mcp"
@@ -310,11 +312,11 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
                 </Show>
               </div>
 
-              <div class="px-6 py-4 border-t flex items-center justify-end gap-2" style={{ "border-color": "var(--border-base)" }}>
-                <button type="button" class="selector-button selector-button-secondary" onClick={() => setAddModalOpen(false)}>
+              <div class="px-6 py-4 border-t border-border flex items-center justify-end gap-2">
+                <button type="button" class="inline-flex items-center justify-center gap-2 font-medium px-4 py-2 rounded-md transition-colors border border-border bg-background text-foreground hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => setAddModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="button" class="selector-button" onClick={() => void addMcpServer()}>
+                <button type="button" class="inline-flex items-center justify-center gap-2 font-medium px-4 py-2 rounded-md transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => void addMcpServer()}>
                   Add & Connect
                 </button>
               </div>
@@ -323,20 +325,20 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
         </Dialog.Portal>
       </Dialog>
 
-      <Show when={rows().length > 0} fallback={<p class="control-panel-empty">No MCP servers configured yet.</p>}>
+      <Show when={rows().length > 0} fallback={<p class="text-xs py-2 text-muted-foreground">No MCP servers configured yet.</p>}>
         <div class="space-y-1.5">
           <For each={rows()}>
             {(row) => (
-              <div class="px-2 py-2 rounded-lg border bg-surface-secondary border-base">
+              <div class="px-2 py-2 rounded-lg border bg-secondary border-border">
                 <div class="flex items-center justify-between gap-2">
                   <div class="flex flex-col min-w-0">
                     <div class="text-xs text-primary font-medium truncate">
                       {row.name}
                       <Show when={!row.hasRegistryEntry}>
-                        <span class="text-[11px] text-secondary"> (project)</span>
+                        <span class="text-xs text-muted-foreground"> (project)</span>
                       </Show>
                     </div>
-                    <div class="flex items-center gap-2 text-[11px] text-secondary">
+                    <div class="flex items-center gap-2 text-xs text-muted-foreground">
                       <div class={renderStatusDotClass(row)} />
                       <span>{renderStatusLabel(row)}</span>
                     </div>
@@ -345,16 +347,13 @@ const InstanceMcpControl: Component<InstanceMcpControlProps> = (props) => {
                   <Switch
                     checked={row.desiredEnabled}
                     disabled={!instance().client || Boolean(pending()[row.name])}
-                    color="success"
-                    size="small"
-                    inputProps={{ "aria-label": `Toggle ${row.name} MCP server` }}
-                    onChange={(_, checked) => toggleGlobalDesired(row.name, Boolean(checked))}
+                    onChange={(checked) => toggleGlobalDesired(row.name, Boolean(checked))}
                   />
                 </div>
 
                 <Show when={row.runtime?.error}>
                   {(error) => (
-                    <div class="text-[11px] mt-1 break-words" style={{ color: "var(--status-error)" }}>
+                    <div class="text-xs mt-1 break-words text-destructive">
                       {error()}
                     </div>
                   )}

@@ -4,6 +4,7 @@ import type { Attachment } from "../../types/attachment"
 import type { ClientPart } from "../../types/message"
 import MessageSection from "../message-section"
 import ActivityStatusLine from "../activity-status-line"
+import InstructionCaptureCard from "../instruction-capture-card"
 import { messageStoreBus } from "../../stores/message-v2/bus"
 import PromptInput from "../prompt-input"
 import { instances } from "../../stores/instances"
@@ -229,7 +230,7 @@ export const SessionView: Component<SessionViewProps> = (props) => {
       when={session()}
       fallback={
         <div class="flex items-center justify-center h-full">
-          <div class="text-center text-gray-500">Session not found</div>
+          <div class="text-center text-muted-foreground">Session not found</div>
         </div>
       }
     >
@@ -237,7 +238,7 @@ export const SessionView: Component<SessionViewProps> = (props) => {
         const activeSession = sessionAccessor()
         if (!activeSession) return null
         return (
-          <div class="session-view">
+          <div class="flex flex-1 min-h-0 flex-col bg-background overflow-hidden">
             <MessageSection
                instanceId={props.instanceId}
                sessionId={activeSession.id}
@@ -267,6 +268,8 @@ export const SessionView: Component<SessionViewProps> = (props) => {
               sessionId={activeSession.id}
               store={messageStore}
             />
+
+            <InstructionCaptureCard />
 
             <PromptInput
               instanceId={props.instanceId}

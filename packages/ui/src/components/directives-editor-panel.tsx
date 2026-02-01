@@ -1,6 +1,8 @@
 import { Component, Show, For, createSignal, createEffect, createMemo } from "solid-js"
 import { Dialog } from "@kobalte/core/dialog"
 import { X, FileText, Save, RefreshCw, AlertTriangle, Check, Globe, FolderCog, Undo2, Download, Eye, FileCode, Sparkles, GitCompare, ChevronDown, ChevronRight, Plus, Pencil, Trash2, Search, LayoutGrid, CheckCircle2, XCircle } from "lucide-solid"
+import { cn } from "../lib/cn"
+import { Button } from "./ui"
 import { Markdown } from "./markdown"
 import { getLogger } from "../lib/logger"
 import { ERA_CODE_API_BASE } from "../lib/api-client"
@@ -567,8 +569,8 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
         <Dialog.Overlay class="settings-panel-overlay" />
         <div class="fixed inset-y-0 right-0 z-50 flex">
           <Dialog.Content class="settings-panel directives-editor-panel">
-            <div class="settings-panel-header">
-              <Dialog.Title class="settings-panel-title">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-border">
+              <Dialog.Title class="text-sm font-semibold text-foreground">
                 <FileText class="w-5 h-5" />
                 <span>Directives Editor</span>
               </Dialog.Title>
@@ -579,10 +581,16 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
 
             <div class="settings-panel-content">
               {/* Type Selector */}
-              <div class="directives-editor-tabs">
+              <div class={cn("flex items-center rounded-lg overflow-hidden mb-4 bg-secondary border border-border")}>
                 <button
                   type="button"
-                  class={`directives-editor-tab ${activeType() === "project" ? "active" : ""}`}
+                  class={cn(
+                    "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors flex-1 justify-center",
+                    activeType() === "project"
+                      ? "bg-info text-white"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                  )}
                   onClick={() => handleTypeChange("project")}
                   disabled={!props.folder}
                 >
@@ -591,7 +599,12 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                 </button>
                 <button
                   type="button"
-                  class={`directives-editor-tab ${activeType() === "global" ? "active" : ""}`}
+                  class={cn(
+                    "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors flex-1 justify-center",
+                    activeType() === "global"
+                      ? "bg-info text-white"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  )}
                   onClick={() => handleTypeChange("global")}
                 >
                   <Globe class="w-4 h-4" />
@@ -601,17 +614,17 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
 
               {/* File Path */}
               <Show when={filePath()}>
-                <div class="directives-editor-path">
-                  <code>{filePath()}</code>
+                <div class={cn("flex items-center gap-2 mb-4 text-xs")}>
+                  <code class={cn("px-2 py-1 rounded font-mono bg-accent text-muted-foreground truncate")}>{filePath()}</code>
                   <Show when={!fileExists()}>
-                    <span class="directives-editor-new">(New file)</span>
+                    <span class={cn("text-warning font-medium")}>(New file)</span>
                   </Show>
                 </div>
               </Show>
 
               {/* Error State */}
               <Show when={error()}>
-                <div class="governance-error">
+                <div class={cn("flex items-center gap-2 p-4 rounded-md mb-4 bg-destructive/10 text-destructive")}>
                   <AlertTriangle class="w-5 h-5" />
                   <span>{error()}</span>
                 </div>
@@ -619,7 +632,7 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
 
               {/* Success State */}
               <Show when={success()}>
-                <div class="governance-success">
+                <div class={cn("flex items-center gap-2 p-4 rounded-md mb-4 bg-success/10 text-success")}>
                   <Check class="w-5 h-5" />
                   <span>Directives saved successfully</span>
                 </div>
@@ -627,20 +640,25 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
 
               {/* Loading State */}
               <Show when={loading()}>
-                <div class="governance-loading">
-                  <div class="governance-loading-spinner" />
+                <div class={cn("flex items-center justify-center gap-3 py-8 text-muted-foreground")}>
+                  <div class={cn("w-5 h-5 border-2 border-t-transparent border-muted-foreground rounded-full animate-spin")} />
                   <span>Loading directives...</span>
                 </div>
               </Show>
 
               {/* Toolbar */}
               <Show when={!loading()}>
-                <div class="directives-toolbar">
+                <div class={cn("flex items-center gap-1 flex-wrap mb-4 p-2 rounded-lg bg-secondary border border-border")}>
                   {/* View Mode Toggles */}
-                  <div class="directives-toolbar-group">
+                  <div class={cn("flex items-center rounded-md overflow-hidden bg-accent")}>
                     <button
                       type="button"
-                      class={`directives-toolbar-btn ${viewMode() === "structured" ? "active" : ""}`}
+                      class={cn(
+                        "p-2 transition-colors",
+                        viewMode() === "structured"
+                          ? "bg-info text-white"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                       onClick={() => setViewMode("structured")}
                       title="Structured view"
                       data-testid="structured-view-btn"
@@ -649,7 +667,12 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                     </button>
                     <button
                       type="button"
-                      class={`directives-toolbar-btn ${viewMode() === "edit" ? "active" : ""}`}
+                      class={cn(
+                        "p-2 transition-colors",
+                        viewMode() === "edit"
+                          ? "bg-info text-white"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                       onClick={() => setViewMode("edit")}
                       title="Source mode"
                       data-testid="source-view-btn"
@@ -658,7 +681,12 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                     </button>
                     <button
                       type="button"
-                      class={`directives-toolbar-btn ${viewMode() === "preview" ? "active" : ""}`}
+                      class={cn(
+                        "p-2 transition-colors",
+                        viewMode() === "preview"
+                          ? "bg-info text-white"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                       onClick={() => setViewMode("preview")}
                       title="Preview mode"
                     >
@@ -666,7 +694,13 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                     </button>
                     <button
                       type="button"
-                      class={`directives-toolbar-btn ${viewMode() === "diff" ? "active" : ""}`}
+                      class={cn(
+                        "p-2 transition-colors",
+                        viewMode() === "diff"
+                          ? "bg-info text-white"
+                          : "text-muted-foreground hover:text-foreground",
+                        "disabled:opacity-50 disabled:cursor-not-allowed"
+                      )}
                       onClick={() => setViewMode("diff")}
                       disabled={!hasChanges()}
                       title="Diff view (show changes)"
@@ -675,13 +709,16 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                     </button>
                   </div>
 
-                  <div class="directives-toolbar-divider" />
+                  <div class={cn("w-px h-6 mx-1 bg-border")} />
 
                   {/* Undo/Redo */}
-                  <div class="directives-toolbar-group">
+                  <div class={cn("flex items-center")}>
                     <button
                       type="button"
-                      class="directives-toolbar-btn"
+                      class={cn(
+                        "p-2 rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent",
+                        "disabled:opacity-50 disabled:cursor-not-allowed"
+                      )}
                       onClick={handleUndo}
                       disabled={!canUndo()}
                       title={`Undo (${undoHistory().length} available)`}
@@ -690,7 +727,10 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                     </button>
                     <button
                       type="button"
-                      class="directives-toolbar-btn"
+                      class={cn(
+                        "p-2 rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent",
+                        "disabled:opacity-50 disabled:cursor-not-allowed"
+                      )}
                       onClick={handleRedo}
                       disabled={!canRedo()}
                       title={`Redo (${redoHistory().length} available)`}
@@ -699,7 +739,10 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                     </button>
                     <button
                       type="button"
-                      class="directives-toolbar-btn"
+                      class={cn(
+                        "p-2 rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent",
+                        "disabled:opacity-50 disabled:cursor-not-allowed"
+                      )}
                       onClick={handleRevert}
                       disabled={!hasChanges()}
                       title="Revert to last saved version"
@@ -708,13 +751,18 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                     </button>
                   </div>
 
-                  <div class="directives-toolbar-divider" />
+                  <div class={cn("w-px h-6 mx-1 bg-border")} />
 
                   {/* Templates & Export */}
-                  <div class="directives-toolbar-group">
+                  <div class={cn("flex items-center")}>
                     <button
                       type="button"
-                      class={`directives-toolbar-btn ${showTemplates() ? "active" : ""}`}
+                      class={cn(
+                        "p-2 rounded transition-colors",
+                        showTemplates()
+                          ? "bg-info text-white"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      )}
                       onClick={() => setShowTemplates(!showTemplates())}
                       title="Templates"
                     >
@@ -722,7 +770,10 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                     </button>
                     <button
                       type="button"
-                      class="directives-toolbar-btn"
+                      class={cn(
+                        "p-2 rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent",
+                        "disabled:opacity-50 disabled:cursor-not-allowed"
+                      )}
                       onClick={handleExport}
                       disabled={!content()}
                       title="Export as markdown file"
@@ -735,34 +786,38 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
 
               {/* Directive Summary Bar (Phase A) */}
               <Show when={!loading() && viewMode() === "structured" && !isEmptyState()}>
-                <div class="directives-summary-bar" data-testid="directives-summary">
+                <div class={cn("text-xs text-muted-foreground mb-3 px-1")} data-testid="directives-summary">
                   <span>{totalDirectiveCount()} directives in {totalSectionCount()} sections</span>
                 </div>
               </Show>
 
               {/* Templates Panel */}
               <Show when={showTemplates() && !loading()}>
-                <div class="directives-templates">
-                  <div class="directives-templates-header">
-                    <span>Choose a template to get started</span>
+                <div class={cn("rounded-lg border border-border overflow-hidden mb-4")}>
+                  <div class={cn("flex items-center justify-between px-4 py-3 bg-secondary")}>
+                    <span class={cn("text-sm font-medium text-foreground")}>Choose a template to get started</span>
                     <button
                       type="button"
-                      class="directives-templates-close"
+                      class={cn("p-1 rounded transition-colors text-muted-foreground hover:text-foreground")}
                       onClick={() => setShowTemplates(false)}
                     >
                       <X class="w-4 h-4" />
                     </button>
                   </div>
-                  <div class="directives-templates-grid">
+                  <div class={cn("grid grid-cols-2 gap-3 p-4")}>
                     <For each={DIRECTIVE_TEMPLATES}>
                       {(template) => (
                         <button
                           type="button"
-                          class="directives-template-card"
+                          class={cn(
+                            "flex flex-col gap-1 p-3 rounded-lg text-left transition-colors",
+                            "bg-accent border border-border",
+                            "hover:border-info hover:bg-info/5"
+                          )}
                           onClick={() => applyTemplate(template)}
                         >
-                          <div class="directives-template-name">{template.name}</div>
-                          <div class="directives-template-description">{template.description}</div>
+                          <div class={cn("text-sm font-medium text-foreground")}>{template.name}</div>
+                          <div class={cn("text-xs text-muted-foreground")}>{template.description}</div>
                         </button>
                       )}
                     </For>
@@ -772,14 +827,15 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
 
               {/* Structured View (Phase B) */}
               <Show when={!loading() && viewMode() === "structured" && !isEmptyState()}>
-                <div class="directives-structured-view" data-testid="structured-view">
+                <div data-testid="structured-view">
                   {/* Search & Expand/Collapse Toolbar */}
-                  <div class="directives-structured-toolbar">
-                    <div class="directives-search">
-                      <Search class="w-4 h-4" style={{ "flex-shrink": "0", color: "var(--text-muted)" }} />
+                  <div class={cn("flex items-center gap-3 flex-wrap mb-4")}>
+                    <div class={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg flex-1 max-w-xs bg-secondary border border-border")}>
+                      <Search class="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       <input
                         type="text"
                         placeholder="Search directives..."
+                        class={cn("flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground")}
                         value={searchQuery()}
                         onInput={(e) => setSearchQuery(e.currentTarget.value)}
                         data-testid="directives-search-input"
@@ -787,17 +843,17 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                       <Show when={searchQuery()}>
                         <button
                           type="button"
-                          class="directives-search-clear"
+                          class={cn("p-1 rounded transition-colors text-muted-foreground hover:text-foreground")}
                           onClick={() => setSearchQuery("")}
                         >
                           <X class="w-3 h-3" />
                         </button>
                       </Show>
                     </div>
-                    <div class="directives-expand-collapse">
+                    <div class={cn("flex items-center gap-2")}>
                       <button
                         type="button"
-                        class="directives-expand-btn"
+                        class={cn("px-2 py-1 text-xs rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary")}
                         onClick={expandAll}
                         title="Expand all sections"
                       >
@@ -805,7 +861,7 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                       </button>
                       <button
                         type="button"
-                        class="directives-expand-btn"
+                        class={cn("px-2 py-1 text-xs rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary")}
                         onClick={collapseAll}
                         title="Collapse all sections"
                       >
@@ -815,34 +871,38 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                   </div>
 
                   {/* Quick-Add Input (Phase C) */}
-                  <div class="directives-quick-add" data-testid="quick-add-input">
+                  <div class={cn("mb-4 rounded-lg border border-border overflow-hidden")} data-testid="quick-add-input">
                     <textarea
-                      class="directives-quick-add-textarea"
+                      class={cn(
+                        "w-full p-3 text-sm resize-none bg-secondary text-foreground",
+                        "placeholder:text-muted-foreground",
+                        "focus:outline-none focus:border-info border-b border-border"
+                      )}
                       placeholder="Describe a rule in plain English, e.g. 'Never use eval()'"
                       value={addDirectiveText()}
                       onInput={(e) => setAddDirectiveText(e.currentTarget.value)}
                       rows={2}
                     />
                     <Show when={addDirectiveText().trim()}>
-                      <div class="directives-quick-add-preview" data-testid="quick-add-preview">
+                      <div class={cn("p-3 bg-accent flex flex-col gap-2")} data-testid="quick-add-preview">
                         <Show when={formatPreview()}>
                           {(preview) => (
                             <>
-                              <div class="directives-quick-add-preview-row">
-                                <span class="add-directive-preview-label">Formatted</span>
-                                <span class="add-directive-preview-content">{preview().formatted}</span>
+                              <div class={cn("flex items-center gap-2 text-xs")}>
+                                <span class={cn("text-muted-foreground font-medium")}>Formatted</span>
+                                <span class={cn("text-foreground")}>{preview().formatted}</span>
                               </div>
-                              <div class="directives-quick-add-preview-row">
-                                <span class="add-directive-preview-label">Section</span>
+                              <div class={cn("flex items-center gap-2 text-xs")}>
+                                <span class={cn("text-muted-foreground font-medium")}>Section</span>
                                 <span
-                                  class="directives-section-badge"
+                                  class={cn("px-2 py-0.5 rounded-full text-xs font-medium bg-info/10 text-info")}
                                   data-color={getSectionColor(addDirectiveSection() || preview().suggestedSection)}
                                   data-testid="suggested-section-badge"
                                 >
                                   {addDirectiveSection() || preview().suggestedSection}
                                 </span>
                                 <select
-                                  class="directives-quick-add-section-override"
+                                  class={cn("px-2 py-0.5 rounded text-xs bg-secondary border border-border text-foreground")}
                                   value={addDirectiveSection()}
                                   onChange={(e) => setAddDirectiveSection(e.currentTarget.value)}
                                 >
@@ -852,15 +912,15 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                                   </For>
                                 </select>
                               </div>
-                              <div class="directives-quick-add-preview-row">
+                              <div class={cn("flex items-center gap-2 text-xs")}>
                                 <Show when={preview().validation.valid}>
-                                  <span class="directives-validation-ok">
+                                  <span class={cn("flex items-center gap-1 text-success")}>
                                     <CheckCircle2 class="w-3 h-3" />
                                     Valid
                                   </span>
                                 </Show>
                                 <Show when={!preview().validation.valid}>
-                                  <span class="directives-validation-error">
+                                  <span class={cn("flex items-center gap-1 text-destructive")}>
                                     <XCircle class="w-3 h-3" />
                                     {preview().validation.error}
                                   </span>
@@ -871,7 +931,11 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                         </Show>
                         <button
                           type="button"
-                          class="directives-quick-add-btn"
+                          class={cn(
+                            "flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors self-end",
+                            "bg-info text-white hover:bg-info/90",
+                            "disabled:opacity-50 disabled:cursor-not-allowed"
+                          )}
                           onClick={handleQuickAdd}
                           disabled={!formatPreview()?.validation.valid}
                           data-testid="quick-add-btn"
@@ -885,38 +949,44 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
 
                   {/* Search Results Count */}
                   <Show when={searchQuery()}>
-                    <div class="directives-search-results">
+                    <div class={cn("text-xs text-muted-foreground mb-3")}>
                       {filteredSections().reduce((c, s) => c + s.directives.length, 0)} results in {filteredSections().length} sections
                     </div>
                   </Show>
 
                   {/* Section Cards */}
-                  <div class="directives-sections-list" data-testid="sections-list">
+                  <div class={cn("flex flex-col gap-3")} data-testid="sections-list">
                     <For each={filteredSections()}>
                       {(section) => {
                         const color = () => getSectionColor(section.title)
                         const isExpanded = () => expandedSections().includes(section.title)
 
                         return (
-                          <div class="directive-section" data-testid={`section-${section.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                          <div class={cn("rounded-lg border border-border overflow-hidden")} data-testid={`section-${section.title.toLowerCase().replace(/\s+/g, "-")}`}>
                             <button
                               type="button"
-                              class="directive-section-header"
+                              class={cn(
+                                "flex items-center justify-between w-full px-4 py-3 text-left transition-colors",
+                                "bg-background border-b border-border hover:bg-accent"
+                              )}
                               onClick={() => toggleSection(section.title)}
                             >
-                              <div class="directive-section-header-info">
-                                <span class="directive-section-chevron">
+                              <div class={cn("flex items-center gap-2")}>
+                                <span class={cn("text-muted-foreground")}>
                                   <Show when={isExpanded()} fallback={<ChevronRight class="w-4 h-4" />}>
                                     <ChevronDown class="w-4 h-4" />
                                   </Show>
                                 </span>
-                                <div class="directive-section-color" data-color={color()} />
-                                <span class="directive-section-title">{section.title}</span>
-                                <span class="directive-section-count">{section.directives.length}</span>
+                                <div
+                                  class={cn("w-1 h-5 rounded-full")}
+                                  data-color={color()}
+                                />
+                                <span class={cn("font-semibold text-sm text-foreground")}>{section.title}</span>
+                                <span class={cn("text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground")}>{section.directives.length}</span>
                               </div>
                               <button
                                 type="button"
-                                class="directive-section-add-btn"
+                                class={cn("p-1.5 rounded transition-colors text-muted-foreground hover:text-info hover:bg-secondary")}
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   openAddModal(section.title)
@@ -928,23 +998,23 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                             </button>
 
                             <Show when={isExpanded()}>
-                              <div class="directive-cards-grid">
+                              <div class={cn("p-4 flex flex-col gap-3")}>
                                 <For each={section.directives}>
                                   {(directive) => (
                                     <Show
                                       when={editingDirectiveId() === directive.id}
                                       fallback={
                                         <div
-                                          class="directive-card"
+                                          class={cn("p-3 rounded-lg bg-background border border-border")}
                                           data-color={color()}
                                           data-testid={`directive-card-${directive.id}`}
                                         >
-                                          <div class="directive-card-content">
-                                            <span class="directive-card-text">{directive.text}</span>
-                                            <div class="directive-card-actions">
+                                          <div class={cn("flex items-start justify-between gap-2")}>
+                                            <span class={cn("text-sm text-foreground flex-1")}>{directive.text}</span>
+                                            <div class={cn("flex items-center gap-1 flex-shrink-0")}>
                                               <button
                                                 type="button"
-                                                class="directive-card-action-btn"
+                                                class={cn("p-1 rounded transition-colors text-muted-foreground hover:text-foreground hover:bg-accent")}
                                                 onClick={() => startEditing(directive.id, directive.text)}
                                                 title="Edit directive"
                                                 data-testid={`edit-btn-${directive.id}`}
@@ -953,7 +1023,7 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                                               </button>
                                               <button
                                                 type="button"
-                                                class="directive-card-action-btn delete"
+                                                class={cn("p-1 rounded transition-colors text-muted-foreground hover:text-destructive hover:bg-destructive/10")}
                                                 onClick={() => handleStructuredDelete(directive.id)}
                                                 title="Delete directive"
                                                 data-testid={`delete-btn-${directive.id}`}
@@ -966,39 +1036,41 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                                       }
                                     >
                                       {/* Inline Edit Mode */}
-                                      <div class="directive-card editing" data-color={color()}>
-                                        <div class="directive-card-edit">
-                                          <textarea
-                                            class="directive-card-edit-input"
-                                            value={editingText()}
-                                            onInput={(e) => setEditingText(e.currentTarget.value)}
-                                            onKeyDown={(e) => {
-                                              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                                                handleStructuredEdit(directive.id, editingText())
-                                              }
-                                              if (e.key === "Escape") {
-                                                cancelEditing()
-                                              }
-                                            }}
-                                            data-testid={`edit-textarea-${directive.id}`}
-                                          />
-                                          <div class="directive-card-edit-actions">
-                                            <button
-                                              type="button"
-                                              class="directive-card-edit-btn directive-card-edit-btn-cancel"
-                                              onClick={cancelEditing}
-                                            >
-                                              Cancel
-                                            </button>
-                                            <button
-                                              type="button"
-                                              class="directive-card-edit-btn directive-card-edit-btn-save"
-                                              onClick={() => handleStructuredEdit(directive.id, editingText())}
-                                              data-testid={`save-edit-btn-${directive.id}`}
-                                            >
-                                              Save
-                                            </button>
-                                          </div>
+                                      <div class={cn("p-3 rounded-lg bg-background border-2 border-info")} data-color={color()}>
+                                        <textarea
+                                          class={cn(
+                                            "w-full p-2 rounded text-sm resize-none min-h-[60px]",
+                                            "bg-secondary border border-border text-foreground",
+                                            "focus:outline-none focus:border-info"
+                                          )}
+                                          value={editingText()}
+                                          onInput={(e) => setEditingText(e.currentTarget.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                                              handleStructuredEdit(directive.id, editingText())
+                                            }
+                                            if (e.key === "Escape") {
+                                              cancelEditing()
+                                            }
+                                          }}
+                                          data-testid={`edit-textarea-${directive.id}`}
+                                        />
+                                        <div class={cn("flex items-center justify-end gap-2 mt-2")}>
+                                          <button
+                                            type="button"
+                                            class={cn("px-3 py-1 rounded text-xs font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-accent")}
+                                            onClick={cancelEditing}
+                                          >
+                                            Cancel
+                                          </button>
+                                          <button
+                                            type="button"
+                                            class={cn("px-3 py-1 rounded text-xs font-medium transition-colors bg-info text-white hover:bg-info/90")}
+                                            onClick={() => handleStructuredEdit(directive.id, editingText())}
+                                            data-testid={`save-edit-btn-${directive.id}`}
+                                          >
+                                            Save
+                                          </button>
                                         </div>
                                       </div>
                                     </Show>
@@ -1016,31 +1088,35 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
 
               {/* Template Wizard for Empty State (Phase D) */}
               <Show when={!loading() && viewMode() === "structured" && isEmptyState()}>
-                <div class="directives-wizard" data-testid="directives-wizard">
+                <div class={cn("flex flex-col items-center gap-6 py-8")} data-testid="directives-wizard">
                   <Show when={wizardStep() === 1}>
-                    <div class="directives-wizard-step" data-testid="wizard-step-1">
-                      <h3 class="directives-wizard-heading">Get Started with Directives</h3>
-                      <p class="directives-wizard-description">
+                    <div class={cn("text-center max-w-md")} data-testid="wizard-step-1">
+                      <h3 class={cn("text-lg font-semibold text-foreground mb-2")}>Get Started with Directives</h3>
+                      <p class={cn("text-sm text-muted-foreground mb-6")}>
                         Choose a template to pre-populate your directives, or start from scratch.
                       </p>
-                      <div class="directives-wizard-grid">
+                      <div class={cn("grid grid-cols-2 gap-3 mb-6")}>
                         <For each={DIRECTIVE_TEMPLATES}>
                           {(template) => (
                             <button
                               type="button"
-                              class="directives-wizard-card"
+                              class={cn(
+                                "flex flex-col gap-1 p-4 rounded-lg text-left transition-colors",
+                                "bg-secondary border border-border",
+                                "hover:border-info hover:bg-info/5"
+                              )}
                               onClick={() => handleWizardSelectTemplate(template.id)}
                               data-testid={`wizard-template-${template.id}`}
                             >
-                              <div class="directives-wizard-card-name">{template.name}</div>
-                              <div class="directives-wizard-card-description">{template.description}</div>
+                              <div class={cn("text-sm font-medium text-foreground")}>{template.name}</div>
+                              <div class={cn("text-xs text-muted-foreground")}>{template.description}</div>
                             </button>
                           )}
                         </For>
                       </div>
                       <button
                         type="button"
-                        class="directives-wizard-skip"
+                        class={cn("text-sm text-muted-foreground hover:text-foreground transition-colors underline")}
                         onClick={skipWizard}
                         data-testid="wizard-skip-btn"
                       >
@@ -1050,53 +1126,57 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
                   </Show>
 
                   <Show when={wizardStep() === 2}>
-                    <div class="directives-wizard-step" data-testid="wizard-step-2">
-                      <h3 class="directives-wizard-heading">Customize Sections</h3>
-                      <p class="directives-wizard-description">
+                    <div class={cn("w-full max-w-md")} data-testid="wizard-step-2">
+                      <h3 class={cn("text-lg font-semibold text-foreground mb-2")}>Customize Sections</h3>
+                      <p class={cn("text-sm text-muted-foreground mb-4")}>
                         Toggle which sections to include from the template.
                       </p>
-                      <div class="directives-wizard-section-toggles">
+                      <div class={cn("flex flex-col gap-2 mb-4")}>
                         <For each={getWizardTemplateSections()}>
                           {(section) => (
-                            <label class="directives-wizard-section-toggle" data-testid={`wizard-toggle-${section.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                            <label
+                              class={cn("flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors bg-secondary border border-border hover:bg-accent")}
+                              data-testid={`wizard-toggle-${section.title.toLowerCase().replace(/\s+/g, "-")}`}
+                            >
                               <input
                                 type="checkbox"
                                 checked={selectedSections().includes(section.title)}
                                 onChange={() => toggleWizardSection(section.title)}
+                                class={cn("rounded")}
                               />
                               <div
-                                class="directive-section-color"
+                                class={cn("w-1 h-5 rounded-full")}
                                 data-color={getSectionColor(section.title)}
                               />
-                              <span>{section.title}</span>
-                              <span class="directives-wizard-section-count">({section.directives.length} directives)</span>
+                              <span class={cn("text-sm font-medium text-foreground")}>{section.title}</span>
+                              <span class={cn("text-xs text-muted-foreground ml-auto")}>({section.directives.length} directives)</span>
                             </label>
                           )}
                         </For>
                       </div>
 
-                      <div class="directives-wizard-preview" data-testid="wizard-preview">
-                        <div class="directives-wizard-preview-label">Preview</div>
-                        <pre class="directives-wizard-preview-content">{wizardPreview()}</pre>
+                      <div class={cn("rounded-lg border border-border overflow-hidden mb-4")} data-testid="wizard-preview">
+                        <div class={cn("px-3 py-2 text-xs font-medium text-muted-foreground bg-secondary")}>Preview</div>
+                        <pre class={cn("p-3 text-xs font-mono whitespace-pre-wrap break-all bg-accent text-muted-foreground overflow-auto max-h-[200px]")}>{wizardPreview()}</pre>
                       </div>
 
-                      <div class="directives-wizard-actions">
+                      <div class={cn("flex items-center justify-between gap-3")}>
                         <button
                           type="button"
-                          class="directives-wizard-btn-back"
+                          class={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary")}
                           onClick={() => { setWizardStep(1); setSelectedTemplate(null) }}
                         >
                           Back
                         </button>
-                        <button
-                          type="button"
-                          class="directives-wizard-btn-apply"
+                        <Button
+                          variant="default"
+                          size="sm"
                           onClick={applyWizardTemplate}
                           disabled={selectedSections().length === 0}
                           data-testid="wizard-apply-btn"
                         >
                           Apply Template
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </Show>
@@ -1105,9 +1185,15 @@ const DirectivesEditorPanel: Component<DirectivesEditorPanelProps> = (props) => 
 
               {/* Source Mode (renamed from Edit) */}
               <Show when={!loading() && viewMode() === "edit"}>
-                <div class="directives-editor-wrapper">
+                <div>
                   <textarea
-                    class="directives-editor-textarea"
+                    class={cn(
+                      "w-full rounded-lg p-4 text-sm resize-none min-h-[400px]",
+                      "bg-secondary border border-border text-foreground",
+                      "font-mono leading-relaxed",
+                      "placeholder:text-muted-foreground",
+                      "focus:outline-none focus:border-info"
+                    )}
                     value={content()}
                     onInput={(e) => handleContentChange(e.currentTarget.value)}
                     placeholder={`# ${activeType() === "project" ? "Project" : "Global"} Directives
@@ -1130,14 +1216,14 @@ Click the sparkles button above to use a template, or start typing...
 
               {/* Preview Mode */}
               <Show when={!loading() && viewMode() === "preview"}>
-                <div class="directives-preview">
+                <div class={cn("rounded-lg border border-border overflow-hidden")}>
                   <Show when={content().trim()}>
-                    <div class="directives-preview-content">
+                    <div class={cn("p-4 prose prose-sm max-w-none text-foreground")}>
                       <Markdown part={{ type: "text", text: content() }} />
                     </div>
                   </Show>
                   <Show when={!content().trim()}>
-                    <div class="directives-preview-empty">
+                    <div class={cn("flex items-center justify-center py-12 text-sm text-muted-foreground")}>
                       No content to preview. Switch to edit mode to add directives.
                     </div>
                   </Show>
@@ -1146,23 +1232,28 @@ Click the sparkles button above to use a template, or start typing...
 
               {/* Diff Mode */}
               <Show when={!loading() && viewMode() === "diff"}>
-                <div class="directives-diff">
+                <div class={cn("rounded-lg border border-border overflow-hidden")}>
                   <Show when={hasChanges()}>
-                    <div class="directives-diff-content">
+                    <div class={cn("font-mono text-xs overflow-auto max-h-[500px]")}>
                       <For each={diffLines()}>
                         {(line) => (
-                          <div class={`directives-diff-line directives-diff-line--${line.type}`}>
-                            <span class="directives-diff-prefix">
+                          <div class={cn(
+                            "flex px-3 py-0.5",
+                            line.type === "added" && "bg-success/10 text-success",
+                            line.type === "removed" && "bg-destructive/10 text-destructive",
+                            line.type === "unchanged" && "text-muted-foreground"
+                          )}>
+                            <span class={cn("w-6 text-right mr-3 select-none opacity-50")}>
                               {line.type === "added" ? "+" : line.type === "removed" ? "-" : " "}
                             </span>
-                            <span class="directives-diff-text">{line.content || "\u00A0"}</span>
+                            <span class={cn("flex-1 whitespace-pre-wrap break-all")}>{line.content || "\u00A0"}</span>
                           </div>
                         )}
                       </For>
                     </div>
                   </Show>
                   <Show when={!hasChanges()}>
-                    <div class="directives-diff-empty">
+                    <div class={cn("flex items-center justify-center py-12 text-sm text-muted-foreground")}>
                       No changes to display.
                     </div>
                   </Show>
@@ -1171,48 +1262,53 @@ Click the sparkles button above to use a template, or start typing...
 
               {/* Add Directive Modal (Phase B + C enhancements) */}
               <Show when={showAddModal()}>
-                <div class="add-directive-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeAddModal() }}>
-                  <div class="add-directive-modal" data-testid="add-directive-modal">
-                    <div class="add-directive-modal-header">
-                      <h3>Add Directive</h3>
+                <div class={cn("fixed inset-0 flex items-center justify-center p-4 bg-black/60 z-[100]")} onClick={(e) => { if (e.target === e.currentTarget) closeAddModal() }}>
+                  <div class={cn("w-full max-w-lg rounded-xl overflow-hidden bg-background border border-border shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]")} data-testid="add-directive-modal">
+                    <div class={cn("flex items-center justify-between px-6 py-4 border-b border-border")}>
+                      <h3 class={cn("text-lg font-semibold text-foreground")}>Add Directive</h3>
                       <button
                         type="button"
-                        class="add-directive-modal-close"
+                        class={cn("p-1 rounded transition-colors text-muted-foreground hover:text-foreground")}
                         onClick={closeAddModal}
                       >
                         <X class="w-4 h-4" />
                       </button>
                     </div>
-                    <div class="add-directive-modal-body">
-                      <div class="add-directive-field">
-                        <label class="add-directive-label">Directive</label>
+                    <div class={cn("p-6 space-y-4")}>
+                      <div class={cn("space-y-2")}>
+                        <label class={cn("block text-sm font-medium text-foreground")}>Directive</label>
                         <textarea
-                          class="add-directive-input"
+                          class={cn(
+                            "w-full p-3 rounded-lg text-sm resize-none min-h-[80px]",
+                            "bg-secondary border border-border text-foreground",
+                            "placeholder:text-muted-foreground",
+                            "focus:outline-none focus:border-info"
+                          )}
                           placeholder="Describe a rule in plain English, e.g. 'Never use eval()'"
                           value={addDirectiveText()}
                           onInput={(e) => setAddDirectiveText(e.currentTarget.value)}
                           data-testid="add-directive-textarea"
                         />
-                        <span class="add-directive-hint">Write naturally and it will be formatted automatically</span>
+                        <span class={cn("text-xs text-muted-foreground")}>Write naturally and it will be formatted automatically</span>
                       </div>
 
                       {/* Live Preview (Phase C) */}
                       <Show when={formatPreview()}>
                         {(preview) => (
-                          <div class="add-directive-preview" data-testid="add-directive-preview">
-                            <div class="add-directive-preview-label">Live Preview</div>
-                            <div class="add-directive-preview-content">{preview().formatted}</div>
-                            <div class="add-directive-preview-section">
+                          <div class={cn("p-4 rounded-lg bg-secondary border border-border")} data-testid="add-directive-preview">
+                            <div class={cn("text-xs font-medium uppercase tracking-wide mb-2 text-muted-foreground")}>Live Preview</div>
+                            <div class={cn("text-sm text-foreground mb-2")}>{preview().formatted}</div>
+                            <div class={cn("text-xs text-muted-foreground")}>
                               Suggested section:{" "}
                               <span
-                                class="directives-section-badge"
+                                class={cn("px-2 py-0.5 rounded-full text-xs font-medium bg-info/10 text-info")}
                                 data-color={getSectionColor(addDirectiveSection() || preview().suggestedSection)}
                               >
                                 {addDirectiveSection() || preview().suggestedSection}
                               </span>
                             </div>
                             <Show when={!preview().validation.valid}>
-                              <div class="directives-validation-error" style={{ "margin-top": "8px" }}>
+                              <div class={cn("flex items-center gap-1 mt-2 text-xs text-destructive")}>
                                 <XCircle class="w-3 h-3" />
                                 {preview().validation.error}
                               </div>
@@ -1221,10 +1317,14 @@ Click the sparkles button above to use a template, or start typing...
                         )}
                       </Show>
 
-                      <div class="add-directive-field">
-                        <label class="add-directive-label">Section</label>
+                      <div class={cn("space-y-2")}>
+                        <label class={cn("block text-sm font-medium text-foreground")}>Section</label>
                         <select
-                          class="add-directive-select"
+                          class={cn(
+                            "w-full p-2 rounded-lg text-sm",
+                            "bg-secondary border border-border text-foreground",
+                            "focus:outline-none focus:border-info"
+                          )}
                           value={addDirectiveSection()}
                           onChange={(e) => setAddDirectiveSection(e.currentTarget.value)}
                           data-testid="add-directive-section-select"
@@ -1236,62 +1336,63 @@ Click the sparkles button above to use a template, or start typing...
                         </select>
                       </div>
                     </div>
-                    <div class="add-directive-modal-footer">
-                      <button
-                        type="button"
-                        class="add-directive-btn add-directive-btn-secondary"
-                        onClick={closeAddModal}
-                      >
+                    <div class={cn("flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-secondary")}>
+                      <Button variant="outline" size="sm" onClick={closeAddModal}>
                         Cancel
-                      </button>
-                      <button
-                        type="button"
-                        class="add-directive-btn add-directive-btn-primary"
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
                         onClick={handleAddFromModal}
                         disabled={!formatPreview()?.validation.valid}
                         data-testid="add-directive-confirm-btn"
                       >
                         <Plus class="w-4 h-4" />
                         Add Directive
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
               </Show>
 
               {/* Actions */}
-              <div class="directives-editor-actions">
+              <div class={cn("flex items-center justify-end gap-3 mt-4 pt-4 border-t border-border")}>
                 <Show when={hasChanges()}>
-                  <span class="directives-editor-changes-indicator">Unsaved changes</span>
+                  <span class={cn("text-xs text-warning mr-auto")}>Unsaved changes</span>
                 </Show>
                 <button
                   type="button"
-                  class="directives-editor-btn directives-editor-btn-secondary"
+                  class={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    "bg-secondary border border-border text-foreground",
+                    "hover:bg-accent",
+                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                  )}
                   onClick={() => loadDirectives(activeType())}
                   disabled={loading() || saving()}
                 >
-                  <RefreshCw class={`w-4 h-4 ${loading() ? "animate-spin" : ""}`} />
+                  <RefreshCw class={cn("w-4 h-4", loading() && "animate-spin")} />
                   <span>Reload</span>
                 </button>
-                <button
-                  type="button"
-                  class="directives-editor-btn directives-editor-btn-primary"
+                <Button
+                  variant="default"
+                  size="sm"
                   onClick={saveDirectives}
                   disabled={loading() || saving() || !hasChanges()}
                   data-testid="save-btn"
                 >
                   <Save class="w-4 h-4" />
                   <span>{saving() ? "Saving..." : "Save"}</span>
-                </button>
+                </Button>
               </div>
 
               {/* Help Text */}
-              <div class="directives-editor-help">
-                <p>
-                  <strong>Project Directives</strong> define coding standards and workflows specific to this project.
+              <div class={cn("mt-4 p-3 rounded-lg text-xs leading-relaxed bg-secondary text-muted-foreground")}>
+                <p class={cn("mb-1")}>
+                  <strong class={cn("text-foreground")}>Project Directives</strong> define coding standards and workflows specific to this project.
                 </p>
                 <p>
-                  <strong>Global Directives</strong> apply across all projects and can be overridden by project-level directives.
+                  <strong class={cn("text-foreground")}>Global Directives</strong> apply across all projects and can be overridden by project-level directives.
                 </p>
               </div>
             </div>

@@ -1,6 +1,12 @@
 import { Component } from "solid-js"
-import { Dialog } from "@kobalte/core"
-import { X } from "lucide-solid"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "./ui"
+import { Button } from "./ui"
 
 interface GCloudAuthModalProps {
   open: boolean
@@ -10,39 +16,32 @@ interface GCloudAuthModalProps {
 
 const GCloudAuthModal: Component<GCloudAuthModalProps> = (props) => {
   return (
-    <Dialog.Root open={props.open} onOpenChange={(open) => !open && props.onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay class="modal-overlay" />
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <Dialog.Content class="modal-surface w-full max-w-md">
-            <div class="modal-header flex items-center justify-between">
-              <Dialog.Title class="text-lg font-semibold text-primary">Google Cloud Authentication</Dialog.Title>
-              <Dialog.CloseButton class="p-1 rounded hover:bg-white/10 transition-colors">
-                <X size={16} />
-              </Dialog.CloseButton>
-            </div>
-            <div class="modal-body">
-              <p class="text-sm text-secondary">
-                Google Cloud authentication is not yet available.
-              </p>
-              <p class="text-xs text-muted mt-2">
-                This feature will enable Vertex AI integration, cloud infrastructure management,
-                and other Google Cloud services. Check back in a future release.
-              </p>
-            </div>
-            <div class="modal-footer">
-              <button
-                type="button"
-                class="modal-button modal-button-secondary"
-                onClick={props.onClose}
-              >
-                Close
-              </button>
-            </div>
-          </Dialog.Content>
+    <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Google Cloud Authentication</DialogTitle>
+        </DialogHeader>
+
+        <div class="space-y-2">
+          <p class="text-sm text-muted-foreground">
+            Google Cloud authentication is not yet available.
+          </p>
+          <p class="text-xs text-muted-foreground">
+            This feature will enable Vertex AI integration, cloud infrastructure management,
+            and other Google Cloud services. Check back in a future release.
+          </p>
         </div>
-      </Dialog.Portal>
-    </Dialog.Root>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={props.onClose}
+          >
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

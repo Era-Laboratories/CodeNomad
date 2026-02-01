@@ -3,7 +3,8 @@ import { ChevronDown, ChevronRight } from "lucide-solid"
 import PipelineStep, { extractReviewerVerdict } from "./pipeline-step"
 import type { ToolDisplayItem } from "./inline-tool-call"
 import { readToolStatePayload } from "./tool-call/utils"
-import "../styles/components/pipeline.css"
+import { cn } from "../lib/cn"
+import { Badge } from "./ui"
 
 const PIPELINE_NAMES: Record<string, string> = {
   "implementation-pipeline": "Implementation Pipeline",
@@ -54,32 +55,57 @@ const PipelineGroup: Component<PipelineGroupProps> = (props) => {
     }
   })
 
+  const borderColor = () => {
+    switch (overallStatus()) {
+      case "completed": return "border-l-success"
+      case "running": return "border-l-warning"
+      case "error": return "border-l-destructive"
+      default: return "border-l-info"
+    }
+  }
+
   return (
-    <div class="pipeline-group" data-status={overallStatus()}>
+    <div
+      class={cn(
+        "my-2 flex flex-col overflow-hidden rounded-r-md border-l-[3px] bg-secondary",
+        borderColor()
+      )}
+    >
       <button
         type="button"
-        class="pipeline-header"
+        class="flex w-full items-center gap-2 border-none bg-transparent px-3 py-2.5 text-left text-foreground transition-colors duration-150 cursor-pointer hover:bg-muted"
         onClick={() => setExpanded(!expanded())}
         aria-expanded={expanded()}
       >
-        <span class="pipeline-header-chevron">
+        <span class="flex flex-shrink-0 items-center justify-center text-muted-foreground">
           {expanded() ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
-        <span class="pipeline-header-icon">⛓</span>
-        <span class="pipeline-header-title">{pipelineLabel()}</span>
-        <span class={`pipeline-header-status pipeline-header-status--${overallStatus()}`}>
+        <span class="flex-shrink-0 text-sm">⛓</span>
+        <span class="text-[13px] font-semibold text-info">{pipelineLabel()}</span>
+        <span
+          class={cn(
+            "w-5 flex-shrink-0 text-center text-sm",
+            overallStatus() === "completed" && "text-success",
+            overallStatus() === "running" && "text-warning animate-pulse",
+            overallStatus() === "error" && "text-destructive",
+            overallStatus() === "pending" && "text-muted-foreground"
+          )}
+        >
           {statusIcon()}
         </span>
         <Show when={reviewerVerdict()}>
-          <span class={`pipeline-verdict pipeline-verdict--${reviewerVerdict()!.toLowerCase()}`}>
+          <Badge
+            variant={reviewerVerdict()!.toLowerCase() === "approve" ? "success" : "destructive"}
+            class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+          >
             {reviewerVerdict()}
-          </span>
+          </Badge>
         </Show>
-        <span class="pipeline-header-count">{props.tools.length} steps</span>
+        <span class="ml-auto font-mono text-xs text-muted-foreground">{props.tools.length} steps</span>
       </button>
 
       <Show when={expanded()}>
-        <div class="pipeline-steps">
+        <div class="flex flex-col py-1 pb-2">
           <For each={props.tools}>
             {(tool, index) => (
               <PipelineStep

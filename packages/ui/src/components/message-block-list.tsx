@@ -98,7 +98,7 @@ export default function MessageBlockList(props: MessageBlockListProps) {
               cacheKey={messageId()}
               scrollContainer={props.scrollContainer}
               threshold={VIRTUAL_ITEM_MARGIN_PX}
-              placeholderClass="message-stream-placeholder"
+              placeholderClass="block w-full relative bg-transparent transition-[height] duration-100 ease-out"
               virtualizationEnabled={() => !props.loading}
               suspendMeasurements={props.suspendMeasurements}
             >

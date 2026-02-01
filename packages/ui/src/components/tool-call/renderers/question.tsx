@@ -51,12 +51,12 @@ export const questionRenderer: ToolRenderer = {
 
     if (state.status === "completed" && answers.length > 0) {
       return (
-        <div class="tool-call-question-answers">
+        <div class="flex flex-col gap-2 px-3 py-2">
           <For each={answers}>
             {(qa) => (
-              <div class="tool-call-question-answer-item">
-                <div class="tool-call-question-text">{qa.question}</div>
-                <div class="tool-call-question-answer-value">
+              <div class="flex flex-col gap-1">
+                <div class="text-sm text-foreground font-medium">{qa.question}</div>
+                <div class="text-xs text-muted-foreground pl-2 border-l-2 border-info">
                   {qa.answers.length > 0 ? qa.answers.join(", ") : "(no answer)"}
                 </div>
               </div>
@@ -68,16 +68,16 @@ export const questionRenderer: ToolRenderer = {
 
     // Running state: show the questions being asked
     return (
-      <div class="tool-call-question-pending">
+      <div class="flex flex-col gap-2 px-3 py-2">
         <For each={questions}>
           {(q) => (
-            <div class="tool-call-question-item">
-              <div class="tool-call-question-text">{q.question}</div>
+            <div class="flex flex-col gap-1.5">
+              <div class="text-sm text-foreground font-medium">{q.question}</div>
               <Show when={q.options?.length > 0}>
-                <div class="tool-call-question-options-preview">
+                <div class="flex flex-wrap gap-1.5">
                   <For each={q.options}>
                     {(opt) => (
-                      <span class="tool-call-question-option-chip">{opt.label}</span>
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary border border-border text-muted-foreground">{opt.label}</span>
                     )}
                   </For>
                 </div>

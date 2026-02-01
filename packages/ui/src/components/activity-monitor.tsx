@@ -16,7 +16,8 @@ import {
 } from "../lib/api-client"
 import { showToastNotification } from "../lib/notifications"
 import { getLogger } from "../lib/logger"
-import "../styles/components/activity-monitor.css"
+import { cn } from "../lib/cn"
+import { Card, Button, Badge, Separator } from "./ui"
 
 const log = getLogger("activity-monitor")
 
@@ -151,25 +152,25 @@ const ActivityMonitor: Component = () => {
 
   return (
     <div class="full-settings-section">
-      <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div class="flex items-center justify-between">
         <div>
           <h2 class="full-settings-section-title">Activity Monitor</h2>
           <p class="full-settings-section-subtitle">Running processes, orphan detection, and session cleanup</p>
         </div>
-        <button
-          type="button"
-          class="full-settings-btn full-settings-btn-secondary"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => refetch()}
           disabled={isLoading() || data.loading}
         >
-          <RefreshCw class={`w-4 h-4 ${data.loading ? "animate-spin" : ""}`} />
+          <RefreshCw class={cn("w-4 h-4", data.loading && "animate-spin")} />
           Refresh
-        </button>
+        </Button>
       </div>
 
       {/* Error */}
       <Show when={error()}>
-        <div class="activity-monitor-alert activity-monitor-alert-error">
+        <div class="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm mt-4 bg-destructive/10 text-destructive">
           <AlertTriangle class="w-4 h-4 flex-shrink-0" />
           <span>{error()}</span>
         </div>
@@ -177,7 +178,7 @@ const ActivityMonitor: Component = () => {
 
       {/* Loading */}
       <Show when={data.loading && !data()}>
-        <div class="activity-monitor-loading">
+        <div class="flex items-center justify-center gap-2 p-8 text-muted-foreground text-sm">
           <RefreshCw class="w-5 h-5 animate-spin" />
           <span>Loading activity data...</span>
         </div>
@@ -189,35 +190,38 @@ const ActivityMonitor: Component = () => {
             {/* Summary stats */}
             <div class="full-settings-subsection">
               <h3 class="full-settings-subsection-title">Overview</h3>
-              <div class="activity-monitor-stats">
-                <div class="activity-monitor-stat">
-                  <span class="activity-monitor-stat-value">
+              <div class="grid grid-cols-4 gap-3 max-sm:grid-cols-2">
+                <Card class="flex flex-col items-center gap-1 p-4">
+                  <span class="text-2xl font-bold text-foreground">
                     {activityData().processes.summary.totalRegistered}
                   </span>
-                  <span class="activity-monitor-stat-label">Instances</span>
-                </div>
-                <div class="activity-monitor-stat">
-                  <span class="activity-monitor-stat-value activity-monitor-stat-success">
+                  <span class="text-xs text-muted-foreground">Instances</span>
+                </Card>
+                <Card class="flex flex-col items-center gap-1 p-4">
+                  <span class="text-2xl font-bold text-success">
                     {activityData().processes.summary.runningRegistered}
                   </span>
-                  <span class="activity-monitor-stat-label">Running</span>
-                </div>
-                <div class="activity-monitor-stat">
-                  <span class={`activity-monitor-stat-value ${activityData().processes.summary.unregisteredOrphans > 0 ? "activity-monitor-stat-danger" : ""}`}>
+                  <span class="text-xs text-muted-foreground">Running</span>
+                </Card>
+                <Card class="flex flex-col items-center gap-1 p-4">
+                  <span class={cn(
+                    "text-2xl font-bold",
+                    activityData().processes.summary.unregisteredOrphans > 0 ? "text-destructive" : "text-foreground"
+                  )}>
                     {activityData().processes.summary.unregisteredOrphans}
                   </span>
-                  <span class="activity-monitor-stat-label">Orphans</span>
-                </div>
-                <div class="activity-monitor-stat">
-                  <span class="activity-monitor-stat-value">
+                  <span class="text-xs text-muted-foreground">Orphans</span>
+                </Card>
+                <Card class="flex flex-col items-center gap-1 p-4">
+                  <span class="text-2xl font-bold text-foreground">
                     {activityData().sessionStats.total}
                   </span>
-                  <span class="activity-monitor-stat-label">Sessions</span>
-                </div>
+                  <span class="text-xs text-muted-foreground">Sessions</span>
+                </Card>
               </div>
             </div>
 
-            <div class="full-settings-section-divider" />
+            <Separator class="my-4" />
 
             {/* Active Instances */}
             <div class="full-settings-subsection">
@@ -225,27 +229,37 @@ const ActivityMonitor: Component = () => {
               <Show
                 when={activityData().processes.registered.length > 0}
                 fallback={
-                  <div class="activity-monitor-empty-state">
+                  <Card class="p-4 text-center text-muted-foreground text-sm">
                     No registered instances
-                  </div>
+                  </Card>
                 }
               >
                 <div class="full-settings-list">
                   <For each={activityData().processes.registered}>
                     {(proc) => (
-                      <div class={`full-settings-list-item ${!proc.running ? "activity-monitor-item-stale" : ""}`}>
-                        <div class={`activity-monitor-dot ${proc.running ? "activity-monitor-dot-running" : "activity-monitor-dot-dead"}`} />
+                      <div class={cn(
+                        "full-settings-list-item",
+                        !proc.running && "opacity-60"
+                      )}>
+                        <div class={cn(
+                          "w-2 h-2 rounded-full flex-shrink-0",
+                          proc.running
+                            ? "bg-success shadow-[0_0_6px_hsl(var(--success))]"
+                            : "bg-muted-foreground"
+                        )} />
                         <div class="full-settings-list-item-info">
                           <div class="full-settings-list-item-title">
                             {getFolderName(proc.entry.folder)}
-                            <span class="activity-monitor-pid-badge">PID {proc.entry.pid}</span>
+                            <Badge variant="secondary" class="ml-2 font-mono font-normal text-muted-foreground">
+                              PID {proc.entry.pid}
+                            </Badge>
                           </div>
                           <div class="full-settings-list-item-subtitle">
-                            <span class="activity-monitor-path">{proc.entry.folder}</span>
+                            <span class="font-mono overflow-hidden text-ellipsis whitespace-nowrap block">{proc.entry.folder}</span>
                             <Show when={proc.running} fallback={
-                              <span class="activity-monitor-stale-text">Stale entry</span>
+                              <span class="italic text-muted-foreground">Stale entry</span>
                             }>
-                              <span class="activity-monitor-uptime">
+                              <span class="inline-flex items-center gap-1 mt-0.5">
                                 <Clock class="w-3 h-3" />
                                 {getUptime(proc.entry.startedAt)}
                               </span>
@@ -253,15 +267,16 @@ const ActivityMonitor: Component = () => {
                           </div>
                         </div>
                         <Show when={proc.running}>
-                          <button
-                            type="button"
-                            class="full-settings-btn-ghost activity-monitor-kill-btn"
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleKillProcess(proc.entry.pid)}
                             disabled={isLoading()}
                             title="Kill this process"
+                            class="hover:text-destructive"
                           >
                             <Trash2 class="w-4 h-4" />
-                          </button>
+                          </Button>
                         </Show>
                       </div>
                     )}
@@ -272,46 +287,49 @@ const ActivityMonitor: Component = () => {
 
             {/* Orphaned Processes */}
             <Show when={activityData().processes.unregistered.length > 0}>
-              <div class="full-settings-section-divider" />
+              <Separator class="my-4" />
               <div class="full-settings-subsection">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-base);">
-                  <h3 style="font-size: var(--font-size-base); font-weight: var(--font-weight-medium); color: var(--status-error); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <div class="flex items-center justify-between mb-3 pb-2 border-b border-border">
+                  <h3 class="text-base font-medium text-destructive m-0 flex items-center gap-2">
                     <AlertTriangle class="w-4 h-4" />
                     Orphaned Processes
                   </h3>
-                  <button
-                    type="button"
-                    class="full-settings-btn full-settings-btn-danger"
+                  <Button
+                    variant="destructive"
+                    size="sm"
                     onClick={handleKillAllOrphans}
                     disabled={isLoading()}
                   >
                     <Skull class="w-4 h-4" />
                     Kill All
-                  </button>
+                  </Button>
                 </div>
                 <div class="full-settings-list">
                   <For each={activityData().processes.unregistered}>
                     {(pid) => (
-                      <div class="full-settings-list-item activity-monitor-item-orphan">
-                        <div class="activity-monitor-dot activity-monitor-dot-orphan" />
+                      <div class="full-settings-list-item border-destructive">
+                        <div class="w-2 h-2 rounded-full flex-shrink-0 bg-destructive animate-pulse" />
                         <div class="full-settings-list-item-info">
                           <div class="full-settings-list-item-title">
                             PID {pid}
-                            <span class="activity-monitor-orphan-badge">Untracked</span>
+                            <Badge variant="destructive" class="ml-2 font-medium">
+                              Untracked
+                            </Badge>
                           </div>
                           <div class="full-settings-list-item-subtitle">
                             Not associated with any registered workspace
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          class="full-settings-btn-ghost activity-monitor-kill-btn"
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleKillProcess(pid)}
                           disabled={isLoading()}
                           title="Kill this orphan process"
+                          class="hover:text-destructive"
                         >
                           <Trash2 class="w-4 h-4" />
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </For>
@@ -319,61 +337,61 @@ const ActivityMonitor: Component = () => {
               </div>
             </Show>
 
-            <div class="full-settings-section-divider" />
+            <Separator class="my-4" />
 
             {/* Session Cleanup */}
             <div class="full-settings-subsection">
               <h3 class="full-settings-subsection-title">Session Cleanup</h3>
-              <p class="activity-monitor-section-desc">
+              <p class="text-sm text-muted-foreground -mt-2 mb-3">
                 {activityData().sessionStats.total} sessions across {activityData().sessionStats.projectCount} project(s)
               </p>
 
               <Show
                 when={activityData().sessionStats.staleCount > 0 || activityData().sessionStats.blankCount > 0}
                 fallback={
-                  <div class="activity-monitor-all-clean">
+                  <Card class="flex items-center gap-2 px-4 py-3 text-success text-sm">
                     <CheckCircle class="w-4 h-4" />
                     <span>All clean — no stale or blank sessions found.</span>
-                  </div>
+                  </Card>
                 }
               >
-                <div class="activity-monitor-cleanup-actions">
+                <div class="flex flex-col">
                   <Show when={activityData().sessionStats.staleCount > 0}>
                     <div class="full-settings-toggle-row">
                       <div class="full-settings-toggle-info">
-                        <div class="full-settings-toggle-title" style="display: flex; align-items: center; gap: 6px;">
-                          <Package class="w-4 h-4" style="flex-shrink: 0;" />
+                        <div class="full-settings-toggle-title flex items-center gap-1.5">
+                          <Package class="w-4 h-4 flex-shrink-0" />
                           {activityData().sessionStats.staleCount} stale session(s)
                         </div>
                         <div class="full-settings-toggle-description">Not updated in 7+ days</div>
                       </div>
-                      <button
-                        type="button"
-                        class="full-settings-btn full-settings-btn-secondary"
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={handlePurgeStale}
                         disabled={isLoading()}
                       >
                         Purge
-                      </button>
+                      </Button>
                     </div>
                   </Show>
                   <Show when={activityData().sessionStats.blankCount > 0}>
                     <div class="full-settings-toggle-row">
                       <div class="full-settings-toggle-info">
-                        <div class="full-settings-toggle-title" style="display: flex; align-items: center; gap: 6px;">
-                          <Inbox class="w-4 h-4" style="flex-shrink: 0;" />
+                        <div class="full-settings-toggle-title flex items-center gap-1.5">
+                          <Inbox class="w-4 h-4 flex-shrink-0" />
                           {activityData().sessionStats.blankCount} blank session(s)
                         </div>
                         <div class="full-settings-toggle-description">Sessions with no changes</div>
                       </div>
-                      <button
-                        type="button"
-                        class="full-settings-btn full-settings-btn-secondary"
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={handleCleanBlank}
                         disabled={isLoading()}
                       >
                         Clean
-                      </button>
+                      </Button>
                     </div>
                   </Show>
                 </div>

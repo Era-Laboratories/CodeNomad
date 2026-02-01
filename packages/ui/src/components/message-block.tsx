@@ -14,9 +14,9 @@ import type { MessageRecord } from "../stores/message-v2/types"
 import { messageStoreBus } from "../stores/message-v2/bus"
 import { formatTokenTotal } from "../lib/formatters"
 
-const USER_BORDER_COLOR = "var(--message-user-border)"
-const ASSISTANT_BORDER_COLOR = "var(--message-assistant-border)"
-const TOOL_BORDER_COLOR = "var(--message-tool-border)"
+const USER_BORDER_COLOR = "hsl(var(--primary) / 0.3)"
+const ASSISTANT_BORDER_COLOR = "hsl(var(--muted-foreground) / 0.2)"
+const TOOL_BORDER_COLOR = "hsl(var(--accent) / 0.5)"
 
 type ToolCallPart = Extract<ClientPart, { type: "tool" }>
 
@@ -380,10 +380,10 @@ export default function MessageBlock(props: MessageBlockProps) {
       if (pendingSubAgents.length > 0) {
         const pipelinePattern = detectPipelinePattern(pendingSubAgents)
         if (pipelinePattern) {
-          // Pipeline detected — interstitial tools are absorbed (not shown separately)
+          // Pipeline detected -- interstitial tools are absorbed (not shown separately)
           sections.push({ type: "pipeline-group", tools: [...pendingSubAgents], patternName: pipelinePattern })
         } else {
-          // No pipeline — flush interstitial tools before the subagent group
+          // No pipeline -- flush interstitial tools before the subagent group
           if (interstitialTools.length > 0) {
             sections.push({ type: "tool-group", tools: [...interstitialTools] })
           }
@@ -417,9 +417,9 @@ export default function MessageBlock(props: MessageBlockProps) {
           flushTools()
           pendingSubAgents.push(toolItem)
         } else if (pendingSubAgents.length > 0) {
-          // Non-task tool while sub-agents are accumulating — buffer as interstitial
+          // Non-task tool while sub-agents are accumulating -- buffer as interstitial
           // so we don't break pipeline detection across gaps like:
-          // task(coder) → read(file) → task(test-writer) → task(reviewer)
+          // task(coder) -> read(file) -> task(test-writer) -> task(reviewer)
           interstitialTools.push(toolItem)
         } else {
           // Regular tools with no sub-agents in flight
@@ -464,8 +464,8 @@ export default function MessageBlock(props: MessageBlockProps) {
       if (section.type === "subagent-group") {
         subagentAccum.push(...section.tools)
       } else if (section.type === "item" && subagentAccum.length > 0) {
-        // Text between sub-agents — skip it from rendering (it's usually
-        // just transitional filler like "Now let me…").  The sub-agent
+        // Text between sub-agents -- skip it from rendering (it's usually
+        // just transitional filler like "Now let me...").  The sub-agent
         // rows already show their own descriptions.
         continue
       } else {
@@ -493,7 +493,7 @@ export default function MessageBlock(props: MessageBlockProps) {
       if (section.type === "tool-group") {
         toolAccum.push(...section.tools)
       } else if (section.type === "item" && toolAccum.length > 0) {
-        // Text between tool groups — skip transitional filler.
+        // Text between tool groups -- skip transitional filler.
         // Tool rows already show their own file paths / summaries.
         continue
       } else {
@@ -642,7 +642,7 @@ export default function MessageBlock(props: MessageBlockProps) {
   return (
     <Show when={block()} keyed>
       {(resolvedBlock) => (
-        <div class="message-stream-block" data-message-id={resolvedBlock.record.id}>
+        <div class="flex flex-col gap-2 rounded-lg" data-message-id={resolvedBlock.record.id}>
           {/* Render sections: content, reasoning, and grouped tools in their original order */}
           <For each={displaySections()}>{(section) => renderSection(section)}</For>
 
@@ -655,7 +655,7 @@ export default function MessageBlock(props: MessageBlockProps) {
                 messageInfo={item().messageInfo}
                 showUsage={props.showUsageMetrics()}
                 borderColor={item().accentColor}
-      
+
               />
             )}
           </Show>
@@ -730,10 +730,13 @@ function StepCard(props: StepCardProps) {
     ]
 
     return (
-      <div class="message-step-usage">
+      <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
         <For each={entries}>
           {(entry) => (
-            <span class="message-step-usage-chip" data-label={entry.label}>
+            <span
+              class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] bg-info/10 border-info/25 text-foreground font-semibold"
+              data-label={entry.label}
+            >
               {entry.formatter(entry.value)}
             </span>
           )}
@@ -748,25 +751,28 @@ function StepCard(props: StepCardProps) {
       return null
     }
     return (
-      <div class={`message-step-card message-step-finish message-step-finish-flush`} style={finishStyle()}>
+      <div
+        class="flex flex-col gap-2 px-3 py-2 mt-2 ml-6 rounded-lg border border-teal-500/20 border-l-4 bg-gradient-to-br from-teal-500/[0.08] to-teal-500/[0.04] dark:from-teal-500/[0.12] dark:to-teal-500/[0.06]"
+        style={finishStyle()}
+      >
         {renderUsageChips(usage)}
       </div>
     )
   }
 
   return (
-    <div class={`message-step-card message-step-start`}>
-      <div class="message-step-heading">
-        <div class="message-step-title">
-          <div class="message-step-title-left">
+    <div class="flex flex-col gap-2 px-3 py-2 bg-muted border-l-4 border-l-warning/50">
+      <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <div class="flex items-center justify-between w-full font-semibold text-foreground">
+          <div class="flex items-center gap-2 text-muted-foreground">
             <Show when={props.showAgentMeta && (agentIdentifier() || modelIdentifier())}>
-              <span class="message-step-meta-inline">
+              <span class="inline-flex flex-wrap items-center gap-2 text-xs font-medium text-warning">
                 <Show when={agentIdentifier()}>{(value) => <span>Agent: {value()}</span>}</Show>
                 <Show when={modelIdentifier()}>{(value) => <span>Model: {value()}</span>}</Show>
               </span>
             </Show>
           </div>
-          <span class="message-step-time">{timestamp()}</span>
+          <span class="text-xs text-muted-foreground font-normal ml-auto">{timestamp()}</span>
         </div>
       </div>
     </div>
@@ -854,34 +860,41 @@ function ReasoningCard(props: ReasoningCardProps) {
   const toggle = () => setExpanded((prev) => !prev)
 
   return (
-    <div class="message-reasoning-card">
+    <div class="bg-muted border-l-4 border-l-warning/50 mt-0 mb-0 p-0 flex flex-col gap-0">
       <button
         type="button"
-        class="message-reasoning-toggle"
+        class="w-full flex items-center justify-between gap-2.5 bg-transparent border-none px-2.5 py-1 font-inherit text-inherit text-left cursor-pointer transition-colors duration-200 hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
         onClick={toggle}
         aria-expanded={expanded()}
         aria-label={expanded() ? "Collapse thinking" : "Expand thinking"}
       >
-        <span class="message-reasoning-label flex flex-wrap items-center gap-2">
+        <span class="text-xs font-medium text-warning flex flex-wrap items-center gap-2">
           <span>Thinking</span>
           <Show when={props.showAgentMeta && (agentIdentifier() || modelIdentifier())}>
-            <span class="message-step-meta-inline">
-              <Show when={agentIdentifier()}>{(value) => <span class="font-medium text-[var(--message-assistant-border)]">Agent: {value()}</span>}</Show>
-              <Show when={modelIdentifier()}>{(value) => <span class="font-medium text-[var(--message-assistant-border)]">Model: {value()}</span>}</Show>
+            <span class="inline-flex flex-wrap items-center gap-2 text-xs font-medium text-warning">
+              <Show when={agentIdentifier()}>{(value) => <span class="font-medium text-warning">Agent: {value()}</span>}</Show>
+              <Show when={modelIdentifier()}>{(value) => <span class="font-medium text-warning">Model: {value()}</span>}</Show>
             </span>
           </Show>
         </span>
-        <span class="message-reasoning-meta">
-          <span class="message-reasoning-indicator">{expanded() ? "Hide" : "View"}</span>
-          <span class="message-reasoning-time">{timestamp()}</span>
+        <span class="inline-flex items-center gap-2">
+          <span class="inline-flex items-center justify-center h-6 px-3 border border-border rounded-md bg-transparent text-muted-foreground font-semibold text-xs leading-none tracking-[0.01em] transition-all duration-200 hover:bg-accent hover:border-primary hover:text-primary active:scale-[0.97]">
+            {expanded() ? "Hide" : "View"}
+          </span>
+          <span class="text-xs text-muted-foreground">{timestamp()}</span>
         </span>
       </button>
 
       <Show when={expanded()}>
-        <div class="message-reasoning-expanded">
-          <div class="message-reasoning-body">
-            <div class="message-reasoning-output" role="region" aria-label="Reasoning details">
-              <pre class="message-reasoning-text">{reasoningText() || ""}</pre>
+        <div class="flex flex-col gap-1.5">
+          <div class="p-0 bg-muted m-3">
+            <div
+              class="flex flex-col m-0 p-3 max-h-[30rem] overflow-y-auto bg-muted"
+              style={{ "scrollbar-width": "thin", "scrollbar-gutter": "stable both-edges" }}
+              role="region"
+              aria-label="Reasoning details"
+            >
+              <pre class="font-mono text-xs leading-tight text-foreground whitespace-pre-wrap m-0">{reasoningText() || ""}</pre>
             </div>
           </div>
         </div>
