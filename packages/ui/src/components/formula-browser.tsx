@@ -73,10 +73,10 @@ const FormulaBrowser: Component<FormulaBrowserProps> = (props) => {
   const [selectedFormula, setSelectedFormula] = createSignal<string | null>(null)
   const [variableValues, setVariableValues] = createSignal<Record<string, string>>({})
 
-  const fetchFormulas = async (): Promise<Formula[]> => {
+  const fetchFormulas = async (folder: string | undefined): Promise<Formula[]> => {
     try {
       const params = new URLSearchParams()
-      if (props.folder) params.set("folder", props.folder)
+      if (folder) params.set("folder", folder)
       const resp = await fetch(`/api/era/formulas?${params}`)
       if (!resp.ok) return []
       const data = await resp.json()
@@ -87,7 +87,7 @@ const FormulaBrowser: Component<FormulaBrowserProps> = (props) => {
     }
   }
 
-  const [formulas, { refetch }] = createResource(fetchFormulas)
+  const [formulas, { refetch }] = createResource(() => props.folder, fetchFormulas)
 
   const filtered = createMemo(() => {
     let result = formulas() ?? []

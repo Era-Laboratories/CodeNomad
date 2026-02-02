@@ -78,31 +78,37 @@ const BeadsDashboard: Component<BeadsDashboardProps> = (props) => {
   const [expanded, setExpanded] = createSignal(false)
   const [selectedIssue, setSelectedIssue] = createSignal<string | null>(null)
 
-  const [issueData, { refetch: refetchIssues }] = createResource(async () => {
-    try {
-      const params = new URLSearchParams()
-      if (props.folder) params.set("folder", props.folder)
-      if (statusFilter()) params.set("status", statusFilter()!)
-      const res = await fetch(`/api/era/beads/issues?${params}`)
-      if (!res.ok) return { issues: [], total: 0 }
-      return await res.json()
-    } catch (err) {
-      log.error("Failed to fetch beads issues", err)
-      return { issues: [], total: 0 }
-    }
-  })
+  const [issueData, { refetch: refetchIssues }] = createResource(
+    () => ({ folder: props.folder, status: statusFilter() }),
+    async (source) => {
+      try {
+        const params = new URLSearchParams()
+        if (source.folder) params.set("folder", source.folder)
+        if (source.status) params.set("status", source.status)
+        const res = await fetch(`/api/era/beads/issues?${params}`)
+        if (!res.ok) return { issues: [], total: 0 }
+        return await res.json()
+      } catch (err) {
+        log.error("Failed to fetch beads issues", err)
+        return { issues: [], total: 0 }
+      }
+    },
+  )
 
-  const [graphData] = createResource(async () => {
-    try {
-      const params = props.folder ? `?folder=${encodeURIComponent(props.folder)}` : ""
-      const res = await fetch(`/api/era/beads/graph${params}`)
-      if (!res.ok) return { nodes: [], edges: [] }
-      return await res.json()
-    } catch (err) {
-      log.log("Beads graph not available", err)
-      return { nodes: [], edges: [] }
-    }
-  })
+  const [graphData] = createResource(
+    () => props.folder,
+    async (folder: string | undefined) => {
+      try {
+        const params = folder ? `?folder=${encodeURIComponent(folder)}` : ""
+        const res = await fetch(`/api/era/beads/graph${params}`)
+        if (!res.ok) return { nodes: [], edges: [] }
+        return await res.json()
+      } catch (err) {
+        log.log("Beads graph not available", err)
+        return { nodes: [], edges: [] }
+      }
+    },
+  )
 
   const issues = createMemo<BeadIssue[]>(() => issueData()?.issues ?? [])
 

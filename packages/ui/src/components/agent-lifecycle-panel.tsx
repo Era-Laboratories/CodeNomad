@@ -60,7 +60,7 @@ const STATE_CONFIG = {
 const AgentLifecyclePanel: Component<AgentLifecyclePanelProps> = (props) => {
   const [expandedAgent, setExpandedAgent] = createSignal<string | null>(null)
 
-  const fetchAgents = async (): Promise<AgentLifecycleEntry[]> => {
+  const fetchAgents = async (folder: string | undefined): Promise<AgentLifecycleEntry[]> => {
     try {
       const resp = await fetch("/api/era/agents/lifecycle")
       if (!resp.ok) return []
@@ -72,7 +72,7 @@ const AgentLifecyclePanel: Component<AgentLifecyclePanelProps> = (props) => {
     }
   }
 
-  const [agents] = createResource(fetchAgents)
+  const [agents] = createResource(() => props.folder, fetchAgents)
 
   const formatRelativeTime = (ts?: string) => {
     if (!ts) return ""

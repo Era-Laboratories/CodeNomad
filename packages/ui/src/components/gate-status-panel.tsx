@@ -71,10 +71,10 @@ const STATUS_CONFIG = {
 const GateStatusPanel: Component<GateStatusPanelProps> = (props) => {
   const [approveComment, setApproveComment] = createSignal("")
 
-  const fetchGates = async (): Promise<GateEntry[]> => {
+  const fetchGates = async (planId: string | undefined): Promise<GateEntry[]> => {
     try {
       const params = new URLSearchParams()
-      if (props.planId) params.set("planId", props.planId)
+      if (planId) params.set("planId", planId)
       const resp = await fetch(`/api/era/gates/status?${params}`)
       if (!resp.ok) return []
       const data = await resp.json()
@@ -85,7 +85,7 @@ const GateStatusPanel: Component<GateStatusPanelProps> = (props) => {
     }
   }
 
-  const [gates, { refetch }] = createResource(fetchGates)
+  const [gates, { refetch }] = createResource(() => props.planId, fetchGates)
 
   const formatTime = (ts: string) => {
     const ms = Date.now() - new Date(ts).getTime()
@@ -180,10 +180,10 @@ const GateStatusPanel: Component<GateStatusPanelProps> = (props) => {
                   </Show>
 
                   {/* GitHub link for gh:run gates */}
-                  <Show when={gate.type === "gh:run" && gate.metadata.owner && gate.metadata.repo}>
+                  <Show when={gate.type === "gh:run" && typeof gate.metadata.owner === "string" && typeof gate.metadata.repo === "string"}>
                     <div class="mt-1">
                       <a
-                        href={`https://github.com/${gate.metadata.owner}/${gate.metadata.repo}/actions`}
+                        href={`https://github.com/${encodeURIComponent(gate.metadata.owner as string)}/${encodeURIComponent(gate.metadata.repo as string)}/actions`}
                         target="_blank"
                         rel="noopener noreferrer"
                         class="text-[10px] text-primary hover:underline flex items-center gap-1"

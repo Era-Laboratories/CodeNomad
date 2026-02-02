@@ -52,10 +52,10 @@ const REASON_CONFIG = {
 const HandoffVisualization: Component<HandoffVisualizationProps> = (props) => {
   const [expandedHandoff, setExpandedHandoff] = createSignal<string | null>(null)
 
-  const fetchHandoffs = async (): Promise<{ handoffs: HandoffEntry[]; chain: HandoffChainNode[] }> => {
+  const fetchHandoffs = async (sessionId: string | undefined): Promise<{ handoffs: HandoffEntry[]; chain: HandoffChainNode[] }> => {
     try {
       const params = new URLSearchParams()
-      if (props.sessionId) params.set("sessionId", props.sessionId)
+      if (sessionId) params.set("sessionId", sessionId)
       const resp = await fetch(`/api/era/handoffs?${params}`)
       if (!resp.ok) return { handoffs: [], chain: [] }
       const data = await resp.json()
@@ -66,7 +66,7 @@ const HandoffVisualization: Component<HandoffVisualizationProps> = (props) => {
     }
   }
 
-  const [data] = createResource(fetchHandoffs)
+  const [data] = createResource(() => props.sessionId, fetchHandoffs)
 
   const chainStats = createMemo(() => {
     const chain = data()?.chain ?? []

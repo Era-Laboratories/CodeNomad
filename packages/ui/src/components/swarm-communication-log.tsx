@@ -42,7 +42,7 @@ const SwarmCommunicationLog: Component<SwarmCommunicationLogProps> = (props) => 
   const [filterType, setFilterType] = createSignal<string | null>(null)
   const [expandedMsg, setExpandedMsg] = createSignal<string | null>(null)
 
-  const fetchMessages = async (): Promise<SwarmMessage[]> => {
+  const fetchMessages = async (folder: string | undefined): Promise<SwarmMessage[]> => {
     try {
       const resp = await fetch("/api/era/swarm/messages")
       if (!resp.ok) return []
@@ -54,7 +54,7 @@ const SwarmCommunicationLog: Component<SwarmCommunicationLogProps> = (props) => 
     }
   }
 
-  const [messages] = createResource(fetchMessages)
+  const [messages] = createResource(() => props.folder, fetchMessages)
 
   const filtered = createMemo(() => {
     let result = messages() ?? []

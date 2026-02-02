@@ -38,7 +38,7 @@ const STATUS_CONFIG = {
 } as const
 
 const AgentQueuePanel: Component<AgentQueuePanelProps> = (props) => {
-  const fetchQueue = async (): Promise<QueuedAgent[]> => {
+  const fetchQueue = async (folder: string | undefined): Promise<QueuedAgent[]> => {
     try {
       const resp = await fetch("/api/era/agents/queue")
       if (!resp.ok) return []
@@ -50,7 +50,7 @@ const AgentQueuePanel: Component<AgentQueuePanelProps> = (props) => {
     }
   }
 
-  const [agents] = createResource(fetchQueue)
+  const [agents] = createResource(() => props.folder, fetchQueue)
 
   const grouped = createMemo(() => {
     const all = agents() ?? []

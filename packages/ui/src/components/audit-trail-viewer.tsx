@@ -67,23 +67,26 @@ const AuditTrailViewer: Component<AuditTrailViewerProps> = (props) => {
   const [typeFilter, setTypeFilter] = createSignal("")
   const [isCollapsed, setIsCollapsed] = createSignal(props.compact ?? false)
 
-  const [events, { refetch }] = createResource<AuditEvent[]>(async () => {
-    try {
-      const params = new URLSearchParams()
-      if (props.folder) params.set("folder", props.folder)
-      if (actorFilter()) params.set("actor", actorFilter())
-      if (typeFilter()) params.set("type", typeFilter())
-      params.set("limit", "50")
+  const [events, { refetch }] = createResource(
+    () => ({ folder: props.folder, actor: actorFilter(), type: typeFilter() }),
+    async (source): Promise<AuditEvent[]> => {
+      try {
+        const params = new URLSearchParams()
+        if (source.folder) params.set("folder", source.folder)
+        if (source.actor) params.set("actor", source.actor)
+        if (source.type) params.set("type", source.type)
+        params.set("limit", "50")
 
-      const res = await fetch(`/api/era/audit/events?${params}`)
-      if (!res.ok) return []
-      const data = await res.json()
-      return data.events ?? []
-    } catch (err) {
-      log.error("Failed to fetch audit events", err)
-      return []
-    }
-  })
+        const res = await fetch(`/api/era/audit/events?${params}`)
+        if (!res.ok) return []
+        const data = await res.json()
+        return data.events ?? []
+      } catch (err) {
+        log.error("Failed to fetch audit events", err)
+        return []
+      }
+    },
+  )
 
   const uniqueActors = createMemo(() => {
     const actors = new Set<string>()
@@ -142,7 +145,7 @@ const AuditTrailViewer: Component<AuditTrailViewerProps> = (props) => {
               <Input
                 placeholder="Filter by actor..."
                 value={actorFilter()}
-                onInput={(e) => { setActorFilter(e.currentTarget.value); refetch() }}
+                onInput={(e) => setActorFilter(e.currentTarget.value)}
                 class="h-7 text-xs"
               />
             </div>
@@ -157,7 +160,7 @@ const AuditTrailViewer: Component<AuditTrailViewerProps> = (props) => {
                           ? "bg-primary text-primary-foreground border-primary"
                           : "border-border text-muted-foreground hover:bg-accent"
                       )}
-                      onClick={() => { setTypeFilter(typeFilter() === type ? "" : type); refetch() }}
+                      onClick={() => setTypeFilter(typeFilter() === type ? "" : type)}
                     >
                       {type.replace(/_/g, " ")}
                     </button>
