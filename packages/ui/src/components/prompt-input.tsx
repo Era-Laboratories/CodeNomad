@@ -1089,7 +1089,7 @@ export default function PromptInput(props: PromptInputProps) {
   // Show read-only footer for sub-agent sessions
   if (props.isSubAgentSession) {
     return (
-      <div class="flex flex-col border-t border-border bg-background">
+      <div class="flex flex-col shrink-0 border-t border-border bg-background">
         <div class="flex items-center justify-between gap-4 px-4 py-3 bg-secondary border-t border-border">
           <div class="flex items-center gap-2">
             <span class="text-lg">🤖</span>
@@ -1113,7 +1113,7 @@ export default function PromptInput(props: PromptInputProps) {
   }
 
   return (
-    <div class="flex flex-col border-t border-border bg-background">
+    <div class="flex flex-col shrink-0 border-t border-border bg-background">
       <div
         ref={containerRef}
         class={cn(
@@ -1249,7 +1249,7 @@ export default function PromptInput(props: PromptInputProps) {
             </div>
           </Show>
           <div class={cn(
-            "relative w-full min-h-[56px] flex-1 h-full min-w-0",
+            "relative w-full min-h-[56px] md:min-h-[112px] flex-1 h-full min-w-0",
             expandState() === "expanded" && "h-auto"
           )}>
             <div class={cn(
@@ -1259,7 +1259,7 @@ export default function PromptInput(props: PromptInputProps) {
               <textarea
                 ref={textareaRef}
                 class={cn(
-                  "w-full pl-3 pr-10 pt-2.5 border text-sm resize-none outline-none transition-colors bg-background text-foreground border-border rounded-none pb-0 h-full min-h-full font-[inherit] leading-normal",
+                  "w-full pl-3 pr-10 pt-2.5 border text-base md:text-sm resize-none outline-none transition-colors bg-background text-foreground border-border rounded-none pb-0 h-full min-h-full font-[inherit] leading-normal",
                   mode() === "shell" && "border-success shadow-[inset_0_0_0_1px_hsl(var(--success)/0.4)]",
                   expandState() === "expanded" && "h-auto min-h-0 overflow-y-auto",
                   "focus:border-info focus:shadow-none",
@@ -1280,7 +1280,7 @@ export default function PromptInput(props: PromptInputProps) {
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 disabled={props.disabled}
-                rows={expandState() === "expanded" ? 15 : 4}
+                rows={expandState() === "expanded" ? 15 : 2}
                 style={attachments().length > 0 ? { "padding-top": "8px" } : {}}
                 spellcheck={false}
                 autocorrect="off"
@@ -1288,10 +1288,12 @@ export default function PromptInput(props: PromptInputProps) {
                 autocomplete="off"
               />
               <div class="absolute top-1 right-1 bottom-1 flex flex-col justify-start gap-0.5 z-[2]">
-                <ExpandButton
-                  expandState={expandState}
-                  onToggleExpand={handleExpandToggle}
-                />
+                <div class="hidden md:block">
+                  <ExpandButton
+                    expandState={expandState}
+                    onToggleExpand={handleExpandToggle}
+                  />
+                </div>
                 <Show when={hasHistory()}>
                   <Button
                     variant="ghost"
@@ -1356,7 +1358,7 @@ export default function PromptInput(props: PromptInputProps) {
             size="icon"
             type="button"
             class={cn(
-              "w-9 h-9 rounded-lg cursor-pointer flex-shrink-0 transition-all",
+              "w-12 h-12 md:w-9 md:h-9 rounded-lg cursor-pointer flex-shrink-0 transition-all",
               "bg-secondary text-destructive border border-border",
               "hover:bg-destructive/10 hover:border-destructive",
               "active:scale-95",
@@ -1376,7 +1378,7 @@ export default function PromptInput(props: PromptInputProps) {
             size="icon"
             type="button"
             class={cn(
-              "w-9 h-9 rounded-lg cursor-pointer flex-shrink-0 transition-all mt-auto",
+              "w-12 h-12 md:w-9 md:h-9 rounded-lg cursor-pointer flex-shrink-0 transition-all mt-auto",
               mode() === "shell"
                 ? "bg-success text-primary-foreground border border-success hover:brightness-110 active:brightness-95"
                 : "bg-info text-primary-foreground border border-info hover:brightness-110",

@@ -773,7 +773,7 @@ export default function MessageSection(props: MessageSectionProps) {
     <div class="relative flex-1 min-h-0 flex flex-col overflow-hidden">
       <div class={cn(
         "grid grid-cols-[minmax(0,1fr)] w-full min-h-0 flex-1 relative",
-        hasTimelineSegments() && "grid-cols-[minmax(0,1fr)_64px] max-sm:grid-cols-[minmax(0,1fr)_40px]"
+        hasTimelineSegments() && !props.forceCompactStatusLayout && "grid-cols-[minmax(0,1fr)_64px] max-sm:grid-cols-[minmax(0,1fr)_40px]"
       )}>
         <div class="min-h-0 flex flex-col relative" ref={setShellElement}>
           <div
@@ -887,7 +887,7 @@ export default function MessageSection(props: MessageSectionProps) {
           </Show>
         </div>
 
-        <Show when={hasTimelineSegments()}>
+        <Show when={hasTimelineSegments() && !props.forceCompactStatusLayout}>
           <div class="w-16 max-sm:w-10 min-h-0 flex flex-col border-l border-border/50">
             <MessageTimeline
               segments={timelineSegments()}
