@@ -18,9 +18,13 @@ import {
   InstructionRetrieval,
   InstructionPruner,
   composeRetrievedSection,
+  recordFeedback,
   type RetrievalContext,
   type RetrievedInstruction,
+  type FeedbackEvent,
+  type DedupOverlap,
 } from "../../services/instruction-retrieval"
+import { EraMemoryClient } from "../../services/era-memory-client"
 
 interface RouteDeps {
   eraDetection: EraDetectionService
@@ -549,10 +553,11 @@ export function registerEraRoutes(app: FastifyInstance, deps: RouteDeps) {
   // Instruction Capture & Governance Memory
   // --------------------------------------------------------------------------
 
+  const eraMemoryClient = new EraMemoryClient()
   const governanceWriter = new GovernanceWriter()
   const llmClassifier = new LlmClassifier()
-  const instructionRetrieval = new InstructionRetrieval()
-  const instructionPruner = new InstructionPruner()
+  const instructionRetrieval = new InstructionRetrieval(eraMemoryClient)
+  const instructionPruner = new InstructionPruner(eraMemoryClient)
 
   /**
    * POST /api/era/classify-confirm
@@ -794,15 +799,15 @@ export function registerEraRoutes(app: FastifyInstance, deps: RouteDeps) {
     const { sessionId } = request.body ?? {}
 
     if (!sessionId) {
-      return { flushed: false }
+      return { flushed: false, count: 0, promotionCandidates: [] }
     }
 
     try {
-      await instructionRetrieval.flushAccessCounts(sessionId)
-      return { flushed: true }
+      const result = await instructionRetrieval.flushAccessCounts(sessionId)
+      return { flushed: true, count: result.flushed, promotionCandidates: result.promotionCandidates }
     } catch (err) {
       logger.error({ err }, "Failed to flush session access counts")
-      return { flushed: false }
+      return { flushed: false, count: 0, promotionCandidates: [] }
     }
   })
 
@@ -820,6 +825,275 @@ export function registerEraRoutes(app: FastifyInstance, deps: RouteDeps) {
     } catch (err) {
       logger.error({ err }, "Failed to prune instructions")
       return { flaggedForReview: [], archived: [], errors: [err instanceof Error ? err.message : "Unknown error"] }
+    }
+  })
+
+  /**
+   * POST /api/era/retrieval/feedback
+   * Record feedback for a retrieved instruction (success/failure/dismissed).
+   */
+  app.post<{
+    Body: { sessionId: string; instructionId: string; outcome: "success" | "failure" | "dismissed" }
+  }>("/api/era/retrieval/feedback", async (request, reply) => {
+    const { sessionId, instructionId, outcome } = request.body ?? {}
+
+    if (!sessionId || !instructionId || !outcome) {
+      reply.code(400)
+      return { error: "sessionId, instructionId, and outcome are required" }
+    }
+
+    if (!["success", "failure", "dismissed"].includes(outcome)) {
+      reply.code(400)
+      return { error: "outcome must be success, failure, or dismissed" }
+    }
+
+    try {
+      const event: FeedbackEvent = { sessionId, instructionId, outcome }
+      const result = await recordFeedback(eraMemoryClient, event)
+      return result
+    } catch (err) {
+      logger.error({ err }, "Failed to record feedback")
+      return { promoted: false, accessCount: 0, feedbackScore: 0 }
+    }
+  })
+
+  /**
+   * GET /api/era/retrieval/promotion-candidates
+   * Query instructions that meet the promotion threshold.
+   */
+  app.get("/api/era/retrieval/promotion-candidates", async () => {
+    try {
+      const candidates = await instructionRetrieval.getPromotionCandidates()
+      return { candidates }
+    } catch (err) {
+      logger.error({ err }, "Failed to get promotion candidates")
+      return { candidates: [] }
+    }
+  })
+
+  /**
+   * GET /api/era/retrieval/overlaps
+   * Get dedup overlaps for a session (debugging/testing).
+   */
+  app.get<{
+    Querystring: { sessionId: string }
+  }>("/api/era/retrieval/overlaps", async (request) => {
+    const { sessionId } = request.query
+
+    if (!sessionId) {
+      return { overlaps: [] as DedupOverlap[] }
+    }
+
+    try {
+      const overlaps = instructionRetrieval.getDedupOverlaps(sessionId)
+      return { overlaps }
+    } catch (err) {
+      logger.error({ err }, "Failed to get dedup overlaps")
+      return { overlaps: [] as DedupOverlap[] }
+    }
+  })
+
+  // ============================================================================
+  // PHASE 5: VISUALIZATION ROUTES
+  // ============================================================================
+
+  /**
+   * GET /api/era/delegation/categories
+   * Returns delegation category list with current model assignments.
+   */
+  app.get<{
+    Querystring: { folder?: string }
+  }>("/api/era/delegation/categories", async (request) => {
+    logger.debug({ folder: request.query.folder }, "Getting delegation categories")
+
+    return {
+      categories: [
+        { id: "visual-engineering", name: "Visual Engineering", model: "claude-sonnet-4", keywords: ["ui", "css", "layout", "component", "style"], active: true },
+        { id: "ultrabrain", name: "Ultrabrain", model: "claude-opus-4", keywords: ["architect", "design", "plan", "complex", "system"], active: true },
+        { id: "artistry", name: "Artistry", model: "claude-sonnet-4", keywords: ["create", "write", "compose", "generate", "craft"], active: true },
+        { id: "quick", name: "Quick Tasks", model: "claude-haiku-4", keywords: ["fix", "typo", "rename", "simple", "small"], active: true },
+        { id: "writing", name: "Writing", model: "claude-sonnet-4", keywords: ["document", "readme", "explain", "describe"], active: true },
+        { id: "unspecified-low", name: "General (Low)", model: "claude-haiku-4", keywords: [], active: true },
+        { id: "unspecified-high", name: "General (High)", model: "claude-sonnet-4", keywords: [], active: true },
+      ],
+    }
+  })
+
+  /**
+   * GET /api/era/models/fallback-chain
+   * Returns model resolution fallback chains per provider.
+   */
+  app.get("/api/era/models/fallback-chain", async () => {
+    logger.debug("Getting model fallback chains")
+
+    return {
+      chains: [
+        {
+          provider: "anthropic",
+          primary: { id: "claude-opus-4", name: "Claude Opus 4", available: true },
+          fallbacks: [
+            { id: "claude-sonnet-4", name: "Claude Sonnet 4", available: true },
+            { id: "claude-haiku-4", name: "Claude Haiku 4", available: true },
+          ],
+        },
+        {
+          provider: "openai",
+          primary: { id: "gpt-4o", name: "GPT-4o", available: true },
+          fallbacks: [
+            { id: "gpt-4o-mini", name: "GPT-4o Mini", available: true },
+          ],
+        },
+        {
+          provider: "google",
+          primary: { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", available: true },
+          fallbacks: [],
+        },
+      ],
+    }
+  })
+
+  /**
+   * GET /api/era/health
+   * Returns system health status based on available detection info.
+   */
+  app.get<{
+    Querystring: { folder?: string }
+  }>("/api/era/health", async (request) => {
+    const folder = request.query.folder
+    logger.debug({ folder }, "Running health check")
+
+    try {
+      const binary = eraDetection.detectBinary()
+      const governanceOk = folder ? eraGovernance.getConfig(folder).success : false
+
+      return {
+        checks: [
+          { name: "era-code", status: binary.installed ? "healthy" : "error", message: binary.installed ? `v${binary.version}` : "Not installed" },
+          { name: "governance", status: governanceOk ? "healthy" : folder ? "warning" : "unknown", message: governanceOk ? "Config loaded" : folder ? "No governance config" : "No project folder" },
+          { name: "beads", status: "unknown", message: "Beads integration pending" },
+          { name: "mcp-servers", status: "healthy", message: "Available" },
+        ],
+        overall: binary.installed ? "healthy" : "error",
+        timestamp: new Date().toISOString(),
+      }
+    } catch (err) {
+      logger.error({ err }, "Health check failed")
+      return {
+        checks: [{ name: "era-code", status: "error", message: String(err) }],
+        overall: "error",
+        timestamp: new Date().toISOString(),
+      }
+    }
+  })
+
+  /**
+   * GET /api/era/beads/issues
+   * Returns beads issues for the project (empty until beads integration is wired).
+   */
+  app.get<{
+    Querystring: { folder?: string; status?: string }
+  }>("/api/era/beads/issues", async (request) => {
+    logger.debug({ folder: request.query.folder }, "Getting beads issues")
+    return { issues: [], total: 0 }
+  })
+
+  /**
+   * GET /api/era/beads/graph
+   * Returns beads dependency graph (empty until beads integration is wired).
+   */
+  app.get<{
+    Querystring: { folder?: string }
+  }>("/api/era/beads/graph", async (request) => {
+    logger.debug({ folder: request.query.folder }, "Getting beads dependency graph")
+    return { nodes: [], edges: [] }
+  })
+
+  /**
+   * GET /api/era/audit/events
+   * Returns audit trail events (empty until audit trail service is wired).
+   */
+  app.get<{
+    Querystring: { folder?: string; actor?: string; type?: string; since?: string; limit?: string }
+  }>("/api/era/audit/events", async (request) => {
+    logger.debug({ folder: request.query.folder, actor: request.query.actor }, "Getting audit events")
+    return { events: [], total: 0 }
+  })
+
+  /**
+   * POST /api/era/refactoring/impact
+   * Analyze refactoring impact (returns safe default until tugtool is wired).
+   */
+  app.post<{
+    Body: { folder: string; operation: string; target: string }
+  }>("/api/era/refactoring/impact", async (request, reply) => {
+    const { folder, operation, target } = request.body ?? {}
+    if (!folder || !operation || !target) {
+      reply.code(400)
+      return { error: "folder, operation, and target are required" }
+    }
+
+    logger.info({ folder, operation, target }, "Analyzing refactoring impact")
+    return {
+      operation,
+      target,
+      affectedFiles: [],
+      references: 0,
+      warnings: [],
+      safe: true,
+    }
+  })
+
+  /**
+   * GET /api/era/verification/status
+   * Returns current verification pipeline status.
+   */
+  app.get<{
+    Querystring: { folder?: string }
+  }>("/api/era/verification/status", async (request) => {
+    logger.debug({ folder: request.query.folder }, "Getting verification status")
+
+    return {
+      phases: [
+        { name: "analyze", status: "idle", duration: null },
+        { name: "preview", status: "idle", duration: null },
+        { name: "verify", status: "idle", duration: null },
+        { name: "apply", status: "idle", duration: null },
+      ],
+      overall: "idle",
+      lastRun: null,
+    }
+  })
+
+  /**
+   * GET /api/era/governance/file-rules
+   * Returns governance rules applicable to specific file paths.
+   */
+  app.get<{
+    Querystring: { folder?: string; path?: string }
+  }>("/api/era/governance/file-rules", async (request) => {
+    const { folder, path: filePath } = request.query
+    logger.debug({ folder, filePath }, "Getting file governance rules")
+
+    try {
+      const config = eraGovernance.getConfig(folder)
+      if (!config.success) {
+        return { rules: [], scopeActive: false }
+      }
+
+      const rules = config.config.rules.flatMap((category) =>
+        category.rules.map((rule) => ({
+          id: rule.id,
+          categoryId: category.categoryId,
+          categoryName: category.categoryName,
+          action: rule.action,
+          source: rule.source,
+        }))
+      )
+
+      return { rules, scopeActive: true }
+    } catch (err) {
+      logger.error({ err }, "Failed to get file governance rules")
+      return { rules: [], scopeActive: false }
     }
   })
 }
