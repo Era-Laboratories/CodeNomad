@@ -1183,6 +1183,64 @@ export function registerEraRoutes(app: FastifyInstance, deps: RouteDeps) {
       return { plan: null }
     }
   })
+
+  // =========================================================================
+  // Phase 8: Agent Lifecycle, Gates, Swarm, Handoffs
+  // =========================================================================
+
+  /** GET /api/era/agents/queue — Agent queue status */
+  app.get("/api/era/agents/queue", async () => {
+    try {
+      return { agents: [] }
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch agent queue")
+      return { agents: [] }
+    }
+  })
+
+  /** GET /api/era/agents/lifecycle — Agent lifecycle states */
+  app.get("/api/era/agents/lifecycle", async () => {
+    try {
+      return { agents: [] }
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch agent lifecycle")
+      return { agents: [] }
+    }
+  })
+
+  /** GET /api/era/swarm/messages — Swarm communication messages */
+  app.get("/api/era/swarm/messages", async () => {
+    try {
+      return { messages: [] }
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch swarm messages")
+      return { messages: [] }
+    }
+  })
+
+  /** GET /api/era/gates/status — Gate statuses */
+  app.get<{
+    Querystring: { planId?: string }
+  }>("/api/era/gates/status", async () => {
+    try {
+      return { gates: [] }
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch gates")
+      return { gates: [] }
+    }
+  })
+
+  /** GET /api/era/handoffs — Session handoffs */
+  app.get<{
+    Querystring: { sessionId?: string }
+  }>("/api/era/handoffs", async () => {
+    try {
+      return { handoffs: [], chain: [] }
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch handoffs")
+      return { handoffs: [], chain: [] }
+    }
+  })
 }
 
 /**
