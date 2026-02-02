@@ -1,5 +1,4 @@
 import { createSignal } from "solid-js"
-import { ERA_CODE_API_BASE } from "../lib/api-client"
 import { getLogger } from "../lib/logger"
 
 const log = getLogger("github-repos")
@@ -30,13 +29,14 @@ export const isReposLoading = loading
 export const isCloning = cloning
 export { cloneError }
 
+// GitHub routes are registered on the local CodeNomad server (same origin),
+// not on the ERA_CODE_API_BASE (era-code backend on port 9898).
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = ERA_CODE_API_BASE ? new URL(path, ERA_CODE_API_BASE).toString() : path
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...(init?.headers ?? {}),
   }
-  const response = await fetch(url, { ...init, headers })
+  const response = await fetch(path, { ...init, headers })
   if (!response.ok) {
     const message = await response.text()
     throw new Error(message || `Request failed with ${response.status}`)
