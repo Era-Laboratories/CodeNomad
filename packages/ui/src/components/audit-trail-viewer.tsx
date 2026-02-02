@@ -130,7 +130,7 @@ const AuditTrailViewer: Component<AuditTrailViewerProps> = (props) => {
               {events()?.length ?? 0} events
             </Badge>
           </button>
-          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()}>
+          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()} aria-label="Refresh audit trail">
             <RefreshCw class={cn("h-3.5 w-3.5", events.loading && "animate-spin")} />
           </Button>
         </div>

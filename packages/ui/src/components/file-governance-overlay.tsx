@@ -147,7 +147,7 @@ const FileGovernanceOverlay: Component<FileGovernanceOverlayProps> = (props) => 
               </Badge>
             </Show>
           </div>
-          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()}>
+          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()} aria-label="Refresh governance rules">
             <RefreshCw class={cn("h-3.5 w-3.5", rules.loading && "animate-spin")} />
           </Button>
         </div>

@@ -100,7 +100,7 @@ const HealthCheckPanel: Component<HealthCheckPanelProps> = (props) => {
                 )
               })()}
             </Show>
-            <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()}>
+            <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()} aria-label="Refresh health checks">
               <RefreshCw class={cn("h-3.5 w-3.5", health.loading && "animate-spin")} />
             </Button>
           </div>

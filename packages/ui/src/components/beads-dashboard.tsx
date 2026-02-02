@@ -153,10 +153,10 @@ const BeadsDashboard: Component<BeadsDashboardProps> = (props) => {
             </Badge>
           </div>
           <div class="flex items-center gap-1">
-            <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => setExpanded(!expanded())}>
+            <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => setExpanded(!expanded())} aria-label="Toggle expanded view">
               {expanded() ? <Minimize2 class="h-3.5 w-3.5" /> : <Maximize2 class="h-3.5 w-3.5" />}
             </Button>
-            <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetchIssues()}>
+            <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetchIssues()} aria-label="Refresh issues">
               <RefreshCw class={cn("h-3.5 w-3.5", issueData.loading && "animate-spin")} />
             </Button>
           </div>

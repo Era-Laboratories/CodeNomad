@@ -76,7 +76,7 @@ const RefactoringImpactPreview: Component<RefactoringImpactPreviewProps> = (prop
             <CardTitle class="text-sm font-medium">Refactoring Impact</CardTitle>
           </div>
           <Show when={props.operation && props.target}>
-            <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()}>
+            <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()} aria-label="Re-analyze impact">
               <RefreshCw class={cn("h-3.5 w-3.5", impact.loading && "animate-spin")} />
             </Button>
           </Show>

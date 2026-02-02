@@ -113,7 +113,7 @@ const VerificationPipelineStatus: Component<VerificationPipelineStatusProps> = (
               }}
             </Show>
           </div>
-          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()}>
+          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()} aria-label="Refresh verification status">
             <RefreshCw class={cn("h-3.5 w-3.5", pipeline.loading && "animate-spin")} />
           </Button>
         </div>

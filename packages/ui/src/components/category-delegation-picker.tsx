@@ -92,7 +92,7 @@ const CategoryDelegationPicker: Component<CategoryDelegationPickerProps> = (prop
       <CardHeader class="pb-3">
         <div class="flex items-center justify-between">
           <CardTitle class="text-sm font-medium">Agent Delegation</CardTitle>
-          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()}>
+          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()} aria-label="Refresh categories">
             <RefreshCw class="h-3.5 w-3.5" />
           </Button>
         </div>

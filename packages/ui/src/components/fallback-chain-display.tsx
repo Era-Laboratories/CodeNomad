@@ -49,7 +49,7 @@ const FallbackChainDisplay: Component<FallbackChainDisplayProps> = (props) => {
             <Layers class="h-4 w-4 text-muted-foreground" />
             <CardTitle class="text-sm font-medium">Model Fallback Chains</CardTitle>
           </div>
-          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()}>
+          <Button variant="ghost" size="icon" class="h-6 w-6" onClick={() => refetch()} aria-label="Refresh fallback chains">
             <RefreshCw class="h-3.5 w-3.5" />
           </Button>
         </div>
