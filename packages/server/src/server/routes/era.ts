@@ -1096,6 +1096,93 @@ export function registerEraRoutes(app: FastifyInstance, deps: RouteDeps) {
       return { rules: [], scopeActive: false }
     }
   })
+
+  // =========================================================================
+  // Phase 7: Workflow Formulas & Plan Execution
+  // =========================================================================
+
+  /** GET /api/era/formulas — List available workflow formulas */
+  app.get<{
+    Querystring: { folder?: string }
+  }>("/api/era/formulas", async (request) => {
+    try {
+      // Return sample formulas for UI development; real formulas come from era-code
+      return {
+        formulas: [
+          {
+            name: "deploy-service",
+            description: "Build, test, and deploy a service to production with approval gate",
+            source: "built-in",
+            variables: [
+              { name: "service_name", type: "string", required: true, description: "Service to deploy" },
+              { name: "version", type: "string", default: "latest", description: "Version tag" },
+              { name: "replicas", type: "number", default: 3, description: "Number of replicas" },
+            ],
+            steps: [
+              { id: "build", name: "Build", action: "build" },
+              { id: "test", name: "Test", action: "test", dependsOn: ["build"] },
+              { id: "approve", name: "Approval gate", action: "gate", dependsOn: ["test"], gate: "human" },
+              { id: "deploy", name: "Deploy", action: "deploy", dependsOn: ["approve"] },
+              { id: "verify", name: "Verify", action: "verify", dependsOn: ["deploy"] },
+            ],
+            tags: ["deploy", "production"],
+            parallelism: 1,
+          },
+          {
+            name: "full-test-suite",
+            description: "Run unit, integration, and e2e tests with coverage reporting",
+            source: "project",
+            variables: [
+              { name: "test_pattern", type: "string", default: "**/*.test.ts", description: "Test glob pattern" },
+              { name: "coverage", type: "boolean", default: true, description: "Enable coverage" },
+            ],
+            steps: [
+              { id: "unit", name: "Unit tests", action: "test" },
+              { id: "integration", name: "Integration tests", action: "test" },
+              { id: "e2e", name: "E2E tests", action: "test" },
+              { id: "report", name: "Coverage report", action: "report", dependsOn: ["unit", "integration", "e2e"] },
+            ],
+            tags: ["test", "ci"],
+            parallelism: 3,
+          },
+        ],
+      }
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch formulas")
+      return { formulas: [] }
+    }
+  })
+
+  /** GET /api/era/plans/status — Get plan execution status */
+  app.get<{
+    Querystring: { planId?: string; folder?: string }
+  }>("/api/era/plans/status", async (request) => {
+    try {
+      const { planId } = request.query
+      if (!planId) return { plan: null }
+
+      // Return placeholder plan status; real plans come from era-code runtime
+      return {
+        plan: {
+          id: planId,
+          formulaName: "deploy-service",
+          status: "pending",
+          steps: [
+            { id: "p1", stepId: "build", name: "Build", action: "build", status: "pending", dependsOn: [] },
+            { id: "p2", stepId: "test", name: "Test", action: "test", status: "pending", dependsOn: ["build"] },
+            { id: "p3", stepId: "approve", name: "Approval gate", action: "gate", status: "pending", dependsOn: ["test"], gateType: "human" },
+            { id: "p4", stepId: "deploy", name: "Deploy", action: "deploy", status: "pending", dependsOn: ["approve"] },
+          ],
+          checkpoints: [],
+          details: [],
+          createdAt: new Date().toISOString(),
+        },
+      }
+    } catch (err) {
+      logger.error({ err }, "Failed to fetch plan status")
+      return { plan: null }
+    }
+  })
 }
 
 /**
