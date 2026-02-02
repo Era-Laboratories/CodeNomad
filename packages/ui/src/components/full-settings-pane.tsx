@@ -1,4 +1,4 @@
-import { Component, Show, createSignal, For, createMemo, onMount, createEffect } from "solid-js"
+import { Component, Show, createSignal, For, createMemo, onMount, createEffect, onCleanup } from "solid-js"
 import { Portal } from "solid-js/web"
 import { Dialog } from "@kobalte/core/dialog"
 import {
@@ -224,6 +224,49 @@ const FullSettingsPane: Component<FullSettingsPaneProps> = (props) => {
     },
   ]
 
+  // Mobile detection
+  const isMobile = (() => {
+    if (typeof window === "undefined") return () => false
+    const mql = window.matchMedia("(max-width: 767px)")
+    const [matches, setMatches] = createSignal(mql.matches)
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches)
+    mql.addEventListener("change", handler)
+    onCleanup(() => mql.removeEventListener("change", handler))
+    return matches
+  })()
+
+  const [mobileShowDetail, setMobileShowDetail] = createSignal(false)
+
+  const activeSectionLabel = createMemo(() => {
+    for (const group of navSections) {
+      for (const item of group.items) {
+        if (item.id === activeSection()) return item.label
+      }
+    }
+    return "Settings"
+  })
+
+  // Reset detail view when dialog closes; show detail if initialSection provided
+  createEffect(() => {
+    if (!props.open) setMobileShowDetail(false)
+  })
+  createEffect(() => {
+    if (props.open && props.initialSection && isMobile()) setMobileShowDetail(true)
+  })
+
+  const handleMobileNavClick = (id: SettingsSection) => {
+    setActiveSection(id)
+    setMobileShowDetail(true)
+  }
+
+  const handleBackClick = () => {
+    if (isMobile() && mobileShowDetail()) {
+      setMobileShowDetail(false)
+    } else {
+      props.onClose()
+    }
+  }
+
   const renderSection = () => {
     switch (activeSection()) {
       case "general":
@@ -272,12 +315,12 @@ const FullSettingsPane: Component<FullSettingsPaneProps> = (props) => {
                 <button
                   type="button"
                   class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-transparent border-none text-muted-foreground text-sm cursor-pointer transition-colors hover:bg-accent hover:text-foreground"
-                  onClick={props.onClose}
+                  onClick={handleBackClick}
                 >
                   <ArrowLeft class="w-4 h-4" />
                   <span>Back</span>
                 </button>
-                <h1 class="text-lg font-semibold text-foreground">Settings</h1>
+                <h1 class="text-lg font-semibold text-foreground">{isMobile() && mobileShowDetail() ? activeSectionLabel() : "Settings"}</h1>
               </div>
               <div class="flex items-center">
                 <button
@@ -293,37 +336,56 @@ const FullSettingsPane: Component<FullSettingsPaneProps> = (props) => {
             {/* Main content */}
             <div class="flex flex-1 overflow-hidden">
               {/* Navigation */}
-              <nav class="w-[220px] shrink-0 p-4 px-3 border-r border-border bg-secondary overflow-y-auto">
-                <For each={navSections}>
-                  {(section) => (
-                    <div class="mb-5 last:mb-0">
-                      <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-2 mb-1.5">{section.title}</div>
-                      <For each={section.items}>
-                        {(item) => (
-                          <button
-                            type="button"
-                            class={cn(
-                              "flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md bg-transparent border-none text-sm text-left cursor-pointer transition-colors text-muted-foreground hover:bg-accent hover:text-foreground",
-                              activeSection() === item.id && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
-                            )}
-                            onClick={() => setActiveSection(item.id)}
-                          >
-                            <item.icon class="w-4 h-4 shrink-0" />
-                            <span>{item.label}</span>
-                          </button>
-                        )}
-                      </For>
-                    </div>
-                  )}
-                </For>
-              </nav>
+              <Show when={!isMobile() || !mobileShowDetail()}>
+                <nav class={cn(
+                  "shrink-0 border-r border-border bg-secondary overflow-y-auto",
+                  isMobile() ? "w-full p-4 px-3 border-r-0" : "w-[220px] p-4 px-3"
+                )}>
+                  <For each={navSections}>
+                    {(section) => (
+                      <div class="mb-5 last:mb-0">
+                        <div class="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-2 mb-1.5">{section.title}</div>
+                        <For each={section.items}>
+                          {(item) => (
+                            <Show when={isMobile()} fallback={
+                              <button
+                                type="button"
+                                class={cn(
+                                  "flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md bg-transparent border-none text-sm text-left cursor-pointer transition-colors text-muted-foreground hover:bg-accent hover:text-foreground",
+                                  activeSection() === item.id && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                                )}
+                                onClick={() => setActiveSection(item.id)}
+                              >
+                                <item.icon class="w-4 h-4 shrink-0" />
+                                <span>{item.label}</span>
+                              </button>
+                            }>
+                              <button
+                                type="button"
+                                class="flex items-center gap-2.5 w-full px-4 py-3 min-h-[48px] rounded-md bg-transparent border-none text-sm text-left cursor-pointer transition-colors text-muted-foreground hover:bg-accent hover:text-foreground active:bg-accent/50"
+                                onClick={() => handleMobileNavClick(item.id)}
+                              >
+                                <item.icon class="w-4 h-4 shrink-0" />
+                                <span class="flex-1">{item.label}</span>
+                                <ChevronRight class="w-4 h-4 text-muted-foreground/50" />
+                              </button>
+                            </Show>
+                          )}
+                        </For>
+                      </div>
+                    )}
+                  </For>
+                </nav>
+              </Show>
 
               {/* Content */}
-              <div class="flex-1 overflow-y-auto px-8 py-6">
-                <div class={cn("max-w-[720px] mx-auto", activeSection() === "models" && "max-w-[1200px]")}>
-                  {renderSection()}
+              <Show when={!isMobile() || mobileShowDetail()}>
+                <div class={cn("flex-1 overflow-y-auto", isMobile() ? "px-4 py-4" : "px-8 py-6")}>
+                  <div class={cn("max-w-[720px] mx-auto", activeSection() === "models" && "max-w-[1200px]")}>
+                    {renderSection()}
+                  </div>
                 </div>
-              </div>
+              </Show>
             </div>
           </div>
         </div>
