@@ -1,5 +1,8 @@
-/* Import base github-markdown styles into a lower-priority layer */
-@import "github-markdown-css/github-markdown-dark.css" layer(markdown-base);
+/* Import base github-markdown styles into a lower-priority layer.
+   Use the light variant as our custom layer provides all dark overrides
+   via theme-aware CSS variables. The dark variant bleeds hardcoded
+   dark colors through in light mode. */
+@import "github-markdown-css/github-markdown-light.css" layer(markdown-base);
 
 /* Our custom styles override the base */
 @layer markdown-base, markdown-custom;
@@ -202,6 +205,10 @@
     background-color: var(--surface-secondary);
     font-weight: var(--font-weight-semibold);
     color: var(--text-primary);
+  }
+
+  .markdown-body tbody tr {
+    background-color: transparent;
   }
 
   .markdown-body tbody tr:nth-child(even) {

@@ -20,14 +20,29 @@
         background-color: #1a1a1a;
         color: #e0e0e0;
       }
+      :root:not([data-theme]) {
+        color-scheme: light dark;
+      }
     </style>
     <script>
       ;(function () {
         try {
-          document.documentElement.setAttribute('data-theme', 'dark')
+          var pref = 'dark'
+          try { pref = JSON.parse(localStorage.getItem('opencode-preferences') || '{}').themePreference || 'dark' } catch(e) {}
+          var isDark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          if (isDark) {
+            document.documentElement.setAttribute('data-theme', 'dark')
+            document.documentElement.style.colorScheme = 'dark'
+          } else {
+            document.documentElement.removeAttribute('data-theme')
+            document.documentElement.style.colorScheme = 'light'
+            document.body && (document.body.style.backgroundColor = '#fff')
+            document.body && (document.body.style.color = '#111')
+          }
         } catch (error) {
-          const rawConsole = globalThis?.["console"]
+          var rawConsole = globalThis?.["console"]
           rawConsole?.warn?.('Failed to apply initial theme', error)
+          document.documentElement.setAttribute('data-theme', 'dark')
         }
       })()
     </script>

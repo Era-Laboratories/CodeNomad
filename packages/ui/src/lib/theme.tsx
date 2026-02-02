@@ -13,10 +13,12 @@ function applyTheme(dark: boolean) {
   if (typeof document === "undefined") return
   if (dark) {
     document.documentElement.setAttribute("data-theme", "dark")
+    document.documentElement.style.colorScheme = "dark"
     return
   }
 
   document.documentElement.removeAttribute("data-theme")
+  document.documentElement.style.colorScheme = "light"
 }
 
 export function ThemeProvider(props: { children: JSX.Element }) {
